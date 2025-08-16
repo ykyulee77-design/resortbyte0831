@@ -437,12 +437,27 @@ const JobseekerDashboard: React.FC = () => {
           {/* 2. 지원현황 섹션 */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Send className="w-4 h-4 text-green-600" />
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
+                  <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Send className="w-4 h-4 text-green-600" />
+                  </div>
+                  지원현황
+                  <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                    {applications.length}개
+                  </span>
+                </h3>
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                    <span>검토 중: {applications.filter(app => app.status === 'pending' || app.status === 'reviewing').length}개</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span>채용 확정: {applications.filter(app => app.status === 'accepted').length}개</span>
+                  </div>
                 </div>
-                지원현황
-              </h3>
+              </div>
             </div>
             <div className="p-6">
               {applications.length === 0 ? (
@@ -454,48 +469,133 @@ const JobseekerDashboard: React.FC = () => {
                   <p className="text-sm text-gray-500">관심 있는 일자리에 지원해보세요</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {applications.slice(0, 5).map((application) => {
+                <div className="grid gap-4">
+                  {applications.slice(0, 6).map((application) => {
                     const jobPost = jobPosts.find(post => post.id === application.jobPostId);
                     if (!jobPost) return null;
 
                     const getStatusColor = (status: string) => {
                       switch (status) {
-                        case 'pending': return 'text-yellow-600 bg-yellow-100';
-                        case 'accepted': return 'text-green-600 bg-green-100';
-                        case 'rejected': return 'text-red-600 bg-red-100';
-                        default: return 'text-gray-600 bg-gray-100';
+                        case 'pending': return 'text-yellow-600 bg-yellow-100 border-yellow-200';
+                        case 'reviewing': return 'text-blue-600 bg-blue-100 border-blue-200';
+                        case 'interview_scheduled': return 'text-purple-600 bg-purple-100 border-purple-200';
+                        case 'interview_completed': return 'text-indigo-600 bg-indigo-100 border-indigo-200';
+                        case 'offer_sent': return 'text-orange-600 bg-orange-100 border-orange-200';
+                        case 'accepted': return 'text-green-600 bg-green-100 border-green-200';
+                        case 'rejected': return 'text-red-600 bg-red-100 border-red-200';
+                        case 'withdrawn': return 'text-gray-600 bg-gray-100 border-gray-200';
+                        default: return 'text-gray-600 bg-gray-100 border-gray-200';
                       }
                     };
 
                     const getStatusText = (status: string) => {
                       switch (status) {
-                        case 'pending': return '검토 중';
-                        case 'accepted': return '채용됨';
-                        case 'rejected': return '거절됨';
+                        case 'pending': return '지원 완료';
+                        case 'reviewing': return '검토 중';
+                        case 'interview_scheduled': return '면접 예정';
+                        case 'interview_completed': return '면접 완료';
+                        case 'offer_sent': return '제안 전송';
+                        case 'accepted': return '채용 확정';
+                        case 'rejected': return '불합격';
+                        case 'withdrawn': return '지원 취소';
                         default: return '알 수 없음';
                       }
                     };
 
+                    const getStatusIcon = (status: string) => {
+                      switch (status) {
+                        case 'pending': return '📝';
+                        case 'reviewing': return '👀';
+                        case 'interview_scheduled': return '📅';
+                        case 'interview_completed': return '✅';
+                        case 'offer_sent': return '💼';
+                        case 'accepted': return '🎉';
+                        case 'rejected': return '❌';
+                        case 'withdrawn': return '↩️';
+                        default: return '❓';
+                      }
+                    };
+
                     return (
-                      <div key={application.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                        <div className="flex-1">
-                          <h4 className="text-base font-medium text-gray-900">{jobPost.title}</h4>
-                          <p className="text-sm text-gray-600">{jobPost.employerName}</p>
-                          <p className="text-xs text-gray-500">
-                            지원일: {application.appliedAt?.toDate?.()?.toLocaleDateString() || '날짜 없음'}
-                          </p>
+                      <Link
+                        key={application.id}
+                        to={`/application-detail/${application.id}`}
+                        className="block p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:shadow-md transition-all duration-200 group bg-white"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-base font-semibold text-gray-900 group-hover:text-green-600 transition-colors truncate mb-1">
+                              {jobPost.title}
+                            </h4>
+                            <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                              <Building className="w-4 h-4" />
+                              <span className="truncate">{jobPost.employerName}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                              <MapPin className="w-4 h-4" />
+                              <span>{jobPost.location}</span>
+                            </div>
+                            {jobPost.salary && (
+                              <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                                <DollarSign className="w-4 h-4" />
+                                <span>
+                                  {jobPost.salary.min.toLocaleString()}원 ~ {jobPost.salary.max.toLocaleString()}원
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end gap-2 ml-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(application.status)}`}>
+                              <span className="mr-1">{getStatusIcon(application.status)}</span>
+                              {getStatusText(application.status)}
+                            </span>
+                            <div className="text-xs text-gray-400 text-right">
+                              {application.appliedAt?.toDate?.()?.toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              }) || '날짜 없음'}
+                            </div>
+                          </div>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(application.status)}`}>
-                          {getStatusText(application.status)}
-                        </span>
-                      </div>
+                        
+                        {/* 추가 정보 */}
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {jobPost.scheduleType === 'smart_matching' ? '스마트 매칭' : '일반 근무'}
+                            </span>
+                            {jobPost.workTypes && jobPost.workTypes.length > 0 && (
+                              <span className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {jobPost.workTypes.length}개 근무타입
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-green-600 font-medium group-hover:text-green-700">
+                            <span>상세보기</span>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </div>
+                        </div>
+                      </Link>
                     );
                   })}
-                  {applications.length > 5 && (
+                  {applications.length > 6 && (
                     <div className="text-center pt-4 border-t border-gray-100">
-                      <Link to="/applications" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                        전체 지원내역 보기 ({applications.length}개)
+                      <Link 
+                        to="/my-applications" 
+                        className="inline-flex items-center gap-2 px-4 py-2 text-sm text-green-600 hover:text-green-700 font-medium bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                      >
+                        <span>전체 지원내역 보기</span>
+                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">
+                          {applications.length}개
+                        </span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </Link>
                     </div>
                   )}
