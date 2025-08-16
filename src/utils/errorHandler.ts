@@ -27,7 +27,6 @@ export const getFirebaseErrorMessage = (errorCode: string): string => {
     'out-of-range': '범위를 벗어난 값입니다.',
     'unimplemented': '구현되지 않은 기능입니다.',
     'internal': '내부 서버 오류가 발생했습니다.',
-    'unavailable': '서비스를 사용할 수 없습니다.',
     'data-loss': '데이터 손실이 발생했습니다.',
     'unauthenticated': '인증이 필요합니다.',
   };
