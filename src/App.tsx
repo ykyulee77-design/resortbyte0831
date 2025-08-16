@@ -40,22 +40,46 @@ import CrewDashboard from './pages/CrewDashboard';
 import Layout from './components/Layout';
 import HomeLayout from './components/HomeLayout';
 
+// 로딩 컴포넌트
+const LoadingSpinner: React.FC = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-resort-500 mx-auto mb-4"></div>
+      <p className="text-gray-600">로딩 중...</p>
+    </div>
+  </div>
+);
+
+// 에러 페이지 컴포넌트
+const ErrorPage: React.FC<{ message?: string }> = ({ message = "페이지를 찾을 수 없습니다." }) => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="text-center">
+      <h1 className="text-2xl font-bold text-gray-800 mb-4">오류가 발생했습니다</h1>
+      <p className="text-gray-600">{message}</p>
+      <button 
+        onClick={() => window.history.back()} 
+        className="mt-4 px-4 py-2 bg-resort-500 text-white rounded hover:bg-resort-600"
+      >
+        이전 페이지로 돌아가기
+      </button>
+    </div>
+  </div>
+);
+
 // 보호된 라우트 컴포넌트
-const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ 
+const ProtectedRoute: React.FC<{ 
+  children: React.ReactNode; 
+  allowedRoles?: string[];
+  fallback?: React.ReactNode;
+}> = ({ 
   children, 
-  allowedRoles 
+  allowedRoles,
+  fallback = <ErrorPage message="접근 권한이 없습니다." />
 }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-resort-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">로딩 중...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (!user) {
@@ -63,7 +87,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    return <>{fallback}</>;
   }
 
   return <>{children}</>;
@@ -79,7 +103,7 @@ const DashboardRouter: React.FC = () => {
     case 'jobseeker':
       return <JobseekerDashboard />;
     case 'employer':
-              return <CompanyDashboard />;
+      return <CompanyDashboard />;
     case 'admin':
       return <AdminDashboard />;
     default:
@@ -107,12 +131,16 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/register" element={<Register />} />
+            
+            {/* 구인공고 관련 라우트 */}
             <Route path="/jobs" element={<Navigate to="/" replace />} />
             <Route path="/job/:id" element={
               <HomeLayout>
                 <JobPostDetail />
               </HomeLayout>
             } />
+            
+            {/* 회사 정보 관련 라우트 */}
             <Route path="/company/:employerId" element={
               <HomeLayout>
                 <CompanyInfoPage />
@@ -123,6 +151,8 @@ function App() {
                 <AccommodationInfoPage />
               </HomeLayout>
             } />
+            
+            {/* 리뷰 관련 라우트 */}
             <Route path="/reviews" element={<Reviews />} />
             <Route path="/reviews/new" element={<ReviewForm />} />
             <Route path="/reviews/media/new" element={<ReviewsMediaForm />} />
@@ -136,9 +166,6 @@ function App() {
                 </Layout>
               </ProtectedRoute>
             } />
-
-            {/* 회사별 대시보드 라우트 */}
-            <Route path="/company/:companyId/dashboard" element={<CompanyDashboard />} />
 
             {/* 구직자 전용 라우트 */}
             <Route path="/jobseeker" element={
@@ -200,7 +227,7 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 지원서 작성 페이지 */}
+            {/* 지원서 관련 라우트 */}
             <Route path="/apply/:jobId" element={
               <ProtectedRoute allowedRoles={['jobseeker']}>
                 <Layout>
@@ -209,7 +236,6 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 지원자 관리 페이지 */}
             <Route path="/applications" element={
               <ProtectedRoute allowedRoles={['employer']}>
                 <Layout>
@@ -218,7 +244,6 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 구직자 지원 내역 페이지 */}
             <Route path="/my-applications" element={
               <ProtectedRoute allowedRoles={['jobseeker']}>
                 <Layout>
@@ -227,7 +252,6 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 최종 채용자 관리 페이지 */}
             <Route path="/hired-candidates" element={
               <ProtectedRoute allowedRoles={['employer']}>
                 <Layout>
@@ -236,7 +260,6 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 지원서 상세 보기 페이지 */}
             <Route path="/application-detail/:applicationId" element={
               <ProtectedRoute allowedRoles={['employer', 'jobseeker']}>
                 <Layout>
@@ -245,7 +268,6 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 지원서 수정 페이지 */}
             <Route path="/application-edit/:applicationId" element={
               <ProtectedRoute allowedRoles={['jobseeker']}>
                 <Layout>
@@ -254,7 +276,6 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 지원서 템플릿 관리 페이지 */}
             <Route path="/application-templates" element={
               <ProtectedRoute allowedRoles={['jobseeker']}>
                 <Layout>
@@ -306,8 +327,8 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 기본 리다이렉트 */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* 404 페이지 */}
+            <Route path="*" element={<ErrorPage />} />
           </Routes>
         </div>
       </Router>
