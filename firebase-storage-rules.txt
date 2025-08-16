@@ -1,0 +1,45 @@
+# Firebase Storage 규칙 예시
+# 이 파일은 Firebase Console에서 Storage > Rules에 복사해서 사용하세요
+
+# 현재 사용 중인 규칙 (인증된 사용자만 접근)
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 기숙사 이미지 폴더
+    match /accommodation-images/{fileName} {
+      // 인증된 사용자만 읽기/쓰기 가능
+      allow read, write: if request.auth != null;
+    }
+    
+    // 회사 이미지 폴더 (향후 확장용)
+    match /company-images/{fileName} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // 기본 규칙 - 모든 파일에 대해 인증된 사용자만 접근
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+# CORS 오류 해결을 위한 임시 규칙 (개발 환경용)
+# 위 규칙이 작동하지 않을 때 이 규칙을 사용하세요
+# rules_version = '2';
+# service firebase.storage {
+#   match /b/{bucket}/o {
+#     match /{allPaths=**} {
+#       allow read, write: if true;
+#     }
+#   }
+# }
+
+# Firebase Console에서 CORS 설정 방법:
+# 1. Firebase Console에서 프로젝트 선택
+# 2. Storage > Rules로 이동
+# 3. 위의 규칙 중 하나를 복사하여 붙여넣기
+# 4. "게시" 버튼 클릭
+# 
+# 추가 CORS 설정 (Firebase CLI 필요):
+# 1. firebase login
+# 2. gsutil cors set firebase-storage-cors.json gs://[YOUR-BUCKET-NAME] 
