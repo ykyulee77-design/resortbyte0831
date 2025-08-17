@@ -419,7 +419,38 @@ const JobPostDetail: React.FC = () => {
                 </>
               ) : (
               <button
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => {
+                    // 편집 모드로 전환할 때 기존 데이터를 editData에 복사
+                    if (job) {
+                      setEditData({
+                        title: job.title || '',
+                        jobTitle: job.jobTitle || '',
+                        description: job.description || '',
+                        location: job.location || '',
+                        workplaceName: job.workplaceName || '',
+                        salary: job.salary || { min: 0, max: 0, type: 'hourly' },
+                        requirements: job.requirements || [''],
+                        benefits: job.benefits || [''],
+                        workTimeType: job.workTimeType || '무관',
+                        memo: job.memo || '',
+                        contactInfo: job.contactInfo || { email: '', phone: '' },
+                        workSchedule: job.workSchedule || { days: [], hours: '' },
+                        startDate: job.startDate,
+                        endDate: job.endDate,
+                        accommodation: job.accommodation || { provided: false, info: '' },
+                        meal: (() => {
+                          if (typeof job.meal === 'object' && job.meal && 'provided' in job.meal && 'info' in job.meal) {
+                            return job.meal as { provided: boolean; info: string };
+                          }
+                          return { provided: false, info: '' };
+                        })(),
+                        employeeBenefits: job.employeeBenefits || '',
+                        workTypes: job.workTypes || [],
+                        employerId: job.employerId
+                      });
+                    }
+                    setIsEditing(true);
+                  }}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                   <Edit className="h-4 w-4 mr-2" />
