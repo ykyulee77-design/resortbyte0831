@@ -311,13 +311,18 @@ const JobPostForm: React.FC = () => {
   };
 
   const uploadImages = async (images: File[]): Promise<string[]> => {
-    const uploadPromises = images.map(async (image) => {
-      const storageRef = ref(storage, `job-posts/${Date.now()}_${image.name}`);
-      const snapshot = await uploadBytes(storageRef, image);
-      return getDownloadURL(snapshot.ref);
-    });
+    // 임시로 이미지 업로드를 비활성화하여 CORS 오류 방지
+    console.log('이미지 업로드 비활성화됨 (CORS 오류 해결 중)');
+    return [];
     
-    return Promise.all(uploadPromises);
+    // 원래 코드 (CORS 문제 해결 후 활성화 예정)
+    // const uploadPromises = images.map(async (image) => {
+    //   const storageRef = ref(storage, `job-posts/${Date.now()}_${image.name}`);
+    //   const snapshot = await uploadBytes(storageRef, image);
+    //   return getDownloadURL(snapshot.ref);
+    // });
+    // 
+    // return Promise.all(uploadPromises);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
