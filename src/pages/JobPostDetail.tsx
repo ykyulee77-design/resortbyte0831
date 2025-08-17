@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Building, Calendar, Clock, FileText, Home, Users, MessageSquare, User, MapPin, Edit, Save, X, List, Settings } from 'lucide-react';
+import { Building, Calendar, Clock, FileText, Home, Users, MessageSquare, User, MapPin, Edit, Save, X, List, Settings, Send, CheckCircle } from 'lucide-react';
 import { JobPost, Application, CompanyInfo, AccommodationInfo, WorkType } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import WorkTypeManager from '../components/WorkTypeManager';
@@ -13,6 +13,7 @@ const JobPostDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isEditMode = searchParams.get('edit') === 'true';
 
   // 상태 관리
@@ -23,6 +24,11 @@ const JobPostDetail: React.FC = () => {
   const [isEditing, setIsEditing] = useState(isEditMode);
   const [showWorkTypeManager, setShowWorkTypeManager] = useState(false);
   const [isWorkTypeSelectionMode, setIsWorkTypeSelectionMode] = useState(false);
+  
+  // 지원 관련 상태
+  const [hasApplied, setHasApplied] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [showApplyModal, setShowApplyModal] = useState(false);
   
   // 회사 및 기숙사 정보
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
@@ -57,6 +63,51 @@ const JobPostDetail: React.FC = () => {
      meal: { provided: false, info: '' },
      employeeBenefits: '',
   });
+
+  // 지원 여부 확인
+  const checkApplicationStatus = useCallback(async () => {
+    if (!user?.uid || !id) return;
+    
+    try {
+      const applicationsQuery = query(
+        collection(db, 'applications'),
+        where('jobPostId', '==', id),
+        where('jobseekerId', '==', user.uid)
+      );
+      const querySnapshot = await getDocs(applicationsQuery);
+      setHasApplied(!querySnapshot.empty);
+    } catch (error) {
+      console.error('지원 상태 확인 실패:', error);
+    }
+  }, [user?.uid, id]);
+
+  // 지원하기
+  const handleApply = async () => {
+    if (!user?.uid || !job) return;
+    
+    setApplying(true);
+    try {
+      const applicationData = {
+        jobPostId: job.id,
+        jobseekerId: user.uid,
+        jobseekerName: user.displayName || '이름 없음',
+        status: 'pending',
+        appliedAt: serverTimestamp(),
+        message: '',
+        resume: user.resume || {}
+      };
+      
+      await addDoc(collection(db, 'applications'), applicationData);
+      setHasApplied(true);
+      setShowApplyModal(false);
+      alert('지원이 완료되었습니다!');
+    } catch (error) {
+      console.error('지원 실패:', error);
+      alert('지원 중 오류가 발생했습니다.');
+    } finally {
+      setApplying(false);
+    }
+  };
 
   // 공고 정보 불러오기
   const fetchJob = useCallback(async () => {
@@ -212,6 +263,12 @@ const JobPostDetail: React.FC = () => {
   useEffect(() => {
     fetchJob();
   }, [fetchJob]);
+
+  useEffect(() => {
+    if (user?.uid && id) {
+      checkApplicationStatus();
+    }
+  }, [user?.uid, id, checkApplicationStatus]);
 
   const handleInputChange = (field: string, value: any) => {
     setEditData(prev => ({
@@ -816,6 +873,59 @@ const JobPostDetail: React.FC = () => {
 
         {/* 사이드바 */}
         <div className="space-y-6">
+          {/* 지원 버튼 (구직자만) */}
+          {user?.role === 'jobseeker' && job && (
+            <div className="bg-white rounded-lg border p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <Send className="h-5 w-5 mr-2 text-green-600" />
+                지원하기
+              </h2>
+              
+              {hasApplied ? (
+                <div className="text-center py-6">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-green-700 mb-2">이미 지원했습니다</h3>
+                  <p className="text-sm text-gray-600 mb-4">지원 현황은 대시보드에서 확인할 수 있습니다.</p>
+                  <Link
+                    to="/dashboard"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    지원 현황 보기
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-green-50 rounded-lg p-4">
+                    <h3 className="font-semibold text-green-800 mb-2">지원 전 확인사항</h3>
+                    <ul className="text-sm text-green-700 space-y-1">
+                      <li>• 이력서가 완성되어 있는지 확인해주세요</li>
+                      <li>• 지원 후에는 취소할 수 없습니다</li>
+                      <li>• 지원 현황은 대시보드에서 확인 가능합니다</li>
+                    </ul>
+                  </div>
+                  
+                  <button
+                    onClick={() => setShowApplyModal(true)}
+                    className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center justify-center gap-2"
+                  >
+                    <Send className="w-5 h-5" />
+                    이 공고에 지원하기
+                  </button>
+                  
+                  <div className="text-center">
+                    <Link
+                      to="/profile"
+                      className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    >
+                      이력서 수정하기
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 회사 정보 */}
           <div className="bg-white rounded-lg border p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center">
@@ -1049,6 +1159,61 @@ const JobPostDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 지원 확인 모달 */}
+      {showApplyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <Send className="w-6 h-6 text-green-600" />
+              <h3 className="text-lg font-semibold text-gray-900">지원 확인</h3>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-600 mb-4">
+                <strong>{job?.title}</strong> 공고에 지원하시겠습니까?
+              </p>
+              
+              <div className="bg-blue-50 rounded-lg p-3">
+                <h4 className="text-sm font-semibold text-blue-800 mb-2">지원 정보</h4>
+                <div className="text-sm text-blue-700 space-y-1">
+                  <div>• 지원자: {user?.displayName}</div>
+                  <div>• 공고: {job?.title}</div>
+                  <div>• 회사: {job?.workplaceName}</div>
+                  <div>• 위치: {job?.location}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={handleApply}
+                disabled={applying}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {applying ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    지원 중...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    지원하기
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowApplyModal(false)}
+                disabled={applying}
+                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 근무 유형 관리 모달 */}
       {showWorkTypeManager && (
