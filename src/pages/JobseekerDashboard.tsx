@@ -395,20 +395,13 @@ const JobseekerDashboard: React.FC = () => {
                     </>
                   )}
                 </div>
-                <div className="mt-4 flex gap-3">
+                <div className="mt-4">
                   <Link
                     to="/profile"
-                    className="text-xs bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition-colors inline-flex items-center gap-1"
+                    className="text-xs bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2 font-medium"
                   >
                     <FileText className="w-3 h-3" />
-                    이력서 보기
-                  </Link>
-                  <Link
-                    to="/profile"
-                    className="text-xs bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700 transition-colors inline-flex items-center gap-1"
-                  >
-                    <span>✏️</span>
-                    이력서 수정
+                    이력서 관리
                   </Link>
                 </div>
               </div>
