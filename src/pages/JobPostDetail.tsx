@@ -97,26 +97,31 @@ const JobPostDetail: React.FC = () => {
     );
   };
 
-  // 회사 이미지 업로드
+  // 회사 이미지 업로드 (CORS 오류 해결 중 임시 비활성화)
   const handleCompanyImageUpload = async (files: FileList) => {
     if (!files || files.length === 0) return;
     
-    setUploadingCompanyImages(true);
-    try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        const storageRef = ref(storage, `company-images/${Date.now()}_${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        return getDownloadURL(snapshot.ref);
-      });
-      
-      const newImageUrls = await Promise.all(uploadPromises);
-      setCompanyImages(prev => [...prev, ...newImageUrls]);
-    } catch (error) {
-      console.error('회사 이미지 업로드 실패:', error);
-      alert('회사 이미지 업로드에 실패했습니다.');
-    } finally {
-      setUploadingCompanyImages(false);
-    }
+    // 임시로 이미지 업로드를 비활성화하여 CORS 오류 방지
+    console.log('회사 이미지 업로드 비활성화됨 (CORS 오류 해결 중)');
+    alert('회사 이미지 업로드 기능이 일시적으로 비활성화되었습니다. (CORS 설정 중)');
+    
+    // 원래 코드 (CORS 문제 해결 후 활성화 예정)
+    // setUploadingCompanyImages(true);
+    // try {
+    //   const uploadPromises = Array.from(files).map(async (file) => {
+    //     const storageRef = ref(storage, `company-images/${Date.now()}_${file.name}`);
+    //     const snapshot = await uploadBytes(storageRef, file);
+    //     return getDownloadURL(snapshot.ref);
+    //   });
+    //   
+    //   const newImageUrls = await Promise.all(uploadPromises);
+    //   setCompanyImages(prev => [...prev, ...newImageUrls]);
+    // } catch (error) {
+    //   console.error('회사 이미지 업로드 실패:', error);
+    //   alert('회사 이미지 업로드에 실패했습니다.');
+    // } finally {
+    //   setUploadingCompanyImages(false);
+    // }
   };
 
   // 회사 이미지 삭제
