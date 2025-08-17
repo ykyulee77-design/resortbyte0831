@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Globe, Building, Users, Calendar, Plus, Trash2, Upload, Image, Eye } from 'lucide-react';
 import { CompanyInfo } from '../types';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../firebase';
-import { optimizeImage, getFileSizeMB, isFileTooLarge, isImageFile, generateSafeFileName, generateStoragePath } from '../utils/imageOptimizer';
+import { db } from '../firebase';
+import { uploadImage, deleteImage, validateImageFile, compressImage } from '../utils/imageUpload';
 
 interface CompanyInfoModalProps {
   isOpen: boolean;
@@ -121,75 +120,42 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
 
     try {
       setUploadingImages(true);
+      const fileArray = Array.from(files);
       const uploadedUrls: string[] = [];
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        
-        // 파일 크기 체크 (5MB 제한)
-        if (file.size > 5 * 1024 * 1024) {
-          alert(`파일 "${file.name}"의 크기는 5MB 이하여야 합니다.`);
+      for (const file of fileArray) {
+        // 파일 검증
+        const validation = validateImageFile(file);
+        if (!validation.valid) {
+          alert(`파일 "${file.name}": ${validation.error}`);
           continue;
         }
 
-        // 파일 타입 체크
-        if (!isImageFile(file)) {
-          alert(`파일 "${file.name}"은 이미지 파일이 아닙니다.`);
-          continue;
-        }
-
-        // 파일 크기 확인 및 최적화
-        let optimizedFile = file;
-        const originalSizeMB = getFileSizeMB(file);
-        
-        if (isFileTooLarge(file, 1)) {
+        // 이미지 압축 (필요시)
+        let processedFile = file;
+        if (file.size > 1024 * 1024) { // 1MB 이상인 경우 압축
           try {
-            optimizedFile = await optimizeImage(file, {
-              maxWidth: 1920,
-              maxHeight: 1080,
-              quality: 0.8,
-              maxSizeMB: 1
-            });
-          } catch (optimizeError) {
-            console.error('이미지 최적화 실패:', optimizeError);
-            alert(`파일 "${file.name}" 최적화에 실패했습니다. 원본 파일로 진행합니다.`);
+            processedFile = await compressImage(file, 1920);
+          } catch (compressError) {
+            console.error('이미지 압축 실패:', compressError);
+            // 압축 실패시 원본 파일 사용
           }
         }
 
-        // 재시도 로직
-        let retryCount = 0;
-        const maxRetries = 3;
-        let uploadSuccess = false;
-
-        while (retryCount < maxRetries && !uploadSuccess) {
-          try {
-            // Firebase Storage에 업로드
-            const fileName = generateSafeFileName(employerId, optimizedFile.name, i);
-            const storagePath = generateStoragePath(employerId, fileName);
-            const storageRef = ref(storage, storagePath);
-            
-            // 메타데이터 설정
-            const metadata = {
-              contentType: optimizedFile.type,
-              cacheControl: 'public, max-age=31536000',
-            };
-            
-            const snapshot = await uploadBytes(storageRef, optimizedFile, metadata);
-            const downloadURL = await getDownloadURL(storageRef);
-            uploadedUrls.push(downloadURL);
-            uploadSuccess = true;
-            
-          } catch (uploadError: any) {
-            retryCount++;
-            console.error(`업로드 시도 ${retryCount} 실패:`, uploadError);
-            
-            if (retryCount >= maxRetries) {
-              alert(`파일 "${file.name}" 업로드에 실패했습니다. 다시 시도해주세요.`);
-            } else {
-              // 잠시 대기 후 재시도
-              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-            }
+        // 이미지 업로드
+        const result = await uploadImage(processedFile, {
+          folder: 'company-images',
+          metadata: {
+            uploadedBy: employerId,
+            uploadType: 'company-info',
+            originalName: file.name
           }
+        });
+
+        if (result.success && result.url) {
+          uploadedUrls.push(result.url);
+        } else {
+          alert(`파일 "${file.name}" 업로드에 실패했습니다: ${result.error}`);
         }
       }
 
@@ -214,17 +180,20 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
     if (!window.confirm('이 이미지를 삭제하시겠습니까?')) return;
 
     try {
-      // Firebase Storage에서 파일 삭제
-      const storageRef = ref(storage, imageUrl);
-      await deleteObject(storageRef);
+      // 이미지 삭제
+      const result = await deleteImage(imageUrl);
       
-      // 상태에서 이미지 제거
-      setCompanyInfo(prev => ({
-        ...prev,
-        images: prev.images?.filter((_, i) => i !== index) || []
-      }));
-      
-      alert('이미지가 삭제되었습니다.');
+      if (result.success) {
+        // 상태에서 이미지 제거
+        setCompanyInfo(prev => ({
+          ...prev,
+          images: prev.images?.filter((_, i) => i !== index) || []
+        }));
+        
+        alert('이미지가 삭제되었습니다.');
+      } else {
+        alert('이미지 삭제에 실패했습니다: ' + result.error);
+      }
     } catch (error) {
       console.error('이미지 삭제 실패:', error);
       alert('이미지 삭제 중 오류가 발생했습니다.');

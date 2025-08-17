@@ -131,10 +131,20 @@ const AccommodationInfoPage: React.FC = () => {
       );
 
       const uploadResults = await Promise.all(
-        compressedFiles.map(file => uploadImage(file, 'accommodation-images', employerId))
+        compressedFiles.map(file => uploadImage(file, {
+          folder: 'accommodation-images',
+          metadata: {
+            uploadedBy: employerId,
+            uploadType: 'accommodation-image'
+          }
+        }))
       );
 
-      const newImages = uploadResults.map(result => result.url);
+      const newImages = uploadResults
+        .filter(result => result.success)
+        .map(result => result.url!)
+        .filter(Boolean);
+      
       const updatedImages = [...(editForm.images || []), ...newImages];
       
       setEditForm(prev => ({
@@ -156,11 +166,18 @@ const AccommodationInfoPage: React.FC = () => {
     if (!window.confirm('이 이미지를 삭제하시겠습니까?')) return;
 
     try {
-      const updatedImages = (editForm.images || []).filter((_, i) => i !== index);
-      setEditForm(prev => ({
-        ...prev,
-        images: updatedImages
-      }));
+      // 이미지 삭제
+      const result = await deleteImage(imageUrl);
+      
+      if (result.success) {
+        const updatedImages = (editForm.images || []).filter((_, i) => i !== index);
+        setEditForm(prev => ({
+          ...prev,
+          images: updatedImages
+        }));
+      } else {
+        alert('이미지 삭제에 실패했습니다: ' + result.error);
+      }
     } catch (error) {
       console.error('이미지 삭제 실패:', error);
       alert('이미지 삭제에 실패했습니다.');

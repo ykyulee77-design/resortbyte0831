@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { collection, addDoc, updateDoc, doc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../firebase';
+import { db } from '../firebase';
+import { uploadMultipleImages, validateImageFile } from '../utils/imageUpload';
 import { JobPost, WorkType, TimeSlot } from '../types';
 
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -311,16 +311,33 @@ const JobPostForm: React.FC = () => {
   };
 
   const uploadImages = async (images: File[]): Promise<string[]> => {
-    // CORS 설정 완료로 이미지 업로드 재활성화
     console.log('이미지 업로드 시작:', images.length, '개 파일');
     
-    const uploadPromises = images.map(async (image) => {
-      const storageRef = ref(storage, `job-posts/${Date.now()}_${image.name}`);
-      const snapshot = await uploadBytes(storageRef, image);
-      return getDownloadURL(snapshot.ref);
+    // 파일 검증
+    for (const image of images) {
+      const validation = validateImageFile(image);
+      if (!validation.valid) {
+        throw new Error(validation.error);
+      }
+    }
+    
+    // 이미지 업로드
+    const results = await uploadMultipleImages(images, {
+      folder: 'job-posts',
+      metadata: {
+        uploadedBy: user?.uid,
+        uploadType: 'job-post'
+      }
     });
     
-    return Promise.all(uploadPromises);
+    // 성공한 업로드만 URL 반환
+    const urls = results
+      .filter(result => result.success)
+      .map(result => result.url!)
+      .filter(Boolean);
+    
+    console.log('업로드 완료:', urls.length, '개 성공');
+    return urls;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

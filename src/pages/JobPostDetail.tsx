@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '../firebase';
+import { db } from '../firebase';
+import { uploadImage, deleteImage, validateImageFile } from '../utils/imageUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { Building, Calendar, Clock, FileText, Home, Users, MessageSquare, User, MapPin, Edit, Save, X, List, Settings, Send, CheckCircle } from 'lucide-react';
 import { JobPost, Application, CompanyInfo, AccommodationInfo, WorkType } from '../types';
@@ -97,42 +97,67 @@ const JobPostDetail: React.FC = () => {
     );
   };
 
-  // 회사 이미지 업로드 (CORS 오류 해결 중 임시 비활성화)
+  // 회사 이미지 업로드
   const handleCompanyImageUpload = async (files: FileList) => {
     if (!files || files.length === 0) return;
     
-    // 임시로 이미지 업로드를 비활성화하여 CORS 오류 방지
-    console.log('회사 이미지 업로드 비활성화됨 (CORS 오류 해결 중)');
-    alert('회사 이미지 업로드 기능이 일시적으로 비활성화되었습니다. (CORS 설정 중)');
-    
-    // 원래 코드 (CORS 문제 해결 후 활성화 예정)
-    // setUploadingCompanyImages(true);
-    // try {
-    //   const uploadPromises = Array.from(files).map(async (file) => {
-    //     const storageRef = ref(storage, `company-images/${Date.now()}_${file.name}`);
-    //     const snapshot = await uploadBytes(storageRef, file);
-    //     return getDownloadURL(snapshot.ref);
-    //   });
-    //   
-    //   const newImageUrls = await Promise.all(uploadPromises);
-    //   setCompanyImages(prev => [...prev, ...newImageUrls]);
-    // } catch (error) {
-    //   console.error('회사 이미지 업로드 실패:', error);
-    //   alert('회사 이미지 업로드에 실패했습니다.');
-    // } finally {
-    //   setUploadingCompanyImages(false);
-    // }
+    setUploadingCompanyImages(true);
+    try {
+      const fileArray = Array.from(files);
+      
+      // 파일 검증
+      for (const file of fileArray) {
+        const validation = validateImageFile(file);
+        if (!validation.valid) {
+          alert(validation.error);
+          return;
+        }
+      }
+      
+      // 이미지 업로드
+      const results = await Promise.all(
+        fileArray.map(file => 
+          uploadImage(file, {
+            folder: 'company-images',
+            metadata: {
+              uploadedBy: user?.uid,
+              uploadType: 'company-image'
+            }
+          })
+        )
+      );
+      
+      // 성공한 업로드만 추가
+      const newImageUrls = results
+        .filter(result => result.success)
+        .map(result => result.url!)
+        .filter(Boolean);
+      
+      setCompanyImages(prev => [...prev, ...newImageUrls]);
+      
+      if (newImageUrls.length < fileArray.length) {
+        alert('일부 이미지 업로드에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('회사 이미지 업로드 실패:', error);
+      alert('회사 이미지 업로드에 실패했습니다.');
+    } finally {
+      setUploadingCompanyImages(false);
+    }
   };
 
   // 회사 이미지 삭제
   const handleCompanyImageDelete = async (imageUrl: string, index: number) => {
     try {
-      // Firebase Storage에서 이미지 삭제
-      const imageRef = ref(storage, imageUrl);
-      await deleteObject(imageRef);
+      // 이미지 삭제
+      const result = await deleteImage(imageUrl);
       
-      // 로컬 상태에서 이미지 제거
-      setCompanyImages(prev => prev.filter((_, i) => i !== index));
+      if (result.success) {
+        // 로컬 상태에서 이미지 제거
+        setCompanyImages(prev => prev.filter((_, i) => i !== index));
+      } else {
+        alert('이미지 삭제에 실패했습니다: ' + result.error);
+      }
     } catch (error) {
       console.error('회사 이미지 삭제 실패:', error);
       alert('회사 이미지 삭제에 실패했습니다.');
