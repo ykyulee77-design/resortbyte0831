@@ -29,6 +29,8 @@ const JobPostDetail: React.FC = () => {
   const [hasApplied, setHasApplied] = useState(false);
   const [applying, setApplying] = useState(false);
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([]);
+  const [applyMessage, setApplyMessage] = useState('');
   
   // 회사 및 기숙사 정보
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
@@ -81,9 +83,24 @@ const JobPostDetail: React.FC = () => {
     }
   }, [user?.uid, id]);
 
+  // 근무 타입 선택 토글
+  const toggleWorkType = (workTypeId: string) => {
+    setSelectedWorkTypes(prev => 
+      prev.includes(workTypeId) 
+        ? prev.filter(id => id !== workTypeId)
+        : [...prev, workTypeId]
+    );
+  };
+
   // 지원하기
   const handleApply = async () => {
     if (!user?.uid || !job) return;
+    
+    // 근무 타입이 있는데 선택하지 않은 경우
+    if (job.workTypes && job.workTypes.length > 0 && selectedWorkTypes.length === 0) {
+      alert('근무 타입을 하나 이상 선택해주세요.');
+      return;
+    }
     
     setApplying(true);
     try {
@@ -93,13 +110,16 @@ const JobPostDetail: React.FC = () => {
         jobseekerName: user.displayName || '이름 없음',
         status: 'pending',
         appliedAt: serverTimestamp(),
-        message: '',
-        resume: user.resume || {}
+        message: applyMessage,
+        resume: user.resume || {},
+        selectedWorkTypeIds: selectedWorkTypes
       };
       
       await addDoc(collection(db, 'applications'), applicationData);
       setHasApplied(true);
       setShowApplyModal(false);
+      setSelectedWorkTypes([]);
+      setApplyMessage('');
       alert('지원이 완료되었습니다!');
     } catch (error) {
       console.error('지원 실패:', error);
@@ -906,7 +926,11 @@ const JobPostDetail: React.FC = () => {
                   </div>
                   
                   <button
-                    onClick={() => setShowApplyModal(true)}
+                    onClick={() => {
+                      setSelectedWorkTypes([]);
+                      setApplyMessage('');
+                      setShowApplyModal(true);
+                    }}
                     className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center justify-center gap-2"
                   >
                     <Send className="w-5 h-5" />
@@ -1163,18 +1187,15 @@ const JobPostDetail: React.FC = () => {
       {/* 지원 확인 모달 */}
       {showApplyModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center gap-3 mb-4">
               <Send className="w-6 h-6 text-green-600" />
-              <h3 className="text-lg font-semibold text-gray-900">지원 확인</h3>
+              <h3 className="text-lg font-semibold text-gray-900">지원하기</h3>
             </div>
             
-            <div className="mb-6">
-              <p className="text-gray-600 mb-4">
-                <strong>{job?.title}</strong> 공고에 지원하시겠습니까?
-              </p>
-              
-              <div className="bg-blue-50 rounded-lg p-3">
+            <div className="space-y-6">
+              {/* 지원 정보 요약 */}
+              <div className="bg-blue-50 rounded-lg p-4">
                 <h4 className="text-sm font-semibold text-blue-800 mb-2">지원 정보</h4>
                 <div className="text-sm text-blue-700 space-y-1">
                   <div>• 지원자: {user?.displayName}</div>
@@ -1183,13 +1204,71 @@ const JobPostDetail: React.FC = () => {
                   <div>• 위치: {job?.location}</div>
                 </div>
               </div>
+
+              {/* 근무 타입 선택 */}
+              {job?.workTypes && job.workTypes.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-800 mb-3">근무 타입 선택 *</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {job.workTypes.map((workType) => (
+                      <div
+                        key={workType.id}
+                        onClick={() => toggleWorkType(workType.id)}
+                        className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                          selectedWorkTypes.includes(workType.id)
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h5 className="font-medium text-gray-900">{workType.name}</h5>
+                            <p className="text-sm text-gray-600">{workType.description}</p>
+                          </div>
+                          {selectedWorkTypes.includes(workType.id) && (
+                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedWorkTypes.length === 0 && (
+                    <p className="text-sm text-red-600 mt-2">근무 타입을 하나 이상 선택해주세요.</p>
+                  )}
+                </div>
+              )}
+
+              {/* 추가 메시지 */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800 mb-2">추가 메시지 (선택사항)</h4>
+                <textarea
+                  value={applyMessage}
+                  onChange={(e) => setApplyMessage(e.target.value)}
+                  placeholder="지원 동기나 특별히 전달하고 싶은 내용이 있다면 작성해주세요..."
+                  className="w-full h-24 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+              </div>
+
+              {/* 지원 전 확인사항 */}
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-yellow-800 mb-2">지원 전 확인사항</h4>
+                <ul className="text-sm text-yellow-700 space-y-1">
+                  <li>• 이력서가 완성되어 있는지 확인해주세요</li>
+                  <li>• 지원 후에는 취소할 수 없습니다</li>
+                  <li>• 지원 현황은 대시보드에서 확인 가능합니다</li>
+                </ul>
+              </div>
             </div>
             
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-6">
               <button
                 onClick={handleApply}
-                disabled={applying}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                disabled={applying || (job?.workTypes && job.workTypes.length > 0 && selectedWorkTypes.length === 0)}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {applying ? (
                   <>
@@ -1204,7 +1283,11 @@ const JobPostDetail: React.FC = () => {
                 )}
               </button>
               <button
-                onClick={() => setShowApplyModal(false)}
+                onClick={() => {
+                  setShowApplyModal(false);
+                  setSelectedWorkTypes([]);
+                  setApplyMessage('');
+                }}
                 disabled={applying}
                 className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
