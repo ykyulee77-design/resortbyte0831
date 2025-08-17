@@ -627,68 +627,7 @@ const JobPostDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* 근무 일정 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <Calendar className="h-5 w-5 mr-2" />
-              근무 일정
-            </h2>
-            <div className="space-y-4">
-                      <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">근무 요일</label>
-                {isEditing ? (
-                  <div className="grid grid-cols-7 gap-2">
-                    {['월', '화', '수', '목', '금', '토', '일'].map((day) => (
-                      <label key={day} className="flex items-center justify-center p-2 border border-gray-300 rounded-lg">
-                        <input
-                          type="checkbox"
-                          checked={editData.workSchedule?.days?.includes(day) || false}
-                          onChange={(e) => {
-                                const currentDays = editData.workSchedule?.days || [];
-                            const newDays = e.target.checked
-                              ? [...currentDays, day]
-                              : currentDays.filter(d => d !== day);
-                                handleInputChange('workSchedule', { 
-                                  ...editData.workSchedule, 
-                                  days: newDays 
-                                });
-                              }}
-                          className="mr-1"
-                        />
-                              {day}
-                      </label>
-                          ))}
-                        </div>
-                ) : (
-                  <p className="text-gray-900">
-                    {job.workSchedule?.days && job.workSchedule.days.length > 0 
-                      ? job.workSchedule.days.join(', ') 
-                      : '근무 요일 미정'}
-                  </p>
-                )}
-                  </div>
-
-                  <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">근무 시간</label>
-                {isEditing ? (
-                      <input
-                        type="text"
-                          value={editData.workSchedule?.hours || ''}
-                          onChange={(e) => handleInputChange('workSchedule', { 
-                            ...editData.workSchedule, 
-                            hours: e.target.value 
-                          })}
-                        placeholder="예: 09:00-18:00"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                ) : (
-                  <p className="text-gray-900">{job.workSchedule?.hours || '근무 시간 미정'}</p>
-                         )}
-                       </div>
-                    </div>
-                  </div>
-
-          {/* 근무 유형 */}
+                    {/* 근무 유형 */}
           {job.workTypes && job.workTypes.length > 0 && (
             <div className="bg-white rounded-lg border p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center">
