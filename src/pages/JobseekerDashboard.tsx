@@ -352,30 +352,64 @@ const JobseekerDashboard: React.FC = () => {
               </div>
 
               {/* 이력서 정보 */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-8">
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg p-4 mb-8 border border-purple-200">
                 <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <div className="w-4 h-4 bg-purple-100 rounded flex items-center justify-center">
                     <FileText className="w-3 h-3 text-purple-600" />
                   </div>
                   이력서 정보
                 </h4>
-                <div className="space-y-1 text-sm">
-                  <div>
-                    <span className="text-gray-600">이력서 상태: </span>
-                    <span className="text-green-600 font-medium">완료</span>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">이력서 상태:</span>
+                    <span className="text-green-600 font-medium bg-green-100 px-2 py-1 rounded-full text-xs">
+                      {user?.resume ? '완료' : '미완성'}
+                    </span>
                   </div>
-                  <div>
-                    <span className="text-gray-600">마지막 업데이트: </span>
-                    <span className="text-gray-900 font-medium">2024.01.15</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">이력서 완성도:</span>
+                    <span className="text-gray-900 font-medium">
+                      {user?.resume ? 
+                        `${Object.keys(user.resume).filter(key => user.resume?.[key as keyof typeof user.resume]).length}/10` : 
+                        '0/10'
+                      }
+                    </span>
                   </div>
+                  {user?.resume && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">경력:</span>
+                        <span className="text-gray-900 font-medium">
+                          {user.resume.career || '미입력'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">희망 급여:</span>
+                        <span className="text-gray-900 font-medium">
+                          {user.resume.expectedSalary ? 
+                            `${user.resume.expectedSalary.toLocaleString()}원` : 
+                            '미입력'
+                          }
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="mt-4 flex gap-3">
-                  <button className="text-xs bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition-colors">
+                  <Link
+                    to="/profile"
+                    className="text-xs bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition-colors inline-flex items-center gap-1"
+                  >
+                    <FileText className="w-3 h-3" />
                     이력서 보기
-                  </button>
-                  <button className="text-xs bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700 transition-colors">
+                  </Link>
+                  <Link
+                    to="/profile"
+                    className="text-xs bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700 transition-colors inline-flex items-center gap-1"
+                  >
+                    <span>✏️</span>
                     이력서 수정
-                  </button>
+                  </Link>
                 </div>
               </div>
 
