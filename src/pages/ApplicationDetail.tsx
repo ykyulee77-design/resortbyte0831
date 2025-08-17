@@ -499,23 +499,43 @@ const ApplicationDetail: React.FC = () => {
               </div>
 
               {/* 선택한 근무타입 */}
-              {application.selectedWorkTypeIds && application.selectedWorkTypeIds.length > 0 && (
-                <div className="mt-6 pt-6 border-t">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">선택한 근무타입</h3>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex flex-wrap gap-2">
+              <div className="mt-6 pt-6 border-t">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-indigo-600" />
+                  선택한 근무타입
+                </h3>
+                                {application.selectedWorkTypeIds && application.selectedWorkTypeIds.length > 0 ? (
+                  <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {application.selectedWorkTypeIds.map((workTypeId, index) => {
                         const workType = jobPost?.workTypes?.find(wt => wt.id === workTypeId);
                         return (
-                          <span key={index} className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm">
-                            {workType ? workType.name : `근무타입 ${index + 1}`}
-                          </span>
+                          <div key={index} className="bg-white p-3 rounded-lg border border-indigo-200 shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium text-indigo-800">{workType ? workType.name : `근무타입 ${index + 1}`}</h4>
+                              <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-xs font-medium">
+                                선택됨
+                              </span>
+                            </div>
+                            {workType && workType.description && (
+                              <p className="text-sm text-gray-600 leading-relaxed">{workType.description}</p>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
+                    <div className="mt-3 pt-3 border-t border-indigo-200">
+                      <p className="text-sm text-indigo-700">
+                        총 <strong>{application.selectedWorkTypeIds.length}개</strong>의 근무타입을 선택했습니다.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-gray-500 italic">선택한 근무타입이 없습니다.</p>
+                  </div>
+                )}
+              </div>
 
               {/* 추가 메시지 */}
               {application.message && (
