@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Building, Calendar, Clock, FileText, Home, Users, MessageSquare, User, MapPin, Edit, Save, X, List, Settings, Send, CheckCircle } from 'lucide-react';
 import { JobPost, Application, CompanyInfo, AccommodationInfo, WorkType } from '../types';
@@ -66,6 +67,10 @@ const JobPostDetail: React.FC = () => {
      employeeBenefits: '',
   });
 
+  // 회사 이미지 관리 상태
+  const [companyImages, setCompanyImages] = useState<string[]>([]);
+  const [uploadingCompanyImages, setUploadingCompanyImages] = useState(false);
+
   // 지원 여부 확인
   const checkApplicationStatus = useCallback(async () => {
     if (!user?.uid || !id) return;
@@ -90,6 +95,43 @@ const JobPostDetail: React.FC = () => {
         ? prev.filter(id => id !== workTypeId)
         : [...prev, workTypeId]
     );
+  };
+
+  // 회사 이미지 업로드
+  const handleCompanyImageUpload = async (files: FileList) => {
+    if (!files || files.length === 0) return;
+    
+    setUploadingCompanyImages(true);
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const storageRef = ref(storage, `company-images/${Date.now()}_${file.name}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        return getDownloadURL(snapshot.ref);
+      });
+      
+      const newImageUrls = await Promise.all(uploadPromises);
+      setCompanyImages(prev => [...prev, ...newImageUrls]);
+    } catch (error) {
+      console.error('회사 이미지 업로드 실패:', error);
+      alert('회사 이미지 업로드에 실패했습니다.');
+    } finally {
+      setUploadingCompanyImages(false);
+    }
+  };
+
+  // 회사 이미지 삭제
+  const handleCompanyImageDelete = async (imageUrl: string, index: number) => {
+    try {
+      // Firebase Storage에서 이미지 삭제
+      const imageRef = ref(storage, imageUrl);
+      await deleteObject(imageRef);
+      
+      // 로컬 상태에서 이미지 제거
+      setCompanyImages(prev => prev.filter((_, i) => i !== index));
+    } catch (error) {
+      console.error('회사 이미지 삭제 실패:', error);
+      alert('회사 이미지 삭제에 실패했습니다.');
+    }
   };
 
   // 지원하기
@@ -140,6 +182,8 @@ const JobPostDetail: React.FC = () => {
         const jobWithId = { ...jobData, id: jobDoc.id };
         
         setJob(jobWithId);
+        
+
         
         // 편집 모드일 때 편집 데이터 초기화
         if (isEditMode) {
@@ -199,6 +243,11 @@ const JobPostDetail: React.FC = () => {
       if (companyDocSnap.exists()) {
         const companyData = companyDocSnap.data() as CompanyInfo;
         setCompanyInfo({ ...companyData, id: companyDocSnap.id });
+        
+        // 회사 이미지 로드
+        if (companyData.images && companyData.images.length > 0) {
+          setCompanyImages(companyData.images);
+        }
       } else {
         // 쿼리로 조회 시도
         const companyQuery = query(
@@ -318,6 +367,18 @@ const JobPostDetail: React.FC = () => {
       };
       
       await updateDoc(doc(db, 'jobPosts', job.id), updateData);
+      
+      // 회사 정보 이미지 업데이트
+      if (companyInfo && companyImages.length !== companyInfo.images?.length) {
+        await updateDoc(doc(db, 'companyInfo', companyInfo.id), {
+          images: companyImages,
+          updatedAt: serverTimestamp()
+        });
+        
+        // 회사 정보 다시 불러오기
+        await loadCompanyInfo(job.employerId);
+      }
+      
       setIsEditing(false);
       
       // 업데이트된 정보 다시 불러오기
@@ -1072,22 +1133,84 @@ const JobPostDetail: React.FC = () => {
       )}
 
                  {/* 회사 이미지 */}
-                 {companyInfo.images && companyInfo.images.length > 0 && (
-                   <div className="bg-yellow-50 rounded-lg p-3">
-                     <h4 className="text-sm font-semibold text-yellow-700 mb-2">회사 이미지</h4>
-                     <div className="grid grid-cols-2 gap-2">
-                       {companyInfo.images.filter(image => image && image.trim() !== '').slice(0, 4).map((image, index) => (
-                         <div key={`image-${index}-${image}`} className="aspect-square bg-white rounded overflow-hidden">
-                           <img
-                             src={image}
-                             alt={`회사 이미지 ${index + 1}`}
-                             className="w-full h-full object-cover"
-                           />
+                 <div className="bg-yellow-50 rounded-lg p-3">
+                   <h4 className="text-sm font-semibold text-yellow-700 mb-2">회사 이미지</h4>
+                   
+                   {isEditing ? (
+                     <div className="space-y-3">
+                       {/* 기존 이미지 표시 및 삭제 */}
+                       {companyImages.length > 0 && (
+                         <div className="grid grid-cols-2 gap-2">
+                           {companyImages.map((image, index) => (
+                             <div key={`edit-image-${index}`} className="relative aspect-square bg-white rounded overflow-hidden">
+                               <img
+                                 src={image}
+                                 alt={`회사 이미지 ${index + 1}`}
+                                 className="w-full h-full object-cover"
+                               />
+                               <button
+                                 onClick={() => handleCompanyImageDelete(image, index)}
+                                 className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                                 title="이미지 삭제"
+                               >
+                                 <X className="w-3 h-3" />
+                               </button>
+                             </div>
+                           ))}
                          </div>
-                       ))}
+                       )}
+                       
+                       {/* 이미지 업로드 */}
+                       <div className="flex items-center gap-2">
+                         <input
+                           type="file"
+                           accept="image/*"
+                           multiple
+                           onChange={(e) => e.target.files && handleCompanyImageUpload(e.target.files)}
+                           className="hidden"
+                           id="company-image-upload"
+                           disabled={uploadingCompanyImages}
+                         />
+                         <label
+                           htmlFor="company-image-upload"
+                           className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-50"
+                         >
+                           {uploadingCompanyImages ? (
+                             <>
+                               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                               업로드 중...
+                             </>
+                           ) : (
+                             <>
+                               <Edit className="w-4 h-4" />
+                               이미지 추가
+                             </>
+                           )}
+                         </label>
+                         <span className="text-xs text-gray-500">
+                           최대 4개까지 업로드 가능
+                         </span>
+                       </div>
                      </div>
-                   </div>
-                 )}
+                   ) : (
+                     /* 보기 모드 */
+                     companyImages.length > 0 ? (
+                       <div className="grid grid-cols-2 gap-2">
+                         {companyImages.slice(0, 4).map((image, index) => (
+                           <div key={`view-image-${index}`} className="aspect-square bg-white rounded overflow-hidden">
+                             <img
+                               src={image}
+                               alt={`회사 이미지 ${index + 1}`}
+                               className="w-full h-full object-cover"
+                             />
+                           </div>
+                         ))}
+                       </div>
+                     ) : (
+                       <p className="text-sm text-gray-500">등록된 이미지가 없습니다.</p>
+                     )
+                   )}
+                 </div>
                </div>
             ) : (
               <p className="text-gray-500">회사 정보가 없습니다.</p>
