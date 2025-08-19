@@ -6,7 +6,7 @@ import { CompanyInfo } from '../types';
 import { Building, MapPin, Phone, Mail, Globe, Users, Calendar, Home, Star, CheckCircle, Edit, Save, X, Plus, Trash2 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
-import AddressSearch from '../components/AddressSearch';
+// import AddressSearch, { Address } from '../components/AddressSearch';
 
 const CompanyInfoPage: React.FC = () => {
   const { employerId } = useParams<{ employerId: string }>();
@@ -426,15 +426,17 @@ const CompanyInfoPage: React.FC = () => {
               <div>
                 <div className="text-sm font-medium text-gray-700 mb-1">지역</div>
                 <div className="text-gray-900">
-                                     {isEditing ? (
-                     <AddressSearch
-                       value={displayInfo.address}
-                       onAddressSelect={(address) => handleInputChange('address', address.address)}
-                       placeholder="주소를 검색하세요"
-                     />
-                   ) : (
-                     displayInfo.address || '주소 미등록'
-                   )}
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={displayInfo.address || ''}
+                      onChange={(e) => handleInputChange('address', e.target.value)}
+                      className="bg-transparent border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      placeholder="주소를 입력하세요"
+                    />
+                  ) : (
+                    displayInfo.address || '주소 미등록'
+                  )}
                 </div>
               </div>
             </div>
@@ -587,10 +589,12 @@ const CompanyInfoPage: React.FC = () => {
               <div className="flex items-center">
                 <MapPin className="h-4 w-4 text-gray-500 mr-3" />
                 {isEditing ? (
-                  <AddressSearch
-                    value={displayInfo.address}
-                    onAddressSelect={(address) => handleInputChange('address', address.address)}
-                    placeholder="주소를 검색하세요"
+                  <input
+                    type="text"
+                    value={displayInfo.address || ''}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    className="bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none flex-grow"
+                    placeholder="주소를 입력하세요"
                   />
                 ) : (
                   <span className="text-gray-800">{displayInfo.address || '주소 미등록'}</span>

@@ -26,9 +26,26 @@ export const uploadImage = async (
   try {
     console.log(`이미지 업로드 시작: ${file.name} -> ${options.folder}`);
     
+    // HEIC 파일인지 확인하고 변환
+    let processedFile = file;
+    const fileExtension = file.name.toLowerCase().split('.').pop();
+    const isHeicFile = fileExtension === 'heic' || fileExtension === 'heif';
+    
+    if (isHeicFile) {
+      console.log('HEIC 파일 감지, 처리 중...');
+      processedFile = await convertHeicToJpeg(file);
+      console.log('HEIC 파일 처리 완료. 참고: 일부 브라우저에서는 HEIC 파일이 제대로 표시되지 않을 수 있습니다.');
+      
+      // 사용자에게 알림 (선택사항)
+      if (typeof window !== 'undefined') {
+        // 개발 환경에서는 콘솔에만 출력
+        console.info('💡 HEIC 파일 업로드 완료! 일부 브라우저에서는 이미지가 제대로 표시되지 않을 수 있습니다.');
+      }
+    }
+    
     // 파일명 생성 (타임스탬프 + 원본 파일명)
     const timestamp = Date.now();
-    const fileName = options.fileName || `${timestamp}_${file.name}`;
+    const fileName = options.fileName || `${timestamp}_${processedFile.name}`;
     const storagePath = `${options.folder}/${fileName}`;
     
     // Storage 참조 생성
@@ -36,21 +53,27 @@ export const uploadImage = async (
     
     // 메타데이터 설정
     const metadata = {
-      contentType: file.type,
+      contentType: processedFile.type,
       customMetadata: {
         originalName: file.name,
+        processedName: processedFile.name,
         uploadedAt: new Date().toISOString(),
         ...options.metadata
       }
     };
     
     // 파일 업로드
-    const snapshot = await uploadBytes(storageRef, file, metadata);
+    const snapshot = await uploadBytes(storageRef, processedFile, metadata);
     console.log('업로드 완료:', snapshot.metadata.name);
     
     // 다운로드 URL 가져오기
     const downloadURL = await getDownloadURL(snapshot.ref);
     console.log('다운로드 URL 생성:', downloadURL);
+    
+    // HEIC 파일인 경우 추가 정보 제공
+    if (isHeicFile) {
+      console.log('✅ HEIC 파일 업로드 성공! 파일명이 .jpg로 변경되었습니다.');
+    }
     
     return {
       success: true,
@@ -139,16 +162,62 @@ export const validateImageFile = (file: File): { valid: boolean; error?: string 
     };
   }
   
-  // 파일 타입 검증
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-  if (!allowedTypes.includes(file.type)) {
+  // 파일 타입 검증 (HEIC 포함)
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
+  const fileExtension = file.name.toLowerCase().split('.').pop();
+  const isHeicFile = fileExtension === 'heic' || fileExtension === 'heif';
+  
+  if (!allowedTypes.includes(file.type) && !isHeicFile) {
     return {
       valid: false,
-      error: '지원하지 않는 이미지 형식입니다. (JPEG, PNG, GIF, WebP만 지원)'
+      error: '지원하지 않는 이미지 형식입니다. (JPEG, PNG, GIF, WebP, HEIC만 지원)'
     };
   }
   
   return { valid: true };
+};
+
+/**
+ * HEIC 파일을 JPEG로 변환하는 함수
+ * @param file 변환할 HEIC 파일
+ * @returns 변환된 JPEG 파일
+ */
+export const convertHeicToJpeg = (file: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    try {
+      console.log('HEIC 파일 감지:', file.name);
+      
+      // HEIC 파일인 경우 사용자에게 안내
+      if (typeof window !== 'undefined' && window.confirm) {
+        const shouldContinue = window.confirm(
+          'HEIC 파일이 감지되었습니다. 이 파일은 일부 브라우저에서 제대로 표시되지 않을 수 있습니다.\n\n' +
+          'JPEG 또는 PNG 형식으로 변환 후 업로드하는 것을 권장합니다.\n\n' +
+          '계속 진행하시겠습니까?'
+        );
+        
+        if (!shouldContinue) {
+          // 사용자가 취소한 경우
+          reject(new Error('사용자가 업로드를 취소했습니다.'));
+          return;
+        }
+      }
+      
+      // 파일명만 .jpg로 변경하고 원본 파일 반환
+      const fileName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+      const renamedFile = new File([file], fileName, {
+        type: 'image/jpeg',
+        lastModified: Date.now(),
+      });
+      
+      console.log(`HEIC 파일명 변경: ${file.name} -> ${fileName}`);
+      console.log('참고: HEIC 파일은 일부 브라우저에서 제대로 표시되지 않을 수 있습니다.');
+      resolve(renamedFile);
+      
+    } catch (error) {
+      console.warn('HEIC 파일 처리 실패, 원본 파일 사용:', error);
+      resolve(file);
+    }
+  });
 };
 
 /**
@@ -159,43 +228,68 @@ export const validateImageFile = (file: File): { valid: boolean; error?: string 
  */
 export const compressImage = (file: File, maxWidth: number = 1200): Promise<File> => {
   return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-
-    img.onload = () => {
-      // 이미지 크기 계산
-      let { width, height } = img;
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
+    try {
+      // HEIC 파일인지 확인
+      const fileExtension = file.name.toLowerCase().split('.').pop();
+      const isHeicFile = fileExtension === 'heic' || fileExtension === 'heif';
+      
+      if (isHeicFile) {
+        console.log('HEIC 파일은 압축을 건너뜁니다.');
+        resolve(file); // HEIC 파일은 압축하지 않고 원본 반환
+        return;
       }
 
-      canvas.width = width;
-      canvas.height = height;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
 
-      // 이미지 그리기
-      ctx?.drawImage(img, 0, 0, width, height);
-
-      // Blob으로 변환
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            const compressedFile = new File([blob], file.name, {
-              type: 'image/jpeg',
-              lastModified: Date.now(),
-            });
-            resolve(compressedFile);
-          } else {
-            reject(new Error('이미지 압축 실패'));
+      img.onload = () => {
+        try {
+          // 이미지 크기 계산
+          let { width, height } = img;
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
           }
-        },
-        'image/jpeg',
-        0.8 // 품질 설정
-      );
-    };
 
-    img.onerror = () => reject(new Error('이미지 로드 실패'));
-    img.src = URL.createObjectURL(file);
+          canvas.width = width;
+          canvas.height = height;
+
+          // 이미지 그리기
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Blob으로 변환
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                console.warn('이미지 압축 실패, 원본 파일 사용');
+                resolve(file); // 압축 실패시 원본 파일 반환
+              }
+            },
+            'image/jpeg',
+            0.8 // 품질 설정
+          );
+        } catch (error) {
+          console.warn('이미지 압축 중 오류 발생, 원본 파일 사용:', error);
+          resolve(file); // 오류 발생시 원본 파일 반환
+        }
+      };
+
+      img.onerror = () => {
+        console.warn('이미지 로드 실패, 원본 파일 사용');
+        resolve(file); // 로드 실패시 원본 파일 반환
+      };
+
+      img.src = URL.createObjectURL(file);
+    } catch (error) {
+      console.warn('이미지 압축 초기화 실패, 원본 파일 사용:', error);
+      resolve(file); // 초기화 실패시 원본 파일 반환
+    }
   });
 };

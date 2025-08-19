@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import './App.css';
+import VersionInfo from './components/VersionInfo';
 
 // 페이지 컴포넌트들
 import Home from './pages/Home';
@@ -15,6 +16,7 @@ import AdminUsers from './pages/AdminUsers';
 import AdminJobPosts from './pages/AdminJobPosts';
 import AdminStats from './pages/AdminStats';
 import Profile from './pages/Profile';
+import EmployerProfile from './pages/EmployerProfile';
 import JobApplication from './pages/JobApplication';
 import ApplicationDetail from './pages/ApplicationDetail';
 import ApplicationEdit from './pages/ApplicationEdit';
@@ -49,6 +51,15 @@ const LoadingSpinner: React.FC = () => (
     </div>
   </div>
 );
+
+// 프로필 진입 시 역할에 따른 자동 라우팅
+const ProfileEntry: React.FC = () => {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'employer') return <Navigate to="/employer-profile" replace />;
+  return <Profile />;
+};
 
 // 에러 페이지 컴포넌트
 const ErrorPage: React.FC<{ message?: string }> = ({ message = "페이지를 찾을 수 없습니다." }) => (
@@ -93,19 +104,37 @@ const ProtectedRoute: React.FC<{
   return <>{children}</>;
 };
 
-// 대시보드 라우팅 컴포넌트
-const DashboardRouter: React.FC = () => {
+// 대시보드 라우팅 컴포넌트 - 제거
+// const DashboardRouter: React.FC = () => {
+//   const { user } = useAuth();
+
+//   if (!user) return <Navigate to="/login" replace />;
+
+//   switch (user.role) {
+//     case 'jobseeker':
+//       return <JobseekerDashboard />;
+//     case 'employer':
+//       return <CompanyDashboard />;
+//     case 'admin':
+//       return <AdminDashboard />;
+//     default:
+//       return <Navigate to="/login" replace />;
+//   }
+// };
+
+// 역할별 대시보드 리다이렉트 컴포넌트
+const DashboardRedirect: React.FC = () => {
   const { user } = useAuth();
-
+  
   if (!user) return <Navigate to="/login" replace />;
-
+  
   switch (user.role) {
     case 'jobseeker':
-      return <JobseekerDashboard />;
+      return <Navigate to="/jobseeker-dashboard" replace />;
     case 'employer':
-      return <CompanyDashboard />;
+      return <Navigate to="/employer-dashboard" replace />;
     case 'admin':
-      return <AdminDashboard />;
+      return <Navigate to="/admin-dashboard" replace />;
     default:
       return <Navigate to="/login" replace />;
   }
@@ -158,26 +187,24 @@ function App() {
             <Route path="/reviews/media/new" element={<ReviewsMediaForm />} />
             <Route path="/resort/:id/reviews" element={<ResortReview />} />
 
-            {/* 보호된 라우트 - Layout 사용 */}
+            {/* 대시보드 리다이렉트 - 역할별로 자동 리다이렉트 */}
             <Route path="/dashboard" element={
               <ProtectedRoute>
+                <DashboardRedirect />
+              </ProtectedRoute>
+            } />
+
+            {/* 구직자 전용 대시보드 */}
+            <Route path="/jobseeker-dashboard" element={
+              <ProtectedRoute allowedRoles={['jobseeker']}>
                 <Layout>
-                  <DashboardRouter />
+                  <JobseekerDashboard />
                 </Layout>
               </ProtectedRoute>
             } />
 
-            {/* 구직자 전용 라우트 */}
-            <Route path="/jobseeker" element={
-              <ProtectedRoute allowedRoles={['jobseeker']}>
-                <HomeLayout>
-                  <JobseekerDashboard />
-                </HomeLayout>
-              </ProtectedRoute>
-            } />
-
-            {/* 구인자 전용 라우트 */}
-            <Route path="/employer" element={
+            {/* 구인자 전용 대시보드 */}
+            <Route path="/employer-dashboard" element={
               <ProtectedRoute allowedRoles={['employer']}>
                 <Layout>
                   <CompanyDashboard />
@@ -185,12 +212,31 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 관리자 전용 라우트 */}
-            <Route path="/admin" element={
+            {/* 관리자 전용 대시보드 */}
+            <Route path="/admin-dashboard" element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <Layout>
                   <AdminDashboard />
                 </Layout>
+              </ProtectedRoute>
+            } />
+
+            {/* 기존 라우트들 (하위 호환성을 위해 유지) */}
+            <Route path="/jobseeker" element={
+              <ProtectedRoute allowedRoles={['jobseeker']}>
+                <Navigate to="/jobseeker-dashboard" replace />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/employer" element={
+              <ProtectedRoute allowedRoles={['employer']}>
+                <Navigate to="/employer-dashboard" replace />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Navigate to="/admin-dashboard" replace />
               </ProtectedRoute>
             } />
 
@@ -218,11 +264,18 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 프로필 페이지 */}
+            {/* 프로필 페이지 - 역할 자동 리다이렉트 */}
             <Route path="/profile" element={
               <ProtectedRoute>
                 <Layout>
-                  <Profile />
+                  <ProfileEntry />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/employer-profile" element={
+              <ProtectedRoute allowedRoles={['employer']}>
+                <Layout>
+                  <EmployerProfile />
                 </Layout>
               </ProtectedRoute>
             } />
@@ -330,6 +383,11 @@ function App() {
             {/* 404 페이지 */}
             <Route path="*" element={<ErrorPage />} />
           </Routes>
+          
+          {/* 버전 정보 */}
+          <div className="fixed bottom-2 right-2 z-50">
+            <VersionInfo />
+          </div>
         </div>
       </Router>
     </AuthProvider>

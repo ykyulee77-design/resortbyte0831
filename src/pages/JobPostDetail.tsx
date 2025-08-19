@@ -4,11 +4,11 @@ import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getD
 import { db } from '../firebase';
 import { uploadImage, deleteImage, validateImageFile } from '../utils/imageUpload';
 import { useAuth } from '../contexts/AuthContext';
-import { Building, Calendar, Clock, FileText, Home, Users, MessageSquare, User, MapPin, Edit, Save, X, List, Settings, Send, CheckCircle } from 'lucide-react';
+import { Building, FileText, Home, Users, MessageSquare, MapPin, Edit, Save, X, List, Settings, Send, CheckCircle } from 'lucide-react';
 import { JobPost, Application, CompanyInfo, AccommodationInfo, WorkType } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
-import WorkTypeManager from '../components/WorkTypeManager';
-import ScheduleBadge from '../components/ScheduleBadge';
+
+import ImagePreviewModal from '../components/ImagePreviewModal';
 
 const JobPostDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,8 +23,7 @@ const JobPostDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(isEditMode);
-  const [showWorkTypeManager, setShowWorkTypeManager] = useState(false);
-  const [isWorkTypeSelectionMode, setIsWorkTypeSelectionMode] = useState(false);
+
   
   // 지원 관련 상태
   const [hasApplied, setHasApplied] = useState(false);
@@ -59,17 +58,15 @@ const JobPostDetail: React.FC = () => {
     workSchedule: { days: [], hours: '' },
     startDate: undefined,
     endDate: undefined,
-    accommodation: {
-      provided: false,
-      info: ''
-    },
-     meal: { provided: false, info: '' },
-     employeeBenefits: '',
   });
 
   // 회사 이미지 관리 상태
   const [companyImages, setCompanyImages] = useState<string[]>([]);
   const [uploadingCompanyImages, setUploadingCompanyImages] = useState(false);
+  
+  // 이미지 미리보기 상태
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImageName, setPreviewImageName] = useState<string>('');
 
   // 지원 여부 확인
   const checkApplicationStatus = useCallback(async () => {
@@ -164,6 +161,52 @@ const JobPostDetail: React.FC = () => {
     }
   };
 
+  // 모든 모달 닫기
+  const closeAllModals = () => {
+    setShowApplyModal(false);
+    setPreviewImage(null);
+    setPreviewImageName('');
+    
+    // body 스타일 강제 초기화
+    document.body.style.overflow = 'unset';
+    document.body.style.pointerEvents = 'auto';
+    
+    // 모든 모달 관련 요소 제거
+    setTimeout(() => {
+      const modalElements = document.querySelectorAll('.fixed.bg-black, .fixed.bg-opacity');
+      modalElements.forEach(el => {
+        if (el !== document.querySelector('.fixed.top-4.right-4')) {
+          el.remove();
+        }
+      });
+    }, 100);
+  };
+
+  // 페이지 로드 시 모든 모달 초기화
+  useEffect(() => {
+    closeAllModals();
+    // 강제로 previewImage 초기화
+    setPreviewImage(null);
+    setPreviewImageName('');
+  }, []);
+
+  // 이미지 미리보기
+  const handleImagePreview = (imageUrl: string, imageName?: string) => {
+    console.log('이미지 미리보기 호출:', imageUrl, imageName);
+    // 다른 모달들만 닫기 (previewImage는 제외)
+    setShowApplyModal(false);
+    
+    // body 스타일 강제 초기화
+    document.body.style.overflow = 'unset';
+    document.body.style.pointerEvents = 'auto';
+    
+    // 유효한 이미지 URL인지 확인
+    if (imageUrl && imageUrl.trim() !== '') {
+      setPreviewImage(imageUrl);
+      setPreviewImageName(imageName || '이미지');
+    }
+  };
+
   // 지원하기
   const handleApply = async () => {
     if (!user?.uid || !job) return;
@@ -232,14 +275,7 @@ const JobPostDetail: React.FC = () => {
             workSchedule: jobWithId.workSchedule || { days: [], hours: '' },
             startDate: jobWithId.startDate,
             endDate: jobWithId.endDate,
-            accommodation: jobWithId.accommodation || { provided: false, info: '' },
-            meal: (() => {
-              if (typeof jobWithId.meal === 'object' && jobWithId.meal && 'provided' in jobWithId.meal && 'info' in jobWithId.meal) {
-                return jobWithId.meal as { provided: boolean; info: string };
-              }
-              return { provided: false, info: '' };
-            })(),
-            employeeBenefits: jobWithId.employeeBenefits || '',
+
           });
         }
 
@@ -438,14 +474,7 @@ const JobPostDetail: React.FC = () => {
         workSchedule: job.workSchedule || { days: [], hours: '' },
         startDate: job.startDate,
         endDate: job.endDate,
-        accommodation: job.accommodation || { provided: false, info: '' },
-        meal: (() => {
-          if (typeof job.meal === 'object' && job.meal && 'provided' in job.meal && 'info' in job.meal) {
-            return job.meal as { provided: boolean; info: string };
-          }
-          return { provided: false, info: '' };
-        })(),
-        employeeBenefits: job.employeeBenefits || '',
+
       });
     }
   };
@@ -528,14 +557,7 @@ const JobPostDetail: React.FC = () => {
                         workSchedule: job.workSchedule || { days: [], hours: '' },
                         startDate: job.startDate,
                         endDate: job.endDate,
-                        accommodation: job.accommodation || { provided: false, info: '' },
-                        meal: (() => {
-                          if (typeof job.meal === 'object' && job.meal && 'provided' in job.meal && 'info' in job.meal) {
-                            return job.meal as { provided: boolean; info: string };
-                          }
-                          return { provided: false, info: '' };
-                        })(),
-                        employeeBenefits: job.employeeBenefits || '',
+
                         workTypes: job.workTypes || [],
                         employerId: job.employerId
                       });
@@ -552,6 +574,8 @@ const JobPostDetail: React.FC = () => {
           )}
         </div>
       </div>
+
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 메인 콘텐츠 - 채용 섹션 */}
@@ -714,11 +738,11 @@ const JobPostDetail: React.FC = () => {
                     )}
                       </div>
                     </div>
-              </div>
-            </div>
-          </div>
+                       </div>
+                    </div>
+                  </div>
 
-                    {/* 근무 유형 */}
+          {/* 근무 유형 */}
           {job.workTypes && job.workTypes.length > 0 && (
             <div className="bg-white rounded-lg border p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center">
@@ -804,84 +828,7 @@ const JobPostDetail: React.FC = () => {
               복리후생
              </h2>
             <div className="space-y-4">
-                     <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">기숙사 제공</label>
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={editData.accommodation?.provided || false}
-                         onChange={(e) => handleInputChange('accommodation', { 
-                           ...editData.accommodation, 
-                          provided: e.target.checked
-                        })}
-                        className="mr-2"
-                      />
-                      기숙사 제공
-                    </label>
-                     {editData.accommodation?.provided && (
-                         <textarea
-                        value={editData.accommodation.info}
-                           onChange={(e) => handleInputChange('accommodation', { 
-                             ...editData.accommodation, 
-                             info: e.target.value 
-                           })}
-                        placeholder="기숙사 정보를 입력하세요"
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                           rows={3}
-                         />
-                     )}
-                    </div>
-              ) : (
-                  <div>
-                    <p className="text-gray-900">{job.accommodation?.provided ? '제공' : '미제공'}</p>
-                    {job.accommodation?.provided && job.accommodation.info && (
-                      <p className="text-gray-600 mt-1">{job.accommodation.info}</p>
-                       )}
-                   </div>
-              )}
-            </div>
-
-                     <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">식사 제공</label>
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={editData.meal?.provided || false}
-                         onChange={(e) => handleInputChange('meal', { 
-                           ...editData.meal, 
-                          provided: e.target.checked
-                        })}
-                        className="mr-2"
-                      />
-                      식사 제공
-                    </label>
-                     {editData.meal?.provided && (
-                         <textarea
-                        value={editData.meal.info}
-                           onChange={(e) => handleInputChange('meal', { 
-                             ...editData.meal, 
-                             info: e.target.value 
-                           })}
-                        placeholder="식사 정보를 입력하세요"
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                           rows={3}
-                         />
-                     )}
-                   </div>
-                 ) : (
-                  <div>
-                    <p className="text-gray-900">
-                      {typeof job.meal === 'object' && 'provided' in job.meal && job.meal.provided
-                        ? job.meal.info
-                        : (typeof job.meal === 'string' ? job.meal : '미제공')}
-                    </p>
-                         </div>
-                       )}
-                   </div>
+                     
                </div>
              </div>
 
@@ -1163,20 +1110,21 @@ const JobPostDetail: React.FC = () => {
       )}
 
                  {/* 회사 이미지 */}
-                 <div className="bg-yellow-50 rounded-lg p-3">
-                   <h4 className="text-sm font-semibold text-yellow-700 mb-2">회사 이미지</h4>
+                   <div className="bg-yellow-50 rounded-lg p-3">
+                     <h4 className="text-sm font-semibold text-yellow-700 mb-2">회사 이미지</h4>
                    
                    {isEditing ? (
                      <div className="space-y-3">
                        {/* 기존 이미지 표시 및 삭제 */}
                        {companyImages.length > 0 && (
-                         <div className="grid grid-cols-2 gap-2">
+                     <div className="grid grid-cols-2 gap-2">
                            {companyImages.map((image, index) => (
-                             <div key={`edit-image-${index}`} className="relative aspect-square bg-white rounded overflow-hidden">
-                               <img
-                                 src={image}
-                                 alt={`회사 이미지 ${index + 1}`}
-                                 className="w-full h-full object-cover"
+                             <div key={`edit-image-${index}`} className="relative aspect-square bg-white rounded overflow-hidden group">
+                           <img
+                             src={image}
+                             alt={`회사 이미지 ${index + 1}`}
+                                 className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                 onClick={() => handleImagePreview(image, `회사 이미지 ${index + 1}`)}
                                />
                                <button
                                  onClick={() => handleCompanyImageDelete(image, index)}
@@ -1185,9 +1133,14 @@ const JobPostDetail: React.FC = () => {
                                >
                                  <X className="w-3 h-3" />
                                </button>
-                             </div>
-                           ))}
+                               <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                                 <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
+                                   클릭하여 크게 보기
+                                 </div>
+                               </div>
                          </div>
+                       ))}
+                     </div>
                        )}
                        
                        {/* 이미지 업로드 */}
@@ -1220,19 +1173,26 @@ const JobPostDetail: React.FC = () => {
                          <span className="text-xs text-gray-500">
                            최대 4개까지 업로드 가능
                          </span>
-                       </div>
+                   </div>
                      </div>
                    ) : (
                      /* 보기 모드 */
                      companyImages.length > 0 ? (
                        <div className="grid grid-cols-2 gap-2">
                          {companyImages.slice(0, 4).map((image, index) => (
-                           <div key={`view-image-${index}`} className="aspect-square bg-white rounded overflow-hidden">
+                           <div key={`view-image-${index}`} className="aspect-square bg-white rounded overflow-hidden group cursor-pointer">
                              <img
                                src={image}
                                alt={`회사 이미지 ${index + 1}`}
-                               className="w-full h-full object-cover"
+                               className="w-full h-full object-cover hover:opacity-80 transition-opacity"
+                               onClick={() => handleImagePreview(image, `회사 이미지 ${index + 1}`)}
                              />
+                             {/* 임시로 hover 효과 비활성화 */}
+                             {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                               <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
+                                 클릭하여 크게 보기
+                               </div>
+                             </div> */}
                            </div>
                          ))}
                        </div>
@@ -1421,18 +1381,17 @@ const JobPostDetail: React.FC = () => {
         </div>
       )}
 
-      {/* 근무 유형 관리 모달 */}
-      {showWorkTypeManager && (
-        <WorkTypeManager
-           employerId={user?.uid || ''}
-           onClose={() => setShowWorkTypeManager(false)}
-           onSelectWorkType={isWorkTypeSelectionMode ? (workType: any) => {
-             // 선택된 근무 유형 처리
-            setShowWorkTypeManager(false);
-           } : undefined}
-          isSelectionMode={isWorkTypeSelectionMode}
-        />
-      )}
+      {/* 지원 확인 모달 - 임시 비활성화 */}
+
+
+
+      {/* 이미지 미리보기 모달 */}
+      <ImagePreviewModal
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        imageUrl={previewImage || ''}
+        imageName={previewImageName}
+      />
     </div>
   );
 };

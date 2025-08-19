@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, AlertCircle, Building, User } from 'lucide-react';
 import { Resume } from '../types';
-import AddressSearch from '../components/AddressSearch';
+// import AddressSearch, { Address } from '../components/AddressSearch';
 
 const SignUp: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -308,14 +308,15 @@ const SignUp: React.FC = () => {
                   <label htmlFor="companyAddress" className="block text-sm font-medium text-gray-700">
                     회사 주소 <span className="text-red-500">*</span>
                   </label>
-                  <AddressSearch
-                    onAddressSelect={(address) => {
-                      setFormData(prev => ({
-                        ...prev,
-                        companyAddress: address.address
-                      }));
-                    }}
-                    placeholder="회사 주소를 검색하세요"
+                  <input
+                    id="companyAddress"
+                    name="companyAddress"
+                    type="text"
+                    required
+                    value={formData.companyAddress}
+                    onChange={handleInputChange}
+                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-resort-500 focus:border-resort-500 focus:z-10 sm:text-sm"
+                    placeholder="회사 주소를 입력하세요"
                   />
                 </div>
 

@@ -1,8 +1,41 @@
 [
   {
-    "origin": ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:3004", "http://localhost:3005"],
-    "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
-    "maxAgeSeconds": 3600,
-    "responseHeader": ["Content-Type", "Authorization", "Content-Length", "User-Agent", "x-goog-resumable"]
+    "origin": [
+      "http://localhost:3000",
+      "http://localhost:3001", 
+      "http://localhost:3002",
+      "http://localhost:3003",
+      "http://localhost:3004",
+      "http://localhost:3005",
+      "http://localhost:3006",
+      "http://localhost:3007",
+      "http://localhost:3008",
+      "http://localhost:3009",
+      "http://localhost:3010",
+      "https://resortbyte.firebaseapp.com",
+      "https://resortbyte.web.app"
+    ],
+    "method": [
+      "GET",
+      "POST", 
+      "PUT",
+      "DELETE",
+      "HEAD",
+      "OPTIONS"
+    ],
+    "responseHeader": [
+      "Content-Type",
+      "Authorization",
+      "Content-Length", 
+      "User-Agent",
+      "x-goog-resumable",
+      "x-goog-encryption-algorithm",
+      "x-goog-meta-*",
+      "Cache-Control",
+      "Access-Control-Allow-Origin",
+      "Access-Control-Allow-Methods",
+      "Access-Control-Allow-Headers"
+    ],
+    "maxAgeSeconds": 3600
   }
 ] 

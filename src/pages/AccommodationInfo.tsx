@@ -4,13 +4,14 @@ import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AccommodationInfo, ExternalLink } from '../types';
 import { 
-  Home, MapPin, Phone, Users, Calendar, DollarSign, CheckCircle, Star, Edit, Save, X,
+  Home, MapPin, Phone, Users, DollarSign, CheckCircle, Star, Edit, Save, X,
   Upload, Trash2, Plus, ExternalLink as ExternalLinkIcon, Camera, Wifi, Car, Utensils,
   Shield, Clock, Users as UsersIcon, Bed, Bath, Tv, AirVent,
   ParkingCircle, Dog, Wrench, AlertTriangle, Heart, ThumbsUp, MessageCircle
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
+import ImagePreviewModal from '../components/ImagePreviewModal';
 import { uploadImage, deleteImage, compressImage } from '../utils/imageUpload';
 
 
@@ -24,6 +25,8 @@ const AccommodationInfoPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImageName, setPreviewImageName] = useState<string>('');
 
   const fetchAccommodationInfo = async () => {
     if (!employerId) return;
@@ -33,6 +36,8 @@ const AccommodationInfoPage: React.FC = () => {
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const data = { id: snap.id, ...snap.data() } as AccommodationInfo;
+        console.log('기숙사 정보 로드:', data);
+        console.log('이미지 배열:', data.images);
         setAccommodationInfo(data);
         setEditForm(data);
       }
@@ -60,13 +65,46 @@ const AccommodationInfoPage: React.FC = () => {
         images: accommodationInfo.images || []
       });
     } else {
+      // 새로운 기숙사 정보 생성 시 "갈멍의 집"과 동일한 기본값 설정
       setEditForm({
-        roomTypes: [],
-        facilities: [],
-        utilities: [],
+        name: '갈멍의 집',
+        description: '신축',
+        type: 'apartment' as const,
+        address: '주소 미등록',
+        distanceFromWorkplace: '거리 정보 미등록',
+        capacity: 0,
+        currentOccupancy: 0,
+        roomTypes: [
+          {
+            type: 'twin',
+            capacity: 2,
+            price: 0,
+            available: 21,
+            description: '무료이나 선착순'
+          }
+        ],
+        facilities: ['공용 목욕탕 무료', '워터파크', '체련실'],
+        monthlyRent: 0,
+        utilities: ['사용료 실비 계산'],
+        images: [],
         rules: [],
-        externalLinks: [],
-        images: []
+        contactPerson: '아무개',
+        contactPhone: '011111111111',
+        isAvailable: false,
+        deposit: 0,
+        contractPeriod: '',
+        wifi: false,
+        tv: false,
+        refrigerator: false,
+        airConditioning: false,
+        laundry: false,
+        kitchen: false,
+        parkingAvailable: false,
+        petAllowed: false,
+        smokingAllowed: false,
+        averageRating: 0,
+        totalReviews: 0,
+        externalLinks: []
       });
     }
   };
@@ -79,6 +117,9 @@ const AccommodationInfoPage: React.FC = () => {
   const handleSave = async () => {
     if (!employerId) return;
     
+    console.log('저장 시작 - editForm:', editForm);
+    console.log('저장할 이미지 배열:', editForm.images);
+    
     setSaving(true);
     try {
       const ref = doc(db, 'accommodationInfo', employerId);
@@ -88,12 +129,15 @@ const AccommodationInfoPage: React.FC = () => {
       
       if (docSnap.exists()) {
         // 기존 데이터 업데이트
+        console.log('기존 문서 업데이트 중...');
         await updateDoc(ref, {
           ...editForm,
           updatedAt: new Date()
         });
+        console.log('기존 문서 업데이트 완료');
       } else {
         // 새 데이터 생성
+        console.log('새 문서 생성 중...');
         await setDoc(ref, {
           ...editForm,
           id: employerId,
@@ -101,10 +145,12 @@ const AccommodationInfoPage: React.FC = () => {
           createdAt: new Date(),
           updatedAt: new Date()
         });
+        console.log('새 문서 생성 완료');
       }
       
       await fetchAccommodationInfo();
       setIsEditing(false);
+      console.log('저장 완료');
     } catch (error) {
       console.error('기숙사 정보 저장 실패:', error);
       alert('저장에 실패했습니다. 다시 시도해주세요.');
@@ -145,12 +191,52 @@ const AccommodationInfoPage: React.FC = () => {
         .map(result => result.url!)
         .filter(Boolean);
       
+      console.log('업로드된 이미지 URLs:', newImages);
+      
       const updatedImages = [...(editForm.images || []), ...newImages];
+      console.log('업데이트된 이미지 배열:', updatedImages);
       
       setEditForm(prev => ({
         ...prev,
         images: updatedImages
       }));
+
+      // 이미지 업로드 후 자동 저장
+      console.log('이미지 업로드 후 자동 저장 시작...');
+      const updatedForm = {
+        ...editForm,
+        images: updatedImages
+      };
+      
+      try {
+        const ref = doc(db, 'accommodationInfo', employerId!);
+        const docSnap = await getDoc(ref);
+        
+        if (docSnap.exists()) {
+          await updateDoc(ref, {
+            ...updatedForm,
+            images: updatedImages,
+            updatedAt: new Date()
+          });
+          console.log('이미지 자동 저장 성공');
+        } else {
+          await setDoc(ref, {
+            ...updatedForm,
+            id: employerId,
+            employerId: employerId,
+            images: updatedImages,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          console.log('이미지 자동 저장 성공 (새 문서)');
+        }
+        
+        // 저장 후 데이터 다시 로드
+        await fetchAccommodationInfo();
+      } catch (error) {
+        console.error('이미지 자동 저장 실패:', error);
+        alert('이미지 저장에 실패했습니다. 수동으로 저장 버튼을 눌러주세요.');
+      }
     } catch (error) {
       console.error('이미지 업로드 실패:', error);
       alert('이미지 업로드에 실패했습니다.');
@@ -182,6 +268,12 @@ const AccommodationInfoPage: React.FC = () => {
       console.error('이미지 삭제 실패:', error);
       alert('이미지 삭제에 실패했습니다.');
     }
+  };
+
+  // 이미지 미리보기
+  const handleImagePreview = (imageUrl: string, imageName?: string) => {
+    setPreviewImage(imageUrl);
+    setPreviewImageName(imageName || '기숙사 이미지');
   };
 
   const handleExternalLinkAdd = () => {
@@ -222,21 +314,29 @@ const AccommodationInfoPage: React.FC = () => {
   const displayInfo = accommodationInfo || {
     id: '',
     employerId: employerId || '',
-    name: '기숙사명 미등록',
-    description: '기숙사 소개가 등록되지 않았습니다.',
-    type: 'dormitory' as const,
+    name: '갈멍의 집', // 기본값을 "갈멍의 집"으로 설정
+    description: '신축', // 기본값을 "신축"으로 설정
+    type: 'apartment' as const, // 기본값을 아파트로 변경
     address: '주소 미등록',
     distanceFromWorkplace: '거리 정보 미등록',
     capacity: 0,
     currentOccupancy: 0,
-    roomTypes: [],
-    facilities: [],
+    roomTypes: [
+      {
+        type: 'twin',
+        capacity: 2,
+        price: 0,
+        available: 21, // 기본값을 21개로 설정
+        description: '무료이나 선착순'
+      }
+    ],
+    facilities: ['공용 목욕탕 무료', '워터파크', '체련실'],
     monthlyRent: 0,
-    utilities: [],
+    utilities: ['사용료 실비 계산'],
     images: [],
     rules: [],
-    contactPerson: '담당자 미등록',
-    contactPhone: '연락처 미등록',
+    contactPerson: '아무개', // 기본값을 "아무개"로 설정
+    contactPhone: '011111111111', // 기본값을 "011111111111"로 설정
     isAvailable: false,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -279,102 +379,102 @@ const AccommodationInfoPage: React.FC = () => {
   const isOwner = user?.uid === employerId;
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* 헤더 */}
       <div className="flex items-start justify-between">
         <div>
-          {isEditing ? (
-            <div className="space-y-4">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {isEditing ? (
               <input
                 type="text"
                 value={editForm.name || ''}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className="text-3xl font-bold text-gray-900 bg-white border border-gray-300 rounded px-3 py-2 w-full"
+                className="w-full text-3xl font-bold text-gray-900 bg-transparent border-b-2 border-orange-500 focus:outline-none"
                 placeholder="기숙사명을 입력하세요"
               />
-              <div className="flex items-center text-gray-600 space-x-4">
+            ) : (
+              editForm.name || '기숙사명 미등록'
+            )}
+          </h1>
+          <div className="flex items-center text-gray-600">
+            <Home className="h-4 w-4 mr-1" />
+            <span>
+              {isEditing ? (
                 <select
-                  value={editForm.type || 'dormitory'}
+                  value={editForm.type || 'apartment'}
                   onChange={(e) => handleInputChange('type', e.target.value)}
-                  className="bg-white border border-gray-300 rounded px-3 py-1"
+                  className="bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none"
                 >
                   <option value="dormitory">기숙사</option>
                   <option value="apartment">아파트</option>
                   <option value="house">주택</option>
                 </select>
-                <span>•</span>
-                <div className="flex items-center">
-                  <Users className="h-4 w-4 mr-1" />
-                  <span>수용인원: </span>
-                  <input
-                    type="number"
-                    value={editForm.capacity || 0}
-                    onChange={(e) => handleInputChange('capacity', parseInt(e.target.value) || 0)}
-                    className="bg-white border border-gray-300 rounded px-2 py-1 w-16 ml-1"
-                  />
-                  <span>명</span>
-                </div>
-                <span>•</span>
-                <div className="flex items-center">
-                  <span>현재: </span>
-                  <input
-                    type="number"
-                    value={editForm.currentOccupancy || 0}
-                    onChange={(e) => handleInputChange('currentOccupancy', parseInt(e.target.value) || 0)}
-                    className="bg-white border border-gray-300 rounded px-2 py-1 w-16 ml-1"
-                  />
-                  <span>명</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{displayInfo.name}</h1>
-              <div className="flex items-center text-gray-600 space-x-4">
-                <div className="flex items-center">
-                  <Star className="h-4 w-4 text-yellow-500 mr-1" />
-                  <span>{displayInfo.averageRating ? displayInfo.averageRating.toFixed(1) : '0.0'}</span>
-                  <span className="text-gray-500 ml-1">({displayInfo.totalReviews || 0}개 리뷰)</span>
-                </div>
-                <Link 
-                  to={`/resort/${employerId}/reviews`}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium underline"
-                >
-                  리뷰 보기
-                </Link>
-              </div>
-            </>
-          )}
+              ) : (
+                getTypeLabel(editForm.type || 'apartment')
+              )}
+            </span>
+            <span className="mx-2">•</span>
+            <Users className="h-4 w-4 mr-1" />
+            <span>
+              {isEditing ? (
+                <input
+                  type="number"
+                  value={editForm.capacity || 0}
+                  onChange={(e) => handleInputChange('capacity', parseInt(e.target.value) || 0)}
+                  className="bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none w-16"
+                  placeholder="0"
+                />
+              ) : (
+                `${editForm.capacity || 0}명`
+              )}
+            </span>
+            {isEditing && (
+              <>
+                <span className="mx-2">•</span>
+                <span>현재: </span>
+                <input
+                  type="number"
+                  value={editForm.currentOccupancy || 0}
+                  onChange={(e) => handleInputChange('currentOccupancy', parseInt(e.target.value) || 0)}
+                  className="bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none w-16"
+                  placeholder="0"
+                />
+                <span>명</span>
+              </>
+            )}
+          </div>
         </div>
         <div className="flex space-x-2">
           {isOwner && (
-            isEditing ? (
-              <>
+            <>
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? '저장 중...' : '저장'}
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    취소
+                  </button>
+                </>
+              ) : (
                 <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  onClick={handleEdit}
+                  className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
                 >
-                  <Save className="h-4 w-4 mr-2" />
-                  {saving ? '저장 중...' : '저장'}
+                  <Edit className="h-4 w-4 mr-2" />
+                  수정
                 </button>
-                <button
-                  onClick={handleCancel}
-                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  취소
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={handleEdit}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                수정
-              </button>
-            )
+              )}
+            </>
           )}
           <Link to="/jobs" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
             목록으로
@@ -414,23 +514,36 @@ const AccommodationInfoPage: React.FC = () => {
               )}
             </div>
             
-            {editForm.images && editForm.images.length > 0 ? (
+                        {((isEditing ? editForm.images : displayInfo.images) || []).length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {editForm.images.map((image, index) => (
-                  <div key={index} className="relative group aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                {(isEditing ? (editForm.images || []) : (displayInfo.images || [])).map((image, index) => (
+                  <div key={index} className="relative group aspect-video bg-gray-100 rounded-lg overflow-hidden cursor-pointer">
                     <img
                       src={image}
                       alt={`기숙사 이미지 ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover hover:opacity-80 transition-opacity"
+                      onClick={() => handleImagePreview(image, `기숙사 이미지 ${index + 1}`)}
+                      onError={(e) => {
+                        console.error('이미지 로드 실패:', image);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                      onLoad={() => {
+                        console.log('이미지 로드 성공:', image);
+                      }}
                     />
                     {isOwner && isEditing && (
                       <button
                         onClick={() => handleImageDelete(image, index)}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     )}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
+                        클릭하여 크게 보기
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1180,6 +1293,14 @@ const AccommodationInfoPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 이미지 미리보기 모달 */}
+      <ImagePreviewModal
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        imageUrl={previewImage || ''}
+        imageName={previewImageName}
+      />
     </div>
   );
 };

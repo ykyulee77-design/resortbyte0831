@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, LogOut, Trash2, AlertTriangle, X, FileText, Edit, Save, XCircle, Phone, Calendar, Briefcase, GraduationCap, Award, DollarSign } from 'lucide-react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { User, LogOut, Trash2, AlertTriangle, FileText, Edit, Save, XCircle, Phone, Briefcase, GraduationCap, Award, DollarSign, Home, Globe } from 'lucide-react';
+import { doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { deleteUser, getAuth } from 'firebase/auth';
 import { Resume } from '../types';
 
 const Profile: React.FC = () => {
@@ -15,6 +16,35 @@ const Profile: React.FC = () => {
   const [resumeEdit, setResumeEdit] = useState<Resume>(user?.resume || {});
   const [resumeMode, setResumeMode] = useState<'view' | 'edit'>(user?.resume ? 'view' : 'edit');
   const [resumeSaving, setResumeSaving] = useState(false);
+  // 구인자용 회사 정보
+  const [companyInfo, setCompanyInfo] = useState<any | null>(null);
+  const [companyLoading, setCompanyLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCompany = async () => {
+      if (!user?.uid || user.role !== 'employer') return;
+      setCompanyLoading(true);
+      try {
+        const ref = doc(db, 'companyInfo', user.uid);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          setCompanyInfo(snap.data());
+          return;
+        }
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const data: any = userSnap.data();
+          setCompanyInfo(data.employerInfo || data);
+        }
+      } catch (e) {
+        console.error('회사 정보 로딩 실패:', e);
+      } finally {
+        setCompanyLoading(false);
+      }
+    };
+    fetchCompany();
+  }, [user?.uid, user?.role]);
 
   const handleLogout = async () => {
     try {
@@ -26,15 +56,47 @@ const Profile: React.FC = () => {
   };
 
   const handleDeleteAccount = async () => {
+    if (!user) return;
+    
     try {
       setDeleteLoading(true);
-      alert('계정 삭제 기능은 현재 사용할 수 없습니다. 관리자에게 문의하세요.');
-      setShowDeleteModal(false);
-    } catch (error) {
+      
+      // 사용자 확인
+      const confirmDelete = window.confirm(
+        '정말로 계정을 삭제하시겠습니까?\n\n' +
+        '이 작업은 되돌릴 수 없으며, 모든 데이터가 영구적으로 삭제됩니다.\n' +
+        '삭제를 진행하려면 "확인"을 클릭하세요.'
+      );
+      
+      if (!confirmDelete) {
+        setShowDeleteModal(false);
+        return;
+      }
+
+      // Firestore에서 사용자 데이터 삭제
+      await deleteDoc(doc(db, 'users', user.uid));
+      
+      // Firebase Auth에서 사용자 계정 삭제
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        await deleteUser(currentUser);
+      }
+      
+      alert('계정이 성공적으로 삭제되었습니다.');
+      navigate('/');
+      
+    } catch (error: any) {
       console.error('계정 삭제 실패:', error);
-      alert('계정 삭제 중 오류가 발생했습니다.');
+      
+      if (error.code === 'auth/requires-recent-login') {
+        alert('보안상의 이유로 최근 로그인이 필요합니다. 다시 로그인 후 시도해주세요.');
+      } else {
+        alert('계정 삭제 중 오류가 발생했습니다: ' + error.message);
+      }
     } finally {
       setDeleteLoading(false);
+      setShowDeleteModal(false);
     }
   };
 
@@ -57,6 +119,8 @@ const Profile: React.FC = () => {
     }
   };
 
+
+
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -68,71 +132,154 @@ const Profile: React.FC = () => {
     );
   }
 
-  if (user.role !== 'jobseeker') {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">접근 권한이 없습니다</h2>
-          <p className="text-gray-600">이력서 기능은 구직자만 이용할 수 있습니다.</p>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-          <FileText className="w-8 h-8 text-purple-600" />
-          이력서
-        </h1>
-        <p className="text-gray-600">회사에 제출할 이력서를 작성하고 관리하세요.</p>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-lg">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-purple-600" />
-              이력서 정보
-            </h2>
-            <div className="flex gap-2">
-              {resumeMode === 'view' ? (
-                <button
-                  onClick={() => setResumeMode('edit')}
-                  className="flex items-center gap-2 px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
-                >
-                  <Edit className="w-4 h-4" />
-                  수정
-                </button>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+              {user.role === 'employer' ? (
+                <>
+                  <Briefcase className="w-8 h-8 text-blue-600" />
+                  회사 정보
+                </>
               ) : (
                 <>
-                  <button
-                    onClick={handleResumeSave}
-                    disabled={resumeSaving}
-                    className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    {resumeSaving ? '저장 중...' : '저장'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setResumeEdit(user?.resume || {});
-                      setResumeMode('view');
-                    }}
-                    className="flex items-center gap-2 px-3 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    취소
-                  </button>
+                  <FileText className="w-8 h-8 text-purple-600" />
+                  이력서
                 </>
               )}
+            </h1>
+            <p className="text-gray-600">
+              {user.role === 'employer' 
+                ? '회사 정보를 관리하고 업데이트하세요.' 
+                : '회사에 제출할 이력서를 작성하고 관리하세요.'
+              }
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      {user.role === 'employer' ? (
+        <div className="bg-white rounded-lg shadow-lg">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-blue-600" />
+                회사 정보
+              </h2>
+              <div className="flex gap-2">
+                <a
+                  href={`/company/${user.uid}`}
+                  className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                >
+                  <Edit className="w-4 h-4" />
+                  회사 정보 수정
+                </a>
+              </div>
+            </div>
+          </div>
+          <div className="p-6 space-y-6">
+            {/* 회사 기본 정보 카드 */}
+            <div className="border rounded-lg p-4">
+              <h3 className="font-semibold text-gray-900 mb-3">기본 정보</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">회사명</span>
+                  <p className="text-gray-900 font-medium">{companyInfo?.name || companyInfo?.companyName || '미등록'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">담당자</span>
+                  <p className="text-gray-900 font-medium">{user?.displayName || '미등록'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 연락처/주소 */}
+            <div className="border rounded-lg p-4">
+              <h3 className="font-semibold text-gray-900 mb-3">연락처 / 주소</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-green-600" />
+                  <span>{companyInfo?.contactPhone || '연락처 미등록'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-blue-600" />
+                  <span>{companyInfo?.website || '웹사이트 미등록'}</span>
+                </div>
+                <div className="md:col-span-2">
+                  <span className="text-gray-500">주소</span>
+                  <p className="text-gray-900">{companyInfo?.address || '주소 미등록'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 기숙사 상태 */}
+            <div className="border rounded-lg p-4">
+              <h3 className="font-semibold text-gray-900 mb-3">기숙사</h3>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <Home className="w-4 h-4 text-orange-600" />
+                  <span>기숙사 상세정보 관리</span>
+                </div>
+                <a
+                  href={`/accommodation/${user.uid}`}
+                  className="inline-flex items-center px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700"
+                >
+                  이동
+                </a>
+              </div>
             </div>
           </div>
         </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-lg">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-purple-600" />
+                이력서 정보
+              </h2>
+              <div className="flex gap-2">
+                {resumeMode === 'view' ? (
+                  <button
+                    onClick={() => setResumeMode('edit')}
+                    className="flex items-center gap-2 px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                  >
+                    <Edit className="w-4 h-4" />
+                    수정
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleResumeSave}
+                      disabled={resumeSaving}
+                      className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" />
+                      {resumeSaving ? '저장 중...' : '저장'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setResumeEdit(user?.resume || {});
+                        setResumeMode('view');
+                      }}
+                      className="flex items-center gap-2 px-3 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      취소
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         
         <div className="p-6">
-          {/* 기본 정보 */}
+          {/* 기본 정보 - 모든 사용자에게 표시 */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <User className="w-5 h-5 text-blue-600" />
@@ -150,8 +297,8 @@ const Profile: React.FC = () => {
             </div>
           </div>
 
-          {/* 이력서 정보 */}
-          {resumeMode === 'view' && user.resume ? (
+          {/* 이력서 정보 - 구직자에게만 표시 */}
+          {user.role === 'jobseeker' && resumeMode === 'view' && user.resume ? (
             <div className="space-y-6">
               {/* 연락처 정보 */}
               <div className="border border-gray-200 rounded-lg p-4">
@@ -162,11 +309,11 @@ const Profile: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
-                    <p className="text-sm text-gray-900">{user.resume.phone || '미입력'}</p>
+                    <p className="text-sm text-gray-900">{user?.resume?.phone || '미입력'}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">생년월일</label>
-                    <p className="text-sm text-gray-900">{user.resume.birth || '미입력'}</p>
+                    <p className="text-sm text-gray-900">{user?.resume?.birth || '미입력'}</p>
                   </div>
                 </div>
               </div>
@@ -180,11 +327,11 @@ const Profile: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">희망 직무</label>
-                    <p className="text-sm text-gray-900">{user.resume.jobType || '미입력'}</p>
+                    <p className="text-sm text-gray-900">{user?.resume?.jobType || '미입력'}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">경력</label>
-                    <p className="text-sm text-gray-900">{user.resume.career || '미입력'}</p>
+                    <p className="text-sm text-gray-900">{user?.resume?.career || '미입력'}</p>
                   </div>
                 </div>
               </div>
@@ -198,13 +345,13 @@ const Profile: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">학력</label>
-                    <p className="text-sm text-gray-900">{user.resume.education || '미입력'}</p>
+                    <p className="text-sm text-gray-900">{user?.resume?.education || '미입력'}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">자격증/특기</label>
                     <p className="text-sm text-gray-900">
-                      {user.resume.certs && user.resume.certs.length > 0 
-                        ? user.resume.certs.join(', ') 
+                      {user?.resume?.certs && user?.resume?.certs.length > 0 
+                        ? user?.resume?.certs.join(', ') 
                         : '미입력'
                       }
                     </p>
@@ -222,15 +369,15 @@ const Profile: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">희망 급여</label>
                     <p className="text-sm text-gray-900">
-                      {user.resume.expectedSalary 
-                        ? `${user.resume.expectedSalary.toLocaleString()}원` 
+                      {user?.resume?.expectedSalary 
+                        ? `${user?.resume?.expectedSalary?.toLocaleString?.()}원` 
                         : '미입력'
                       }
                     </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">입사 가능일</label>
-                    <p className="text-sm text-gray-900">{user.resume.availableStartDate || '미입력'}</p>
+                    <p className="text-sm text-gray-900">{user?.resume?.availableStartDate || '미입력'}</p>
                   </div>
                 </div>
               </div>
@@ -243,12 +390,12 @@ const Profile: React.FC = () => {
                 </h4>
                 <div>
                   <p className="text-sm text-gray-900 whitespace-pre-wrap">
-                    {user.resume.intro || '자기소개를 입력해주세요.'}
+                    {user?.resume?.intro || '자기소개를 입력해주세요.'}
                   </p>
                 </div>
               </div>
             </div>
-          ) : (
+          ) : user.role === 'jobseeker' ? (
             <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleResumeSave(); }}>
               {/* 연락처 정보 */}
               <div className="border border-gray-200 rounded-lg p-4">
@@ -399,9 +546,10 @@ const Profile: React.FC = () => {
                 </div>
               </div>
             </form>
-          )}
+          ) : null}
         </div>
       </div>
+      )}
 
       {/* 계정 관리 섹션 */}
       <div className="mt-8 bg-white rounded-lg shadow-lg">

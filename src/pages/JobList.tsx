@@ -4,6 +4,7 @@ import { MapPin, DollarSign, Calendar, Search, Filter, Home, Eye } from 'lucide-
 import { JobPost, AccommodationInfo } from '../types';
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import ImagePreviewModal from '../components/ImagePreviewModal';
 
 
 
@@ -37,11 +38,21 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
   const [facilityFilter, setFacilityFilter] = useState('');
   const [regionProvince, setRegionProvince] = useState(''); // 도/광역시
   const [regionDistrict, setRegionDistrict] = useState(''); // 시/군/구
+  
+  // 이미지 미리보기 상태
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImageName, setPreviewImageName] = useState<string>('');
 
   // 숙소 시설 옵션(CompanyInfoModal과 동일하게 유지)
   const dormitoryFacilityOptions = [
     '와이파이', '에어컨', '세탁기', '개인욕실', '공용주방', 'TV', '냉장고', '책상', '옷장', '난방'
   ];
+
+  // 이미지 미리보기 핸들러
+  const handleImagePreview = (imageUrl: string, imageName?: string) => {
+    setPreviewImage(imageUrl);
+    setPreviewImageName(imageName || '이미지');
+  };
 
   // 등록된 회사들의 도/광역시 목록(빈 값/중복 완전 제거)
   const uniqueProvinces = Array.from(new Set(
@@ -427,11 +438,15 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
                          accommodationInfoMap[jobPost.employerId].images.length > 0 && (
                           <div className="mt-2 flex space-x-1">
                             {accommodationInfoMap[jobPost.employerId].images.slice(0, 3).map((imageUrl, index) => (
-                              <div key={index} className="w-12 h-12 rounded overflow-hidden border border-gray-200">
+                              <div key={index} className="w-12 h-12 rounded overflow-hidden border border-gray-200 cursor-pointer group" onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleImagePreview(imageUrl, `기숙사 사진 ${index + 1}`);
+                              }}>
                                 <img
                                   src={imageUrl}
                                   alt={`기숙사 사진 ${index + 1}`}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
                                 />
                               </div>
                             ))}
@@ -597,11 +612,11 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
                     <span className="text-gray-500 text-sm">기숙사 사진</span>
                     <div className="grid grid-cols-3 gap-2 mt-2">
                       {selectedAccommodation.images.map((imageUrl, index) => (
-                        <div key={index} className="aspect-square rounded-lg overflow-hidden border border-gray-200">
+                        <div key={index} className="aspect-square rounded-lg overflow-hidden border border-gray-200 cursor-pointer group" onClick={() => handleImagePreview(imageUrl, `기숙사 사진 ${index + 1}`)}>
                           <img
                             src={imageUrl}
                             alt={`기숙사 사진 ${index + 1}`}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
                           />
                         </div>
                       ))}
@@ -622,6 +637,17 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
           </div>
         </div>
       )}
+
+      {/* 이미지 미리보기 모달 */}
+      <ImagePreviewModal
+        isOpen={!!previewImage}
+        imageUrl={previewImage || ''}
+        imageName={previewImageName}
+        onClose={() => {
+          setPreviewImage(null);
+          setPreviewImageName('');
+        }}
+      />
     </div>
   );
 };

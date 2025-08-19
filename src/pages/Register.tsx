@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
-import AddressSearch from '../components/AddressSearch';
+// import AddressSearch, { Address } from '../components/AddressSearch';
 
 const Register: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -30,12 +31,22 @@ const Register: React.FC = () => {
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
+  // URL 파라미터에서 회원유형 자동 설정
+  useEffect(() => {
+    const userType = searchParams.get('type');
+    if (userType === 'employer') {
+      setFormData(prev => ({
+        ...prev,
+        userType: 'employer'
+      }));
+    }
+  }, [searchParams]);
+
   // 관리자 등록 코드 (실제 환경에서는 환경변수나 보안된 설정에서 관리)
   const ADMIN_REGISTRATION_CODE = 'RESORT_ADMIN_2024';
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    console.log('Register handleInputChange:', { name, value, target: e.target });
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -128,10 +139,13 @@ const Register: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            회원가입
+            {searchParams.get('type') === 'employer' ? '구인자 회원가입' : '회원가입'}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            리조트바이트에 가입하고 일자리를 찾아보세요
+            {searchParams.get('type') === 'employer' 
+              ? '리조트바이트에 구인자로 가입하고 인력을 찾아보세요'
+              : '리조트바이트에 가입하고 일자리를 찾아보세요'
+            }
           </p>
         </div>
         
@@ -250,12 +264,18 @@ const Register: React.FC = () => {
                 name="userType"
                 value={formData.userType}
                 onChange={handleInputChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-resort-500 focus:border-resort-500 sm:text-sm"
+                disabled={searchParams.get('type') === 'employer'}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-resort-500 focus:border-resort-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 <option value="jobseeker">구직자</option>
                 <option value="employer">구인자</option>
                 <option value="admin">관리자</option>
               </select>
+              {searchParams.get('type') === 'employer' && (
+                <p className="mt-1 text-sm text-blue-600">
+                  구인자로 회원가입하시는 경우입니다.
+                </p>
+              )}
             </div>
 
             {/* 구인자 직장정보 필드들 */}
@@ -283,16 +303,15 @@ const Register: React.FC = () => {
                   <label htmlFor="companyAddress" className="block text-sm font-medium text-gray-700">
                     회사 주소 <span className="text-red-500">*</span>
                   </label>
-                  <AddressSearch
-                    onAddressSelect={(address) => {
-                      console.log('주소 선택됨:', address);
-                      setFormData(prev => ({
-                        ...prev,
-                        companyAddress: address.address
-                      }));
-                    }}
-                    placeholder="회사 주소를 검색하세요"
+                  <input
+                    id="companyAddress"
+                    name="companyAddress"
+                    type="text"
+                    required
                     value={formData.companyAddress}
+                    onChange={handleInputChange}
+                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-resort-500 focus:border-resort-500 focus:z-10 sm:text-sm"
+                    placeholder="회사 주소를 입력하세요"
                   />
                 </div>
 

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import HomeLayout from '../components/HomeLayout';
+import VideoPreviewModal from '../components/VideoPreviewModal';
 
 const Reviews: React.FC = () => {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -10,6 +11,15 @@ const Reviews: React.FC = () => {
   const [resorts, setResorts] = useState<{ id: string; name: string }[]>([]);
   const [selectedResort, setSelectedResort] = useState('');
   const [companyMap, setCompanyMap] = useState<{ [id: string]: string }>({});
+  const [videoModal, setVideoModal] = useState<{
+    isOpen: boolean;
+    videoUrl: string;
+    videoName: string;
+  }>({
+    isOpen: false,
+    videoUrl: '',
+    videoName: ''
+  });
 
   useEffect(() => {
     const fetchResorts = async () => {
@@ -67,6 +77,24 @@ const Reviews: React.FC = () => {
     ? (filteredReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / filteredReviews.length).toFixed(1)
     : null;
 
+  // 동영상 모달 열기
+  const handleVideoPreview = (videoUrl: string, videoName: string) => {
+    setVideoModal({
+      isOpen: true,
+      videoUrl,
+      videoName
+    });
+  };
+
+  // 동영상 모달 닫기
+  const handleVideoModalClose = () => {
+    setVideoModal({
+      isOpen: false,
+      videoUrl: '',
+      videoName: ''
+    });
+  };
+
   return (
     <HomeLayout>
       <div className="max-w-3xl mx-auto py-12 px-4">
@@ -98,11 +126,27 @@ const Reviews: React.FC = () => {
                       className="w-full h-32 object-cover"
                     />
                   ) : (
-                    <video 
-                      src={item.fileUrl} 
-                      className="w-full h-32 object-cover"
-                      muted
-                    />
+                                         <div 
+                       className="relative w-full h-32 bg-gray-900 cursor-pointer"
+                       onClick={() => handleVideoPreview(item.fileUrl, item.description)}
+                     >
+                       <video 
+                         src={item.fileUrl} 
+                         className="w-full h-full object-cover"
+                         preload="metadata"
+                         onError={(e) => {
+                           console.error('동영상 로드 실패:', item.fileUrl);
+                           e.currentTarget.style.display = 'none';
+                         }}
+                       />
+                       <div className="absolute inset-0 flex items-center justify-center">
+                         <div className="bg-black bg-opacity-50 text-white rounded-full p-3 hover:bg-opacity-70 transition-all">
+                           <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                           </svg>
+                         </div>
+                       </div>
+                     </div>
                   )}
                   <div className="p-3">
                     <p className="text-xs text-gray-600 mb-1">
@@ -153,10 +197,18 @@ const Reviews: React.FC = () => {
               <div className="text-gray-800 text-sm">{r.content}</div>
             </div>
           ))}
-        </div>
-      </div>
-    </HomeLayout>
-  );
-};
+                 </div>
+       </div>
+
+       {/* 동영상 모달 */}
+       <VideoPreviewModal
+         isOpen={videoModal.isOpen}
+         onClose={handleVideoModalClose}
+         videoUrl={videoModal.videoUrl}
+         videoName={videoModal.videoName}
+       />
+     </HomeLayout>
+   );
+ };
 
 export default Reviews; 

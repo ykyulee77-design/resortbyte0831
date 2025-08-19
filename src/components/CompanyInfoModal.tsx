@@ -4,6 +4,7 @@ import { CompanyInfo } from '../types';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { uploadImage, deleteImage, validateImageFile, compressImage } from '../utils/imageUpload';
+import ImagePreviewModal from './ImagePreviewModal';
 
 interface CompanyInfoModalProps {
   isOpen: boolean;
@@ -44,6 +45,8 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImageName, setPreviewImageName] = useState<string>('');
 
   // 기존 회사 정보 불러오기
   useEffect(() => {
@@ -201,8 +204,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
   };
 
   // 이미지 미리보기 함수
-  const handleImagePreview = (imageUrl: string) => {
-    setImagePreview(imageUrl);
+  const handleImagePreview = (imageUrl: string, imageName?: string) => {
+    setPreviewImage(imageUrl);
+    setPreviewImageName(imageName || '회사 이미지');
   };
 
   const handleSave = async () => {
@@ -477,18 +481,19 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
                     {companyInfo.images && companyInfo.images.length > 0 && (
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {companyInfo.images.map((imageUrl, index) => (
-                          <div key={index} className="relative group">
+                          <div key={index} className="relative group cursor-pointer">
                             <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
                               <img
                                 src={imageUrl}
                                 alt={`회사 이미지 ${index + 1}`}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover hover:opacity-80 transition-opacity"
+                                onClick={() => handleImagePreview(imageUrl, `회사 이미지 ${index + 1}`)}
                               />
                             </div>
                             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
                               <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-2">
                                 <button
-                                  onClick={() => handleImagePreview(imageUrl)}
+                                  onClick={() => handleImagePreview(imageUrl, `회사 이미지 ${index + 1}`)}
                                   className="p-2 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100 transition-colors"
                                   title="미리보기"
                                 >
@@ -627,24 +632,13 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
         </div>
       </div>
 
-      {/* 이미지 미리보기 모달 */}
-      {imagePreview && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-60 p-4">
-          <div className="relative max-w-4xl max-h-[90vh]">
-            <button
-              onClick={() => setImagePreview(null)}
-              className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10"
-            >
-              <X className="h-8 w-8" />
-            </button>
-            <img
-              src={imagePreview}
-              alt="이미지 미리보기"
-              className="max-w-full max-h-full object-contain rounded-lg"
-            />
-          </div>
-        </div>
-      )}
+                    {/* 이미지 미리보기 모달 - 임시 비활성화 */}
+              {/* <ImagePreviewModal
+                isOpen={!!previewImage}
+                onClose={() => setPreviewImage(null)}
+                imageUrl={previewImage || ''}
+                imageName={previewImageName}
+              /> */}
     </div>
   );
 };

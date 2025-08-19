@@ -1,26 +1,28 @@
 import React, { useState, useEffect } from 'react';
 
-interface Address {
+export interface Address {
   zipCode: string;
   address: string;
   roadAddress: string;
   jibunAddress: string;
 }
 
-interface AddressSearchProps {
+export interface AddressSearchProps {
   onAddressSelect: (address: Address) => void;
   placeholder?: string;
   value?: string;
 }
 
-const AddressSearch: React.FC<AddressSearchProps> = ({ onAddressSelect, placeholder = "주소를 검색하세요", value = "" }) => {
+const AddressSearch: React.FC<AddressSearchProps> = ({ 
+  onAddressSelect, 
+  placeholder = "주소를 검색하세요", 
+  value = "" 
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  console.log('AddressSearch 컴포넌트 렌더링됨', { value });
 
   // value가 변경되면 searchTerm도 업데이트
   useEffect(() => {
@@ -29,16 +31,13 @@ const AddressSearch: React.FC<AddressSearchProps> = ({ onAddressSelect, placehol
     }
   }, [value, isEditing]);
 
-  // 우체국 우편번호 API 호출
+  // 주소 검색 함수
   const searchAddresses = async (keyword: string) => {
     if (keyword.length < 2) return;
 
     setIsLoading(true);
     try {
-      // 우체국 우편번호 API 호출 (실제 API 키가 필요합니다)
-      // const response = await fetch(`https://api.postcode.kr/api/v1/postcode/search?keyword=${encodeURIComponent(keyword)}&api_key=YOUR_API_KEY`);
-      
-      // 임시로 실제 주소 데이터를 사용 (실제로는 API 응답 사용)
+      // 실제 주소 데이터 (실제로는 API 응답 사용)
       const realAddressData: Address[] = [
         {
           zipCode: '06123',
@@ -156,7 +155,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({ onAddressSelect, placehol
         }
       ];
 
-      // 키워드로 필터링 (실제 주소 데이터 사용)
+      // 키워드로 필터링
       const filtered = realAddressData.filter(addr => 
         addr.address.toLowerCase().includes(keyword.toLowerCase()) ||
         addr.roadAddress.toLowerCase().includes(keyword.toLowerCase()) ||
@@ -165,6 +164,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({ onAddressSelect, placehol
       );
 
       setAddresses(filtered);
+      setShowDropdown(true);
     } catch (error) {
       console.error('주소 검색 오류:', error);
       setAddresses([]);
@@ -180,6 +180,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({ onAddressSelect, placehol
         searchAddresses(searchTerm);
       } else {
         setAddresses([]);
+        setShowDropdown(false);
       }
     }, 300);
 
@@ -190,7 +191,6 @@ const AddressSearch: React.FC<AddressSearchProps> = ({ onAddressSelect, placehol
     const value = e.target.value;
     setSearchTerm(value);
     setIsEditing(true);
-    setShowDropdown(value.length >= 2);
   };
 
   const handleAddressSelect = (address: Address) => {
@@ -230,19 +230,35 @@ const AddressSearch: React.FC<AddressSearchProps> = ({ onAddressSelect, placehol
     }
   };
 
+  const handleSearchClick = () => {
+    if (searchTerm.length >= 2) {
+      searchAddresses(searchTerm);
+    }
+  };
+
   return (
     <div className="relative">
-      <input
-        type="text"
-        value={searchTerm}
-        onChange={handleInputChange}
-        onFocus={handleInputFocus}
-        onBlur={handleInputBlur}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-resort-500 focus:border-resort-500 focus:z-10 sm:text-sm"
-        autoComplete="off"
-      />
+      <div className="flex">
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-l-md focus:outline-none focus:ring-resort-500 focus:border-resort-500 focus:z-10 sm:text-sm"
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          onClick={handleSearchClick}
+          disabled={searchTerm.length < 2 || isLoading}
+          className="mt-1 px-4 py-2 bg-resort-600 text-white border border-resort-600 rounded-r-md hover:bg-resort-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-resort-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? '검색중...' : '🔍'}
+        </button>
+      </div>
 
       {/* 주소 드롭다운 */}
       {showDropdown && addresses.length > 0 && (
@@ -260,11 +276,11 @@ const AddressSearch: React.FC<AddressSearchProps> = ({ onAddressSelect, placehol
                 onClick={() => handleAddressSelect(address)}
               >
                 <div className="font-medium text-sm text-gray-900">
-                  {address.address}
+                  📍 {address.address}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
                   <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2">
-                    {address.zipCode}
+                    📮 {address.zipCode}
                   </span>
                   {address.jibunAddress}
                 </div>
@@ -283,7 +299,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({ onAddressSelect, placehol
       )}
 
       <div className="text-xs text-gray-500 mt-1">
-        {searchTerm ? '실제 주소를 검색하거나 직접 입력하세요' : '주소를 입력하면 실제 검색 결과가 나타납니다'}
+        💡 {searchTerm ? '실제 주소를 검색하거나 직접 입력하세요' : '주소를 입력하고 🔍 버튼을 클릭하거나 Enter를 눌러 검색하세요'}
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import HomeLayout from '../components/HomeLayout';
+import VideoPreviewModal from '../components/VideoPreviewModal';
 
 const ReviewsMediaForm: React.FC = () => {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -13,6 +14,15 @@ const ReviewsMediaForm: React.FC = () => {
   const [resort, setResort] = useState('');
   const [resorts, setResorts] = useState<{ id: string; name: string }[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [videoModal, setVideoModal] = useState<{
+    isOpen: boolean;
+    videoUrl: string;
+    videoName: string;
+  }>({
+    isOpen: false,
+    videoUrl: '',
+    videoName: ''
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,10 +39,43 @@ const ReviewsMediaForm: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setMediaFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
-  };
+      // 파일 크기 검증 (50MB 제한)
+      if (file.size > 50 * 1024 * 1024) {
+        alert('파일 크기는 50MB 이하여야 합니다.');
+        return;
+      }
+
+      // 파일 형식 검증
+      const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+      
+      if (!allowedImageTypes.includes(file.type) && !allowedVideoTypes.includes(file.type)) {
+        alert('지원하지 않는 파일 형식입니다. 이미지(JPG, PNG, GIF, WebP) 또는 동영상(MP4, WebM, OGG, MOV) 파일을 선택해주세요.');
+        return;
+      }
+
+             setMediaFile(file);
+       setPreviewUrl(URL.createObjectURL(file));
+     }
+   };
+
+   // 동영상 모달 열기
+   const handleVideoPreview = (videoUrl: string, videoName: string) => {
+     setVideoModal({
+       isOpen: true,
+       videoUrl,
+       videoName
+     });
+   };
+
+   // 동영상 모달 닫기
+   const handleVideoModalClose = () => {
+     setVideoModal({
+       isOpen: false,
+       videoUrl: '',
+       videoName: ''
+     });
+   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,9 +136,29 @@ const ReviewsMediaForm: React.FC = () => {
               <div className="mt-2">
                 {mediaFile && mediaFile.type.startsWith('image') ? (
                   <img src={previewUrl} alt="미리보기" className="w-full h-48 object-cover rounded" />
-                ) : (
-                  <video src={previewUrl} controls className="w-full h-48 rounded" />
-                )}
+                                 ) : (
+                   <div 
+                     className="relative w-full h-48 bg-gray-900 rounded cursor-pointer"
+                     onClick={() => handleVideoPreview(previewUrl, mediaFile?.name || '동영상 미리보기')}
+                   >
+                     <video 
+                       src={previewUrl} 
+                       className="w-full h-full object-cover rounded"
+                       preload="metadata"
+                       onError={(e) => {
+                         console.error('동영상 미리보기 로드 실패:', previewUrl);
+                         e.currentTarget.style.display = 'none';
+                       }}
+                     />
+                     <div className="absolute inset-0 flex items-center justify-center">
+                       <div className="bg-black bg-opacity-50 text-white rounded-full p-4 hover:bg-opacity-70 transition-all">
+                         <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                         </svg>
+                       </div>
+                     </div>
+                   </div>
+                 )}
               </div>
             )}
           </div>
@@ -106,10 +169,18 @@ const ReviewsMediaForm: React.FC = () => {
           <button type="submit" className="w-full bg-resort-600 text-white py-2 rounded hover:bg-resort-700 font-semibold" disabled={uploading}>
             {uploading ? '업로드 중...' : '등록하기'}
           </button>
-        </form>
-      </div>
-    </HomeLayout>
-  );
-};
+                 </form>
+       </div>
+
+       {/* 동영상 모달 */}
+       <VideoPreviewModal
+         isOpen={videoModal.isOpen}
+         onClose={handleVideoModalClose}
+         videoUrl={videoModal.videoUrl}
+         videoName={videoModal.videoName}
+       />
+     </HomeLayout>
+   );
+ };
 
 export default ReviewsMediaForm; 
