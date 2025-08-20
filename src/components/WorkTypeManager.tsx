@@ -27,6 +27,7 @@ const WorkTypeManager: React.FC<WorkTypeManagerProps> = ({
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedWorkTypeForDetail, setSelectedWorkTypeForDetail] = useState<WorkType | null>(null);
   const [showWorkTypeDetailModal, setShowWorkTypeDetailModal] = useState(false);
+  const [showScheduleGrid, setShowScheduleGrid] = useState(false);
 
   const loadWorkTypes = async () => {
     if (!employerId) return;
@@ -46,6 +47,13 @@ const WorkTypeManager: React.FC<WorkTypeManagerProps> = ({
   useEffect(() => {
     loadWorkTypes();
   }, [employerId]);
+
+  // 설정형 선택 시 바로 스케줄 그리드 표시
+  useEffect(() => {
+    if (isSelectionMode && workTypes.length === 0) {
+      setShowScheduleGrid(true);
+    }
+  }, [isSelectionMode, workTypes.length]);
 
   const handleCreate = async () => {
     if (!newWorkTypeName.trim() || !employerId) return;
@@ -121,7 +129,7 @@ const WorkTypeManager: React.FC<WorkTypeManagerProps> = ({
             <div className="mb-6">
               {!showCreateForm ? (
                 <button
-                  onClick={() => setShowCreateForm(true)}
+                  onClick={() => setShowScheduleGrid(true)}
                   className="w-full p-4 border-2 border-dashed border-blue-300 rounded-lg text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
                 >
                   <Plus className="h-5 w-5" />
@@ -246,6 +254,40 @@ const WorkTypeManager: React.FC<WorkTypeManagerProps> = ({
       </div>
 
 
+
+      {/* 스케줄 그리드 모달 */}
+      {showScheduleGrid && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-semibold">새 근무 유형 생성</h3>
+                <p className="text-sm text-gray-500 mt-1">근무 유형명과 스케줄을 설정하세요</p>
+              </div>
+              <button 
+                onClick={() => setShowScheduleGrid(false)} 
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <WorkTypeEditModal
+              workType={null}
+              isOpen={true}
+              onClose={() => setShowScheduleGrid(false)}
+              onUpdate={(newWorkType: WorkType) => {
+                // 생성 후 목록 새로고침 및 모달 닫기
+                loadWorkTypes();
+                setShowScheduleGrid(false);
+                if (onWorkTypeCreated) {
+                  onWorkTypeCreated(newWorkType);
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* 근무타입 수정 모달 */}
       <WorkTypeEditModal

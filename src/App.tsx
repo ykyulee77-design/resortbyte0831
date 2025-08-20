@@ -176,9 +176,11 @@ function App() {
               </HomeLayout>
             } />
             <Route path="/accommodation/:employerId" element={
-              <HomeLayout>
-                <AccommodationInfoPage />
-              </HomeLayout>
+              <ProtectedRoute allowedRoles={['employer']}>
+                <Layout>
+                  <AccommodationInfoPage />
+                </Layout>
+              </ProtectedRoute>
             } />
             
             {/* 리뷰 관련 라우트 */}

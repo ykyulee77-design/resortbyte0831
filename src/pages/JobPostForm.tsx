@@ -1,24 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { collection, addDoc, updateDoc, doc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { uploadMultipleImages, validateImageFile } from '../utils/imageUpload';
 import { JobPost, WorkType, TimeSlot } from '../types';
 
 import LoadingSpinner from '../components/LoadingSpinner';
-import WorkTypeManager from '../components/WorkTypeManager';
+
 import WorkTypeEditModal from '../components/WorkTypeEditModal';
+import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
 import ImageDetailModal from '../components/ImageDetailModal';
-import ScheduleDisplay from '../components/ScheduleDisplay';
+
 import { useAuth } from '../contexts/AuthContext';
 import { workTypeService } from '../utils/scheduleMatchingService';
-import { Clock, Trash2, Eye, Maximize2, Building, Calendar, FileText, Users, Home } from 'lucide-react';
+import { Clock, Trash2, Maximize2, Building, FileText, Users, Home, Save, CheckCircle } from 'lucide-react';
 
 interface JobPostFormData {
   title: string;
   jobTitle: string; // 채용직무 필드 추가
   description: string;
-  location: string;
+  
+  // 회사 정보
+  companyInfo: {
+    name: string;
+    industry: string;
+    companySize: string;
+    address: string;
+    contactEmail: string;
+    contactPhone: string;
+    contactPerson: string;
+  };
+  
+
+  
   workPeriod: {
     startDate: string;
     endDate: string;
@@ -32,9 +46,8 @@ interface JobPostFormData {
   benefits: string[];
   scheduleType: 'traditional' | 'flexible' | 'smart_matching';
   workTypes: WorkType[];
-  workTimeType: '무관' | '근무타입 설정';
-  environment: '도심' | '외곽' | '기타';
-  salaryRange: string;
+  workTimeType: '기타(추후 협의)' | '기본형' | '설정형';
+  workTimeText: string; // 기본형일 때 사용할 텍스트
   images: File[];
   contactInfo: {
     email: string;
@@ -45,16 +58,34 @@ interface JobPostFormData {
   employeeBenefits: string;
 }
 
+// 총 근무시간 계산 함수
+const calculateTotalHoursPerWeek = (schedules: TimeSlot[]): number => {
+  return schedules.reduce((total, slot) => {
+    const hoursInSlot = slot.end > slot.start ? slot.end - slot.start : (24 - slot.start) + slot.end;
+    return total + hoursInSlot;
+  }, 0);
+};
+
 const JobPostForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showWorkTypeManager, setShowWorkTypeManager] = useState(false);
   const [availableWorkTypes, setAvailableWorkTypes] = useState<WorkType[]>([]);
   const [loadingWorkTypes, setLoadingWorkTypes] = useState(false);
-  const [isWorkTypeSelectionMode, setIsWorkTypeSelectionMode] = useState(false);
+
+  // 타임스케줄 그리드 관련 state
+  const [workTypeFormData, setWorkTypeFormData] = useState({
+    name: '',
+    description: '',
+    hourlyWage: 0,
+    isActive: true
+  });
+  const [schedules, setSchedules] = useState<TimeSlot[]>([]);
+  const [isSavingWorkType, setIsSavingWorkType] = useState(false);
+  const [workTypeErrors, setWorkTypeErrors] = useState<{[key: string]: string}>({});
+
   const [selectedWorkTypeForDetail, setSelectedWorkTypeForDetail] = useState<WorkType | null>(null);
   const [showWorkTypeDetailModal, setShowWorkTypeDetailModal] = useState(false);
   const [selectedImageForDetail, setSelectedImageForDetail] = useState<File | null>(null);
@@ -63,12 +94,27 @@ const JobPostForm: React.FC = () => {
   const [accommodationInfo, setAccommodationInfo] = useState<any>(null);
   const [loadingCompanyInfo, setLoadingCompanyInfo] = useState(false);
   const [loadingAccommodationInfo, setLoadingAccommodationInfo] = useState(false);
+  
+
 
   const [formData, setFormData] = useState<JobPostFormData>({
     title: '',
     jobTitle: '', // 채용직무 필드 추가
     description: '',
-    location: '',
+    
+    // 회사 정보
+    companyInfo: {
+      name: '',
+      industry: '',
+      companySize: '',
+      address: '',
+      contactEmail: '',
+      contactPhone: '',
+      contactPerson: ''
+    },
+    
+
+    
     workPeriod: {
       startDate: '',
       endDate: ''
@@ -82,9 +128,8 @@ const JobPostForm: React.FC = () => {
     benefits: [''],
     scheduleType: 'smart_matching',
     workTypes: [],
-    workTimeType: '무관',
-    environment: '도심',
-    salaryRange: '',
+    workTimeType: '기타(추후 협의)',
+    workTimeText: '',
     images: [],
     contactInfo: {
       email: '',
@@ -109,11 +154,17 @@ const JobPostForm: React.FC = () => {
     }
   }, [user]);
 
+
+
   useEffect(() => {
     if (companyInfo || accommodationInfo) {
       loadExistingInfo();
     }
   }, [companyInfo, accommodationInfo]);
+
+
+
+
 
   const loadAvailableWorkTypes = async () => {
     if (!user) return;
@@ -172,21 +223,6 @@ const JobPostForm: React.FC = () => {
   };
 
   const loadExistingInfo = () => {
-    if (companyInfo) {
-      // 회사정보를 폼에 자동으로 채우기
-      setFormData(prev => ({
-        ...prev,
-        title: companyInfo.name ? `${companyInfo.name} 채용공고` : prev.title,
-        location: companyInfo.address || companyInfo.region || prev.location,
-        environment: companyInfo.environment || '도심',
-        salaryRange: companyInfo.salaryRange || '',
-        contactInfo: {
-          email: companyInfo.contactEmail || prev.contactInfo.email,
-          phone: companyInfo.contactPhone || prev.contactInfo.phone
-        }
-      }));
-    }
-
     if (accommodationInfo) {
       // 기숙사정보를 폼에 자동으로 채우기
       setFormData(prev => ({
@@ -214,9 +250,7 @@ const JobPostForm: React.FC = () => {
     console.log('업데이트된 근무 유형 목록:', updatedWorkTypes);
     handleInputChange('workTypes', updatedWorkTypes);
     
-    // 선택 모드 종료
-    setIsWorkTypeSelectionMode(false);
-    setShowWorkTypeManager(false);
+
   };
 
   const removeWorkType = (workTypeId: string) => {
@@ -224,10 +258,65 @@ const JobPostForm: React.FC = () => {
     handleInputChange('workTypes', updatedWorkTypes);
   };
 
-  const handleWorkTypeClick = (workType: WorkType) => {
-    setSelectedWorkTypeForDetail(workType);
-    setShowWorkTypeDetailModal(true);
+  const validateWorkTypeForm = () => {
+    const newErrors: {[key: string]: string} = {};
+
+    if (!workTypeFormData.name.trim()) {
+      newErrors.name = '근무타입명을 입력해주세요';
+    }
+
+    if (schedules.length === 0) {
+      newErrors.schedules = '최소 하나의 스케줄을 설정해주세요';
+    }
+
+    setWorkTypeErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
+
+  const handleSaveWorkType = async () => {
+    if (!user || !validateWorkTypeForm()) return;
+
+    setIsSavingWorkType(true);
+    try {
+      const newWorkType = await workTypeService.createWorkType({
+        employerId: user.uid,
+        name: workTypeFormData.name.trim(),
+        description: workTypeFormData.description.trim(),
+        hourlyWage: workTypeFormData.hourlyWage,
+        schedules: schedules,
+        isActive: workTypeFormData.isActive
+      });
+      
+      // 생성 후 자동으로 선택
+      selectWorkType(newWorkType);
+      
+      // availableWorkTypes 목록 새로고침
+      await loadAvailableWorkTypes();
+      
+      // 폼 초기화
+      setWorkTypeFormData({
+        name: '',
+        description: '',
+        hourlyWage: 0,
+        isActive: true
+      });
+      setSchedules([]);
+      setWorkTypeErrors({});
+      
+      // 성공 메시지 표시
+      alert(`새 근무 타입 "${newWorkType.name}"이(가) 생성되었습니다!`);
+    } catch (error) {
+      console.error('근무 유형 생성 실패:', error);
+      alert('근무 유형 생성에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSavingWorkType(false);
+    }
+  };
+
+  // const handleWorkTypeClick = (workType: WorkType) => {
+  //   setSelectedWorkTypeForDetail(workType);
+  //   setShowWorkTypeDetailModal(true);
+  // };
 
   const handleImageClick = (image: File) => {
     setSelectedImageForDetail(image);
@@ -248,16 +337,27 @@ const JobPostForm: React.FC = () => {
           title: data.title,
           jobTitle: data.jobTitle || data.title || '', // jobTitle이 없으면 title을 기본값으로 사용
           description: data.description,
-          location: data.location,
-          workPeriod: (data as any).workPeriod || { startDate: '', endDate: '' },
+          companyInfo: (data as any).companyInfo || {
+            name: '',
+            industry: '',
+            companySize: '',
+            address: '',
+            contactEmail: '',
+            contactPhone: '',
+            contactPerson: ''
+          },
+
+          workPeriod: { 
+            startDate: data.startDate ? new Date(data.startDate.seconds * 1000).toISOString().split('T')[0] : '',
+            endDate: data.endDate ? new Date(data.endDate.seconds * 1000).toISOString().split('T')[0] : ''
+          },
           salary: data.salary,
           requirements: data.requirements || [''],
           benefits: data.benefits || [''],
           scheduleType: data.scheduleType || 'traditional',
           workTypes: data.workTypes || [],
-          workTimeType: (data as any).workTimeType === '근무타입 설정' ? '근무타입 설정' : '무관',
-          environment: (data as any).environment || '도심',
-          salaryRange: (data as any).salaryRange || '',
+          workTimeType: data.workTimeType === '주간 근무타입' || data.workTimeType === '야간 근무타입' || data.workTimeType === '주말근무타입' || data.workTimeType === '주중근무타입' ? '설정형' : (data.workTimeType === '무관' || data.workTimeType === '무관-추후협의' ? '기타(추후 협의)' : (data.workTimeType || '기타(추후 협의)')),
+          workTimeText: (data as any).workTimeText || '',
           images: [],
           contactInfo: (data as any).contactInfo || { email: '', phone: '' },
           accommodation: (data as any).accommodation || { provided: false, info: '' },
@@ -368,10 +468,9 @@ const JobPostForm: React.FC = () => {
       return;
     }
     
-    if (!formData.location.trim()) {
-      alert('근무 위치를 입력해주세요.');
-      return;
-    }
+
+    
+
     
     setSaving(true);
 
@@ -384,7 +483,7 @@ const JobPostForm: React.FC = () => {
         title: formData.title.trim(),
         jobTitle: formData.jobTitle.trim(),
         description: formData.description.trim(),
-        location: formData.location.trim(),
+        companyInfo: companyInfo || formData.companyInfo, // 기존 회사 정보 사용
         workPeriod: formData.workPeriod,
         salary: formData.salary,
         requirements: formData.requirements.filter(req => req.trim() !== ''),
@@ -392,6 +491,7 @@ const JobPostForm: React.FC = () => {
         scheduleType: formData.scheduleType,
         workTypes: formData.workTypes,
         workTimeType: formData.workTimeType,
+        workTimeText: formData.workTimeText,
         images: imageUrls,
         contactInfo: formData.contactInfo,
         accommodation: formData.accommodation,
@@ -420,7 +520,7 @@ const JobPostForm: React.FC = () => {
       }
 
       alert(id ? '구인공고가 수정되었습니다.' : '구인공고가 등록되었습니다.');
-      navigate('/dashboard');
+      navigate('/employer-dashboard');
     } catch (error) {
       console.error('구인공고 저장 실패:', error);
       alert('구인공고 저장에 실패했습니다. 다시 시도해주세요.');
@@ -450,7 +550,7 @@ const JobPostForm: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/employer-dashboard#job-posts')}
                 className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
               >
                 목록으로
@@ -462,24 +562,112 @@ const JobPostForm: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* 폼 제출 버튼 (숨김) */}
           <button type="submit" style={{ display: 'none' }} />
-          {/* 기본 정보 */}
+          
+          {/* 회사 정보 (고정값) */}
           <div className="bg-white rounded-lg border p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold flex items-center">
                 <Building className="h-5 w-5 mr-2" />
-                기본 정보
+                회사 정보
               </h2>
               <div className="flex items-center gap-2">
-                {(companyInfo || accommodationInfo) && (
+                <Link
+                  to={`/company/${user?.uid}?edit=true`}
+                  className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
+                >
+                  회사 정보 수정
+                </Link>
+                {(loadingCompanyInfo) && (
+                  <span className="text-sm text-gray-500">정보 로딩 중...</span>
+                )}
+              </div>
+            </div>
+            
+            {companyInfo ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사명</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.name || '미입력'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">업종</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.industry || '미입력'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 규모</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.companySize || '미입력'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 주소</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.address || companyInfo.region || '미입력'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.contactPerson || '미입력'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 연락처</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.contactPhone || '미입력'}
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 이메일</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.contactEmail || '미입력'}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                <Building className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                <p className="text-gray-500 mb-2">회사 정보가 등록되지 않았습니다</p>
+                <Link
+                  to={`/company/${user?.uid}?edit=true`}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                >
+                  회사 정보 등록하기
+                </Link>
+              </div>
+            )}
+          </div>
+
+
+
+          {/* 구인공고 정보 */}
+          <div className="bg-white rounded-lg border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <FileText className="h-5 w-5 mr-2" />
+                구인공고 정보
+              </h2>
+              <div className="flex items-center gap-2">
+                {accommodationInfo && (
                   <button
                     type="button"
                     onClick={loadExistingInfo}
                     className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-md hover:bg-green-200"
                   >
-                    기존 정보 불러오기
+                    기숙사 정보 불러오기
                   </button>
                 )}
-                {(loadingCompanyInfo || loadingAccommodationInfo) && (
+                {loadingAccommodationInfo && (
                   <span className="text-sm text-gray-500">정보 로딩 중...</span>
                 )}
               </div>
@@ -510,17 +698,7 @@ const JobPostForm: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">근무 위치 *</label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="예: 서울시 강남구"
-                  required
-                />
-              </div>
+
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">근무기간</label>
@@ -553,16 +731,30 @@ const JobPostForm: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">근무타입</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">근무시간</label>
                 <select
                   value={formData.workTimeType}
                   onChange={(e) => handleInputChange('workTimeType', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="무관">무관</option>
-                  <option value="근무타입 설정">근무타입 설정</option>
+                  <option value="기본형">기본형</option>
+                  <option value="설정형">설정형</option>
+                  <option value="기타(추후 협의)">기타(추후 협의)</option>
                 </select>
               </div>
+
+              {formData.workTimeType === '기본형' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">근무시간 설명</label>
+                  <textarea
+                    value={formData.workTimeText}
+                    onChange={(e) => handleInputChange('workTimeText', e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="근무시간에 대한 상세 설명을 입력하세요 (예: 주간 9시-18시, 야간 22시-06시 등)"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">급여</label>
@@ -610,87 +802,195 @@ const JobPostForm: React.FC = () => {
 
 
 
-
-
-          {/* 근무 Type 선택 */}
-          {formData.workTimeType === '근무타입 설정' && (
+          {/* 근무시간 유형 섹션 */}
+          {formData.workTimeType === '설정형' && (
             <div className="bg-white rounded-lg border p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-semibold flex items-center">
-                    <Clock className="h-5 w-5 mr-2" />
-                    근무 유형
-                  </h2>
-                  <p className="text-sm text-gray-500">근무타입 설정을 선택한 경우에만 표시됩니다. 근무 유형을 선택하세요</p>
-                </div>
-                <Link
-                  to="/work-types"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-2"
-                >
-                  <Clock className="h-4 w-4" />
-                  새 근무 type
-                </Link>
+              <div className="mb-4">
+                <h2 className="text-xl font-semibold flex items-center">
+                  <Clock className="h-5 w-5 mr-2" />
+                  근무시간 유형
+                </h2>
+                <p className="text-sm text-gray-500">근무시간 유형을 생성하고 관리하세요</p>
               </div>
 
-              {/* 선택된 근무 유형 표시 */}
-              {formData.workTypes.length === 0 ? (
-                <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                  <Clock className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                  <p className="text-gray-500 mb-2">선택된 근무 유형이 없습니다</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsWorkTypeSelectionMode(true);
-                      setShowWorkTypeManager(true);
-                    }}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-                  >
-                    근무 유형 선택하기
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">
-                      선택된 근무 유형 ({formData.workTypes.length}개)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsWorkTypeSelectionMode(true);
-                        setShowWorkTypeManager(true);
+              {/* 근무 유형 생성 폼 */}
+              <div className="space-y-6">
+                {/* 기본 정보 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      근무 유형명 *
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={workTypeFormData.name}
+                      onChange={(e) => {
+                        setWorkTypeFormData(prev => ({ ...prev, name: e.target.value }));
+                        // 입력이 있으면 에러 메시지 제거
+                        if (workTypeErrors.name && e.target.value.trim()) {
+                          setWorkTypeErrors(prev => ({
+                            ...prev,
+                            name: ''
+                          }));
+                        }
                       }}
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      + 추가
-                    </button>
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="예: 주간 근무, 야간 근무"
+                    />
+                    {workTypeErrors.name && (
+                      <p className="text-red-500 text-sm mt-1">{workTypeErrors.name}</p>
+                    )}
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {formData.workTypes.map((workType) => (
-                      <div key={workType.id} className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                          <div>
-                            <div className="font-medium text-blue-900">{workType.name}</div>
-                            {workType.description && (
-                              <div className="text-sm text-blue-700">{workType.description}</div>
-                            )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      설명
+                    </label>
+                    <input
+                      type="text"
+                      name="description"
+                      value={workTypeFormData.description}
+                      onChange={(e) => setWorkTypeFormData(prev => ({ ...prev, description: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="근무 유형에 대한 설명"
+                    />
+                  </div>
+                </div>
+
+                {/* 시급 설정 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    시급 (원)
+                  </label>
+                  <input
+                    type="number"
+                    name="hourlyWage"
+                    value={workTypeFormData.hourlyWage}
+                    onChange={(e) => setWorkTypeFormData(prev => ({ ...prev, hourlyWage: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+
+                {/* 스케줄 그리드와 생성된 유형 목록 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    근무 스케줄 *
+                  </label>
+                  <div className="flex gap-4">
+                    {/* 스케줄 그리드 (폭 절반) */}
+                    <div className="w-1/2">
+                      <UnifiedScheduleGrid
+                        selectedTimeSlots={schedules}
+                        onChange={(newSchedules) => {
+                          setSchedules(newSchedules);
+                          // 스케줄이 변경되면 해당 에러 메시지 제거
+                          if (workTypeErrors.schedules && newSchedules.length > 0) {
+                            setWorkTypeErrors(prev => ({
+                              ...prev,
+                              schedules: ''
+                            }));
+                          }
+                        }}
+                        mode="create"
+                        showActions={false}
+                      />
+                      
+                      {/* 현재 설정된 스케줄 정보 */}
+                      {schedules.length > 0 && (
+                        <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-blue-700 font-medium">
+                              총 근무시간: 주 {calculateTotalHoursPerWeek(schedules)}시간
+                            </span>
+                            <span className="text-blue-600">
+                              {schedules.length}개 시간대 선택
+                            </span>
                           </div>
                         </div>
-                        <button 
-                          type="button" 
-                          onClick={() => removeWorkType(workType.id)}
-                          className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
-                          title="제거"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      )}
+                    </div>
+                    
+                    {/* 생성된 근무시간 유형 목록 (오른쪽 절반) */}
+                    <div className="w-1/2">
+                      <div className="bg-gray-50 rounded-lg border p-4 h-full">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">생성된 근무시간 유형</h4>
+                        {availableWorkTypes.length > 0 ? (
+                          <div className="space-y-2 max-h-96 overflow-y-auto">
+                            {availableWorkTypes.map((workType) => (
+                              <div
+                                key={workType.id}
+                                className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                                  formData.workTypes.some(wt => wt.id === workType.id)
+                                    ? 'bg-blue-100 border-blue-300'
+                                    : 'bg-white border-gray-200 hover:bg-gray-50'
+                                }`}
+                                onClick={() => {
+                                  const isSelected = formData.workTypes.some(wt => wt.id === workType.id);
+                                  if (isSelected) {
+                                    // 선택 해제
+                                    handleInputChange('workTypes', formData.workTypes.filter(wt => wt.id !== workType.id));
+                                  } else {
+                                    // 선택 추가
+                                    handleInputChange('workTypes', [...formData.workTypes, workType]);
+                                  }
+                                }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm text-gray-900">{workType.name}</div>
+                                    {workType.description && (
+                                      <div className="text-xs text-gray-600 mt-1">{workType.description}</div>
+                                    )}
+                                    <div className="flex items-center gap-3 mt-1">
+                                      <div className="text-xs text-green-600">
+                                        주 {calculateTotalHoursPerWeek(workType.schedules || [])}시간
+                                      </div>
+                                      {workType.hourlyWage && workType.hourlyWage > 0 && (
+                                        <div className="text-xs text-blue-600">
+                                          시급 {workType.hourlyWage.toLocaleString()}원
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {formData.workTypes.some(wt => wt.id === workType.id) && (
+                                      <CheckCircle className="w-4 h-4 text-blue-600" />
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <Clock className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                            <p className="text-sm">생성된 근무시간 유형이 없습니다</p>
+                            <p className="text-xs mt-1">왼쪽에서 새로운 유형을 생성해보세요</p>
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    </div>
                   </div>
+                  {workTypeErrors.schedules && (
+                    <p className="text-red-500 text-sm mt-1">{workTypeErrors.schedules}</p>
+                  )}
                 </div>
-              )}
+
+                {/* 저장 버튼 */}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleSaveWorkType}
+                    disabled={isSavingWorkType}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    {isSavingWorkType ? '저장 중...' : '근무 유형 저장'}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -941,7 +1241,7 @@ const JobPostForm: React.FC = () => {
             <div className="flex justify-end gap-4">
               <button
                 type="button"
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/employer-dashboard#job-posts')}
                 className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
               >
                 취소
@@ -958,27 +1258,7 @@ const JobPostForm: React.FC = () => {
 
         </form>
 
-        {/* 근무 유형 관리 모달 */}
-        {showWorkTypeManager && (
-          <WorkTypeManager
-            employerId={user?.uid}
-            onClose={() => {
-              setShowWorkTypeManager(false);
-              setIsWorkTypeSelectionMode(false);
-              loadAvailableWorkTypes();
-            }}
-            onSelectWorkType={isWorkTypeSelectionMode ? selectWorkType : undefined}
-            isSelectionMode={isWorkTypeSelectionMode}
-            onWorkTypeCreated={(newWorkType) => {
-              // 새 근무 타입이 생성되면 자동으로 선택
-              if (isWorkTypeSelectionMode) {
-                selectWorkType(newWorkType);
-              }
-              // 성공 메시지 표시
-              alert(`새 근무 타입 "${newWorkType.name}"이(가) 생성되었습니다!`);
-            }}
-          />
-        )}
+
 
 
         {/* 근무타입 상세 정보 모달 */}

@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { collection, getDocs, query, where, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import ImagePreviewModal from '../components/ImagePreviewModal';
+import { workTypeService } from '../utils/scheduleMatchingService';
 
 interface JobPost {
   id: string;
@@ -26,6 +27,14 @@ interface Application {
   appliedAt: any;
 }
 
+// 총 근무시간 계산 함수
+const calculateTotalHoursPerWeek = (schedules: any[]): number => {
+  return schedules.reduce((total, slot) => {
+    const hoursInSlot = slot.end > slot.start ? slot.end - slot.start : (24 - slot.start) + slot.end;
+    return total + hoursInSlot;
+  }, 0);
+};
+
 const CompanyDashboard: React.FC = () => {
   const { user } = useAuth();
   const [isCompanySectionCollapsed, setIsCompanySectionCollapsed] = useState(false);
@@ -36,6 +45,7 @@ const CompanyDashboard: React.FC = () => {
   const [accommodationInfo, setAccommodationInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [companyRegistrants, setCompanyRegistrants] = useState<any[]>([]); // 등록자 목록 추가
+  const [workTypes, setWorkTypes] = useState<any[]>([]); // 근무타입 목록 추가
   
   // 이미지 미리보기 상태
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -46,6 +56,19 @@ const CompanyDashboard: React.FC = () => {
     setPreviewImage(imageUrl);
     setPreviewImageName(imageName || '이미지');
   };
+
+  // URL 앵커 감지 및 스크롤
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash === '#job-posts') {
+      const element = document.getElementById('job-posts');
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 500); // 데이터 로딩 후 스크롤
+      }
+    }
+  }, [jobPosts]); // jobPosts가 로드된 후 실행
 
   // Firebase에서 데이터 로딩
   useEffect(() => {
@@ -189,15 +212,25 @@ const CompanyDashboard: React.FC = () => {
 
         // 2. 기숙사 정보 로딩
         try {
-          const accommodationInfoQuery = query(
-            collection(db, 'accommodationInfo'),
-            where('employerId', '==', user.uid)
-          );
-          const accommodationSnapshot = await getDocs(accommodationInfoQuery);
+          // 먼저 문서 ID로 직접 조회 시도
+          const accommodationDocRef = doc(db, 'accommodationInfo', user.uid);
+          const accommodationDoc = await getDoc(accommodationDocRef);
           
-          if (!accommodationSnapshot.empty) {
-            const accommodationData = accommodationSnapshot.docs[0].data();
+          if (accommodationDoc.exists()) {
+            const accommodationData = accommodationDoc.data();
             setAccommodationInfo(accommodationData);
+          } else {
+            // 문서가 없으면 employerId로 쿼리 시도 (하위 호환성)
+            const accommodationInfoQuery = query(
+              collection(db, 'accommodationInfo'),
+              where('employerId', '==', user.uid)
+            );
+            const accommodationSnapshot = await getDocs(accommodationInfoQuery);
+            
+            if (!accommodationSnapshot.empty) {
+              const accommodationData = accommodationSnapshot.docs[0].data();
+              setAccommodationInfo(accommodationData);
+            }
           }
         } catch (error) {
           console.error('accommodationInfo 로딩 오류:', error);
@@ -235,6 +268,14 @@ const CompanyDashboard: React.FC = () => {
           setApplications(applicationsData);
         } catch (error) {
           console.error('applications 로딩 오류:', error);
+        }
+
+        // 5. 근무타입 로딩
+        try {
+          const workTypesData = await workTypeService.getWorkTypesByEmployer(user.uid);
+          setWorkTypes(workTypesData);
+        } catch (error) {
+          console.error('workTypes 로딩 오류:', error);
         }
 
       } catch (error) {
@@ -650,10 +691,10 @@ const CompanyDashboard: React.FC = () => {
                       </div>
                     )}
 
-                    {/* 기숙사 소개 */}
+                    {/* 기타 */}
                     {accommodationInfo.description && (
                       <div className="bg-white rounded-lg border p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">기숙사 소개</h3>
+                        <h3 className="font-semibold text-gray-900 mb-2">기타</h3>
                         <p className="text-sm text-gray-800 whitespace-pre-wrap">{accommodationInfo.description}</p>
                       </div>
                     )}
@@ -729,6 +770,73 @@ const CompanyDashboard: React.FC = () => {
                             ))}
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* 객실 시설 */}
+                    {(accommodationInfo.wifi || accommodationInfo.tv || accommodationInfo.refrigerator || 
+                      accommodationInfo.airConditioning || accommodationInfo.laundry || accommodationInfo.kitchen || 
+                      accommodationInfo.parkingAvailable || accommodationInfo.petAllowed || accommodationInfo.smokingAllowed || 
+                      accommodationInfo.otherFacilities) && (
+                      <div className="bg-white rounded-lg border p-4">
+                        <h3 className="font-semibold text-gray-900 mb-2">객실 시설</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {accommodationInfo.wifi && (
+                            <div className="flex items-center text-green-600">
+                              <span>✓ 와이파이</span>
+                            </div>
+                          )}
+                          {accommodationInfo.tv && (
+                            <div className="flex items-center text-green-600">
+                              <span>✓ TV</span>
+                            </div>
+                          )}
+                          {accommodationInfo.refrigerator && (
+                            <div className="flex items-center text-green-600">
+                              <span>✓ 냉장고</span>
+                            </div>
+                          )}
+                          {accommodationInfo.airConditioning && (
+                            <div className="flex items-center text-green-600">
+                              <span>✓ 에어컨</span>
+                            </div>
+                          )}
+                          {accommodationInfo.laundry && (
+                            <div className="flex items-center text-green-600">
+                              <span>✓ 세탁기</span>
+                            </div>
+                          )}
+                          {accommodationInfo.kitchen && (
+                            <div className="flex items-center text-green-600">
+                              <span>✓ 주방</span>
+                            </div>
+                          )}
+                          {accommodationInfo.parkingAvailable && (
+                            <div className="flex items-center text-green-600">
+                              <span>✓ 주차 가능</span>
+                            </div>
+                          )}
+                          {accommodationInfo.petAllowed && (
+                            <div className="flex items-center text-green-600">
+                              <span>✓ 반려동물 허용</span>
+                            </div>
+                          )}
+                          {accommodationInfo.smokingAllowed && (
+                            <div className="flex items-center text-green-600">
+                              <span>✓ 흡연 허용</span>
+                            </div>
+                          )}
+                          {accommodationInfo.otherFacilities && (
+                            <div className="flex items-center text-green-600">
+                              <span>✓ 기타</span>
+                              {accommodationInfo.otherFacilitiesText && (
+                                <span className="text-gray-700 text-sm ml-1">
+                                  ({accommodationInfo.otherFacilitiesText})
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -1075,8 +1183,8 @@ const CompanyDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 4. 구인공고 목록 */}
-        <div className="mt-8">
+        {/* 4. 구인공고 */}
+        <div id="job-posts" className="mt-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-violet-50">
               <div className="flex items-center justify-between">
@@ -1084,7 +1192,7 @@ const CompanyDashboard: React.FC = () => {
                   <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
                     <FileText className="w-4 h-4 text-purple-600" />
                   </div>
-                  구인공고 목록
+                  구인공고
                 </h3>
                 <Link
                   to="/job-post/new"
@@ -1096,70 +1204,133 @@ const CompanyDashboard: React.FC = () => {
               </div>
             </div>
             
-            <div className="p-6">
-              {jobPosts.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-600 mb-4">등록된 공고가 없습니다.</p>
-                  <Link
-                    to="/job-post/new"
-                    className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-                  >
-                    <Plus className="w-4 w-4 mr-1" />
-                    첫 공고 등록하기
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {jobPosts.map((post) => (
-                    <div key={post.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h4 className="text-lg font-semibold text-gray-900 mb-1">{post.title}</h4>
-                          <p className="text-sm text-gray-600 mb-2">{post.description}</p>
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <span className="flex items-center">
-                              <MapPin className="w-4 h-4 mr-1" />
+            <div className="p-6 space-y-8">
+              {/* 공고 목록 */}
+              <div>
+                <h4 className="text-md font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-purple-600" />
+                  공고 목록
+                </h4>
+                {jobPosts.length === 0 ? (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg">
+                    <p className="text-gray-600 mb-4">등록된 공고가 없습니다.</p>
+                    <Link
+                      to="/job-post/new"
+                      className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                    >
+                      <Plus className="w-4 w-4 mr-1" />
+                      첫 공고 등록하기
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {jobPosts.map((post) => (
+                      <div key={post.id} className="flex items-center justify-between py-2 px-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h5 className="font-medium text-gray-900 flex-shrink-0">{post.title}</h5>
+                              <span className="text-sm text-gray-500 truncate">{post.description}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
+                            <span className="text-blue-600 whitespace-nowrap">
                               {post.location}
                             </span>
-                            <span className="flex items-center">
-                              <DollarSign className="w-4 h-4 mr-1" />
-                              {post.salary.min.toLocaleString()}원 ~ {post.salary.max.toLocaleString()}원
+                            <span className="text-green-600 whitespace-nowrap">
+                              {post.salary.min.toLocaleString()}~{post.salary.max.toLocaleString()}원
                             </span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            <span className="text-purple-600 whitespace-nowrap">
+                              지원자 {getApplicationsForJob(post.id).length}명
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                               post.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
                               {post.isActive ? '활성' : '비활성'}
                             </span>
                           </div>
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span>지원자: {getApplicationsForJob(post.id).length}명</span>
-                          <span>등록일: {post.createdAt?.toDate?.() ? post.createdAt.toDate().toLocaleDateString() : '날짜 없음'}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 ml-4">
                           <Link
                             to={`/job/${post.id}`}
-                            className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-sm"
+                            className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
                           >
-                            <Eye className="h-4 w-4 mr-1" />
                             보기
                           </Link>
                           <Link
                             to={`/applications?jobId=${post.id}`}
-                            className="inline-flex items-center px-3 py-1.5 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
+                            className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200 transition-colors"
                           >
-                            <Users className="h-4 w-4 mr-1" />
                             지원자
                           </Link>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 근무타입 목록 */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-blue-600" />
+                    근무타입
+                  </h4>
+                  <Link
+                    to="/work-types"
+                    className="inline-flex items-center px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-sm"
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    관리
+                  </Link>
                 </div>
-              )}
+                
+                {workTypes.length === 0 ? (
+                  <div className="text-center py-6 bg-gray-50 rounded-lg">
+                    <p className="text-gray-600 mb-3">등록된 근무타입이 없습니다.</p>
+                    <Link
+                      to="/job-post/new"
+                      className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      <Plus className="w-4 w-4 mr-1" />
+                      근무타입 생성하기
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {workTypes.map((workType) => (
+                      <div key={workType.id} className="flex items-center justify-between py-2 px-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h5 className="font-medium text-gray-900 flex-shrink-0">{workType.name}</h5>
+                              {workType.description && (
+                                <span className="text-sm text-gray-500 truncate">{workType.description}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
+                            <span className="text-green-600 whitespace-nowrap">
+                              주 {calculateTotalHoursPerWeek(workType.schedules || [])}시간
+                            </span>
+                            {workType.hourlyWage && workType.hourlyWage > 0 && (
+                              <span className="text-blue-600 whitespace-nowrap">
+                                시급 {workType.hourlyWage.toLocaleString()}원
+                              </span>
+                            )}
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                              workType.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {workType.isActive !== false ? '활성' : '비활성'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

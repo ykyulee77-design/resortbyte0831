@@ -577,9 +577,9 @@ const JobPostDetail: React.FC = () => {
 
 
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* 메인 콘텐츠 - 채용 섹션 */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-3 space-y-6">
           {/* 채용 정보 */}
           <div className="bg-white rounded-lg border p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center">
@@ -828,9 +828,62 @@ const JobPostDetail: React.FC = () => {
               복리후생
              </h2>
             <div className="space-y-4">
-                     
-               </div>
-             </div>
+              <div>
+                {isEditing ? (
+                  <div className="space-y-3">
+                    {editData.benefits?.map((benefit, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={benefit}
+                          onChange={(e) => {
+                            const newBenefits = [...(editData.benefits || [])];
+                            newBenefits[index] = e.target.value;
+                            handleInputChange('benefits', newBenefits);
+                          }}
+                          placeholder="복리후생을 입력하세요"
+                          className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newBenefits = editData.benefits?.filter((_, i) => i !== index) || [];
+                            handleInputChange('benefits', newBenefits);
+                          }}
+                          className="p-2 text-red-500 hover:text-red-700 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newBenefits = [...(editData.benefits || []), ''];
+                        handleInputChange('benefits', newBenefits);
+                      }}
+                      className="w-full p-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+                    >
+                      + 복리후생 추가
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {job.benefits && job.benefits.length > 0 ? (
+                      job.benefits.filter(benefit => benefit && benefit.trim() !== '').map((benefit, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                          <span className="text-gray-900">{benefit}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500">등록된 복리후생이 없습니다.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* 메모 */}
           <div className="bg-white rounded-lg border p-6">
@@ -903,28 +956,26 @@ const JobPostDetail: React.FC = () => {
         <div className="space-y-6">
           {/* 지원 버튼 (구직자만) */}
           {user?.role === 'jobseeker' && job && (
-            <div className="bg-white rounded-lg border p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <Send className="h-5 w-5 mr-2 text-green-600" />
+            <div className="bg-white rounded-lg border p-4">
+              <h2 className="text-sm font-semibold mb-3 flex items-center">
+                <Send className="h-4 w-4 mr-2 text-green-600" />
                 지원하기
               </h2>
               
               {hasApplied ? (
-                <div className="text-center py-6">
-                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                  <h3 className="text-lg font-semibold text-green-700 mb-2">이미 지원했습니다</h3>
-                  <p className="text-sm text-gray-600 mb-4">지원 현황은 대시보드에서 확인할 수 있습니다.</p>
+                <div className="text-center py-4">
+                  <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                  <h3 className="text-sm font-semibold text-green-700 mb-1">이미 지원했습니다</h3>
                   <Link
                     to="/dashboard"
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
                   >
-                    <FileText className="w-4 h-4 mr-2" />
                     지원 현황 보기
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="bg-green-50 rounded-lg p-4">
+                <div className="space-y-3">
+                  <div className="bg-green-50 rounded-lg p-4 hidden">
                     <h3 className="font-semibold text-green-800 mb-2">지원 전 확인사항</h3>
                     <ul className="text-sm text-green-700 space-y-1">
                       <li>• 이력서가 완성되어 있는지 확인해주세요</li>
@@ -939,18 +990,18 @@ const JobPostDetail: React.FC = () => {
                       setApplyMessage('');
                       setShowApplyModal(true);
                     }}
-                    className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center justify-center gap-2"
+                    className="w-full bg-green-600 text-white py-2 px-3 rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center justify-center gap-1"
                   >
-                    <Send className="w-5 h-5" />
-                    이 공고에 지원하기
+                    <Send className="w-4 h-4" />
+                    지원하기
                   </button>
                   
                   <div className="text-center">
                     <Link
                       to="/profile"
-                      className="text-sm text-blue-600 hover:text-blue-800 underline"
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
                     >
-                      이력서 수정하기
+                      이력서 수정
                     </Link>
                   </div>
                 </div>
@@ -1208,54 +1259,181 @@ const JobPostDetail: React.FC = () => {
           </div>
 
           {/* 기숙사 정보 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <Home className="h-5 w-5 mr-2" />
+          <div className="bg-white rounded-lg border p-4">
+            <h2 className="text-sm font-semibold mb-3 flex items-center">
+              <Home className="h-4 w-4 mr-2" />
               기숙사 정보
             </h2>
             {loadingAccommodationInfo ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-2"></div>
-                <p className="text-sm text-gray-500">기숙사 정보 로딩 중...</p>
+              <div className="text-center py-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500 mx-auto mb-2"></div>
+                <p className="text-xs text-gray-500">기숙사 정보 로딩 중...</p>
               </div>
             ) : accommodationInfo ? (
             <div className="space-y-4">
                 <div>
                   <h3 className="font-medium text-gray-900 mb-1">{accommodationInfo.name}</h3>
-                  <p className="text-sm text-gray-600">{accommodationInfo.type}</p>
+                  <p className="text-sm text-gray-600">
+                    {accommodationInfo.type === 'dormitory' && '기숙사'}
+                    {accommodationInfo.type === 'apartment' && '아파트'}
+                    {accommodationInfo.type === 'house' && '단독주택'}
+                    {accommodationInfo.type === 'other' && '기타'}
+                  </p>
                 </div>
                 
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-1">주소</h4>
                   <p className="text-sm text-gray-900">{accommodationInfo.address}</p>
-              </div>
-              
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-1">월세</h4>
-                  <p className="text-sm text-gray-900">{accommodationInfo.monthlyRent?.toLocaleString()}원</p>
-              </div>
-              
-              <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-1">수용 인원</h4>
-                  <p className="text-sm text-gray-900">{accommodationInfo.capacity}명</p>
-                    </div>
+                </div>
+
+                {accommodationInfo.distanceFromWorkplace && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">직장까지 거리</h4>
+                    <p className="text-sm text-gray-900">{accommodationInfo.distanceFromWorkplace}</p>
+                  </div>
+                )}
                 
-                {(accommodationInfo.facilities || []).length > 0 && (
+                {/* 객실 유형 및 요금 정보 */}
+                {accommodationInfo.roomTypeOptions && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">객실 유형</h4>
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-600">
+                        요금 유형: {accommodationInfo.paymentType === 'free' ? '무료' : '유료'}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {accommodationInfo.roomTypeOptions.singleRoom && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            1인실{accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.singleRoom ? ` (${accommodationInfo.roomPrices.singleRoom}천원)` : ''}
+                          </span>
+                        )}
+                        {accommodationInfo.roomTypeOptions.doubleRoom && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            2인실{accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.doubleRoom ? ` (${accommodationInfo.roomPrices.doubleRoom}천원)` : ''}
+                          </span>
+                        )}
+                        {accommodationInfo.roomTypeOptions.tripleRoom && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            3인실{accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.tripleRoom ? ` (${accommodationInfo.roomPrices.tripleRoom}천원)` : ''}
+                          </span>
+                        )}
+                        {accommodationInfo.roomTypeOptions.quadRoom && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            4인실{accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.quadRoom ? ` (${accommodationInfo.roomPrices.quadRoom}천원)` : ''}
+                          </span>
+                        )}
+                        {accommodationInfo.roomTypeOptions.otherRoom && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            기타{accommodationInfo.otherRoomType && ` (${accommodationInfo.otherRoomType})`}{accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.otherRoom ? ` - ${accommodationInfo.roomPrices.otherRoom}천원` : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 객실 시설 */}
+                {(accommodationInfo.wifi || accommodationInfo.tv || accommodationInfo.refrigerator || 
+                  accommodationInfo.airConditioning || accommodationInfo.laundry || accommodationInfo.kitchen || 
+                  accommodationInfo.parkingAvailable || accommodationInfo.petAllowed || accommodationInfo.smokingAllowed || 
+                  accommodationInfo.otherFacilities) && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">객실 시설</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {accommodationInfo.wifi && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">와이파이</span>
+                      )}
+                      {accommodationInfo.tv && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">TV</span>
+                      )}
+                      {accommodationInfo.refrigerator && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">냉장고</span>
+                      )}
+                      {accommodationInfo.airConditioning && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">에어컨</span>
+                      )}
+                      {accommodationInfo.laundry && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">세탁기</span>
+                      )}
+                      {accommodationInfo.kitchen && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">주방</span>
+                      )}
+                      {accommodationInfo.parkingAvailable && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">주차 가능</span>
+                      )}
+                      {accommodationInfo.petAllowed && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">반려동물 허용</span>
+                      )}
+                      {accommodationInfo.smokingAllowed && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">흡연 허용</span>
+                      )}
+                      {accommodationInfo.otherFacilities && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                          기타{accommodationInfo.otherFacilitiesText && ` (${accommodationInfo.otherFacilitiesText})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 부대 시설 */}
+                {accommodationInfo.facilityOptions && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">부대 시설</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {accommodationInfo.facilityOptions.parking && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">주차장</span>
+                      )}
+                      {accommodationInfo.facilityOptions.laundry && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">세탁실</span>
+                      )}
+                      {accommodationInfo.facilityOptions.kitchen && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">공용주방</span>
+                      )}
+                      {accommodationInfo.facilityOptions.gym && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">체육관</span>
+                      )}
+                      {accommodationInfo.facilityOptions.studyRoom && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">스터디룸</span>
+                      )}
+                      {accommodationInfo.facilityOptions.lounge && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">휴게실</span>
+                      )}
+                      {accommodationInfo.facilityOptions.wifi && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">와이파이</span>
+                      )}
+                      {accommodationInfo.facilityOptions.security && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">보안시설</span>
+                      )}
+                      {accommodationInfo.facilityOptions.elevator && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">엘리베이터</span>
+                      )}
+                      {accommodationInfo.facilityOptions.other && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                          기타{accommodationInfo.otherFacilityText && ` (${accommodationInfo.otherFacilityText})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 하위 호환성을 위한 기존 facilities 표시 */}
+                {(accommodationInfo.facilities && accommodationInfo.facilities.length > 0 && !accommodationInfo.facilityOptions) && (
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-1">시설</h4>
                     <div className="flex flex-wrap gap-1">
-                      {(accommodationInfo.facilities || []).filter(facility => facility && facility.trim() !== '').slice(0, 3).map((facility, index) => (
+                      {accommodationInfo.facilities.filter(facility => facility && facility.trim() !== '').slice(0, 5).map((facility, index) => (
                         <span key={`acc-facility-${index}-${facility}`} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
                           {facility}
                         </span>
                       ))}
                     </div>
-                      </div>
-              )}
+                  </div>
+                )}
                 
                 {accommodationInfo.description && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-1">기숙사 소개</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">기타</h4>
                     <p className="text-sm text-gray-900 line-clamp-3">{accommodationInfo.description}</p>
                   </div>
                 )}

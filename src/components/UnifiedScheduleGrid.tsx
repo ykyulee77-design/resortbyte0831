@@ -114,11 +114,11 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
 
   const getTimeIcon = (timeSlotIndex: number) => {
     if (timeSlotIndex >= 6 && timeSlotIndex <= 18) {
-      return <Sun className="w-3 h-3" />;
+      return <Sun className="w-2 h-2" />;
     } else if (timeSlotIndex >= 22 || timeSlotIndex <= 6) {
-      return <Moon className="w-3 h-3" />;
+      return <Moon className="w-2 h-2" />;
     } else {
-      return <Coffee className="w-3 h-3" />;
+      return <Coffee className="w-2 h-2" />;
     }
   };
 
@@ -178,6 +178,7 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
                   {isEditing ? (
                     <>
                       <button
+                        type="button"
                         onClick={handleSave}
                         disabled={saving}
                         className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium shadow-sm disabled:opacity-50"
@@ -190,6 +191,7 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
                         저장
                       </button>
                       <button
+                        type="button"
                         onClick={handleCancel}
                         className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium shadow-sm"
                       >
@@ -199,6 +201,7 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
                     </>
                   ) : (
                     <button
+                      type="button"
                       onClick={() => setIsEditing(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm"
                     >
@@ -216,11 +219,11 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-900 border border-gray-300">
+                  <th className="w-10 px-1 py-1 text-left text-xs font-semibold text-gray-900 border border-gray-300">
                     시간
                   </th>
                   {days.map((day, index) => (
-                    <th key={day} className="w-12 px-1 py-2 text-center text-xs font-semibold text-gray-900 border border-gray-300">
+                    <th key={day} className="w-6 px-0.5 py-1 text-center text-xs font-semibold text-gray-900 border border-gray-300">
                       <div className={`${index >= 5 ? 'text-red-600' : ''}`}>
                         {day}
                       </div>
@@ -231,23 +234,24 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
               <tbody>
                 {timeSlotsList.map((timeSlot, timeIndex) => (
                   <tr key={timeIndex} className="hover:bg-gray-50">
-                    <td className="w-20 px-2 py-1 text-xs font-medium text-gray-900 bg-gray-50 border border-gray-300">
-                      <div className="flex items-center gap-1">
+                    <td className="w-10 px-1 py-0.5 text-xs font-medium text-gray-900 bg-gray-50 border border-gray-300">
+                      <div className="flex items-center gap-0.5">
                         {getTimeIcon(timeIndex)}
-                        <span>{timeSlot}</span>
+                        <span className="text-xs">{timeSlot}</span>
                       </div>
                     </td>
                     {days.map((day, dayIndex) => {
                       const isSelected = isSlotSelected(dayIndex, timeIndex);
                       return (
-                        <td key={`${day}-${timeIndex}`} className="w-12 px-0 py-0 border border-gray-300">
+                        <td key={`${day}-${timeIndex}`} className="w-6 px-0 py-0 border border-gray-300">
                           <button
+                            type="button"
                             onClick={() => handleTimeSlotClick(dayIndex, timeIndex)}
-                            className={`w-full h-8 border-0 transition-all duration-200 text-xs font-medium ${getSlotClassName(isSelected)} ${readOnly || !isEditing ? 'cursor-default' : 'cursor-pointer'}`}
+                            className={`w-full h-4 border-0 transition-all duration-200 text-xs font-medium ${getSlotClassName(isSelected)} ${readOnly || !isEditing ? 'cursor-default' : 'cursor-pointer'}`}
                             title={`${day} ${timeSlot}`}
                             disabled={readOnly || !isEditing}
                           >
-                            {isSelected && <CheckCircle className="w-3 h-3 mx-auto" />}
+                            {isSelected && <CheckCircle className="w-2 h-2 mx-auto" />}
                           </button>
                         </td>
                       );
@@ -267,11 +271,11 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-900 border border-gray-300">
+                  <th className="w-10 px-1 py-1 text-left text-xs font-semibold text-gray-900 border border-gray-300">
                     시간
                   </th>
                   {days.map((day, index) => (
-                    <th key={day} className="w-12 px-1 py-2 text-center text-xs font-semibold text-gray-900 border border-gray-300">
+                    <th key={day} className="w-6 px-0.5 py-1 text-center text-xs font-semibold text-gray-900 border border-gray-300">
                       <div className={`${index >= 5 ? 'text-red-600' : ''}`}>
                         {day}
                       </div>
@@ -282,23 +286,24 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
               <tbody>
                 {timeSlotsList.map((timeSlot, timeIndex) => (
                   <tr key={timeIndex} className="hover:bg-gray-50">
-                    <td className="w-20 px-2 py-1 text-xs font-medium text-gray-900 bg-gray-50 border border-gray-300">
-                      <div className="flex items-center gap-1">
+                    <td className="w-10 px-1 py-0.5 text-xs font-medium text-gray-900 bg-gray-50 border border-gray-300">
+                      <div className="flex items-center gap-0.5">
                         {getTimeIcon(timeIndex)}
-                        <span>{timeSlot}</span>
+                        <span className="text-xs">{timeSlot}</span>
                       </div>
                     </td>
                     {days.map((day, dayIndex) => {
                       const isSelected = isSlotSelected(dayIndex, timeIndex);
                       return (
-                        <td key={`${day}-${timeIndex}`} className="w-12 px-0 py-0 border border-gray-300">
+                        <td key={`${day}-${timeIndex}`} className="w-6 px-0 py-0 border border-gray-300">
                           <button
+                            type="button"
                             onClick={() => handleTimeSlotClick(dayIndex, timeIndex)}
-                            className={`w-full h-8 border-0 transition-all duration-200 text-xs font-medium ${getSlotClassName(isSelected)} ${readOnly || !isEditing ? 'cursor-default' : 'cursor-pointer'}`}
+                            className={`w-full h-4 border-0 transition-all duration-200 text-xs font-medium ${getSlotClassName(isSelected)} ${readOnly || !isEditing ? 'cursor-default' : 'cursor-pointer'}`}
                             title={`${day} ${timeSlot}`}
                             disabled={readOnly || !isEditing}
                           >
-                            {isSelected && <CheckCircle className="w-3 h-3 mx-auto" />}
+                            {isSelected && <CheckCircle className="w-2 h-2 mx-auto" />}
                           </button>
                         </td>
                       );

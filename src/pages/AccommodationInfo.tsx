@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AccommodationInfo, ExternalLink } from '../types';
@@ -17,10 +17,15 @@ import { uploadImage, deleteImage, compressImage } from '../utils/imageUpload';
 
 const AccommodationInfoPage: React.FC = () => {
   const { employerId } = useParams<{ employerId: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [accommodationInfo, setAccommodationInfo] = useState<AccommodationInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
+  
+  // URL 파라미터에서 edit=true인지 확인하여 자동으로 편집 모드 진입
+  const isEditMode = searchParams.get('edit') === 'true';
+  const [isEditing, setIsEditing] = useState(isEditMode);
   const [editForm, setEditForm] = useState<Partial<AccommodationInfo>>({});
   const [saving, setSaving] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -36,15 +41,10 @@ const AccommodationInfoPage: React.FC = () => {
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const data = { id: snap.id, ...snap.data() } as AccommodationInfo;
-        console.log('기숙사 정보 로드:', data);
-        console.log('이미지 배열:', data.images);
-        console.log('기본정보:', {
-          name: data.name,
-          type: data.type,
-          address: data.address,
-          contactPerson: data.contactPerson,
-          contactPhone: data.contactPhone
-        });
+        // 개발 환경에서만 로그 출력
+        if (process.env.NODE_ENV === 'development') {
+          console.log('기숙사 정보 로드 완료');
+        }
         setAccommodationInfo(data);
         setEditForm(data);
       }
@@ -58,6 +58,12 @@ const AccommodationInfoPage: React.FC = () => {
   useEffect(() => {
     fetchAccommodationInfo();
   }, [employerId]);
+
+  // URL 파라미터 변경 감지하여 편집 모드 자동 진입
+  useEffect(() => {
+    const editParam = searchParams.get('edit');
+    setIsEditing(editParam === 'true');
+  }, [searchParams]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -117,15 +123,32 @@ const AccommodationInfoPage: React.FC = () => {
   };
 
   const handleCancel = () => {
+    if (isEditMode) {
+      // URL에서 edit=true로 진입한 경우 대시보드로 돌아가기
+      navigate('/employer-dashboard');
+    } else {
+      // 페이지 내에서 수정 버튼으로 진입한 경우 편집 모드만 종료
     setIsEditing(false);
     setEditForm(accommodationInfo || {});
+    }
   };
 
   const handleSave = async () => {
-    if (!employerId) return;
+    if (!employerId) {
+      alert('사용자 정보를 찾을 수 없습니다.');
+      return;
+    }
     
-    console.log('저장 시작 - editForm:', editForm);
-    console.log('저장할 이미지 배열:', editForm.images);
+    // 필수 필드 검증
+    if (!editForm.name || !editForm.address) {
+      alert('기숙사명과 주소는 필수 입력 항목입니다.');
+      return;
+    }
+    
+    // 개발 환경에서만 로그 출력
+    if (process.env.NODE_ENV === 'development') {
+      console.log('저장 시작');
+    }
     
     setSaving(true);
     try {
@@ -136,32 +159,77 @@ const AccommodationInfoPage: React.FC = () => {
       
       if (docSnap.exists()) {
         // 기존 데이터 업데이트
+        // 개발 환경에서만 로그 출력
+        if (process.env.NODE_ENV === 'development') {
         console.log('기존 문서 업데이트 중...');
+        }
+        
+        // undefined 값 제거
+        const cleanData = Object.fromEntries(
+          Object.entries(editForm).filter(([_, value]) => value !== undefined)
+        );
+        
         await updateDoc(ref, {
-          ...editForm,
+          ...cleanData,
           updatedAt: new Date()
         });
+        // 개발 환경에서만 로그 출력
+        if (process.env.NODE_ENV === 'development') {
         console.log('기존 문서 업데이트 완료');
+        }
       } else {
         // 새 데이터 생성
         console.log('새 문서 생성 중...');
+        
+        // undefined 값 제거
+        const cleanData = Object.fromEntries(
+          Object.entries(editForm).filter(([_, value]) => value !== undefined)
+        );
+        
         await setDoc(ref, {
-          ...editForm,
+          ...cleanData,
           id: employerId,
           employerId: employerId,
           createdAt: new Date(),
           updatedAt: new Date()
         });
+        // 개발 환경에서만 로그 출력
+        if (process.env.NODE_ENV === 'development') {
         console.log('새 문서 생성 완료');
+        }
       }
       
       await fetchAccommodationInfo();
+      
+      if (isEditMode) {
+        // URL에서 edit=true로 진입한 경우 저장 후 대시보드로 돌아가기
+        alert('기숙사 정보가 성공적으로 저장되었습니다.');
+        navigate('/employer-dashboard');
+      } else {
+        // 페이지 내에서 수정한 경우 편집 모드만 종료
       setIsEditing(false);
-      console.log('저장 완료 - accommodationInfo:', accommodationInfo);
-      console.log('저장 완료 - editForm:', editForm);
+      }
+      
+      // 개발 환경에서만 로그 출력
+      if (process.env.NODE_ENV === 'development') {
+      console.log('저장 완료');
+      }
     } catch (error) {
       console.error('기숙사 정보 저장 실패:', error);
-      alert('저장에 실패했습니다. 다시 시도해주세요.');
+      
+      // 더 자세한 오류 메시지 제공
+      let errorMessage = '저장에 실패했습니다. 다시 시도해주세요.';
+      if (error instanceof Error) {
+        if (error.message.includes('permission')) {
+          errorMessage = '권한이 없습니다. 로그인 상태를 확인해주세요.';
+        } else if (error.message.includes('network')) {
+          errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.';
+        } else {
+          errorMessage = `저장 오류: ${error.message}`;
+        }
+      }
+      
+      alert(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -199,10 +267,16 @@ const AccommodationInfoPage: React.FC = () => {
         .map(result => result.url!)
         .filter(Boolean);
       
-      console.log('업로드된 이미지 URLs:', newImages);
+              // 개발 환경에서만 로그 출력
+        if (process.env.NODE_ENV === 'development') {
+          console.log('이미지 업로드 완료');
+        }
       
       const updatedImages = [...(editForm.images || []), ...newImages];
-      console.log('업데이트된 이미지 배열:', updatedImages);
+              // 개발 환경에서만 로그 출력
+        if (process.env.NODE_ENV === 'development') {
+          console.log('이미지 배열 업데이트 완료');
+        }
       
       setEditForm(prev => ({
         ...prev,
@@ -210,7 +284,10 @@ const AccommodationInfoPage: React.FC = () => {
       }));
 
       // 이미지 업로드 후 자동 저장
-      console.log('이미지 업로드 후 자동 저장 시작...');
+              // 개발 환경에서만 로그 출력
+        if (process.env.NODE_ENV === 'development') {
+          console.log('이미지 자동 저장 시작...');
+        }
       const updatedForm = {
         ...editForm,
         images: updatedImages
@@ -226,7 +303,10 @@ const AccommodationInfoPage: React.FC = () => {
             images: updatedImages,
             updatedAt: new Date()
           });
+          // 개발 환경에서만 로그 출력
+          if (process.env.NODE_ENV === 'development') {
           console.log('이미지 자동 저장 성공');
+          }
         } else {
           await setDoc(ref, {
             ...updatedForm,
@@ -236,7 +316,10 @@ const AccommodationInfoPage: React.FC = () => {
             createdAt: new Date(),
             updatedAt: new Date()
           });
+          // 개발 환경에서만 로그 출력
+          if (process.env.NODE_ENV === 'development') {
           console.log('이미지 자동 저장 성공 (새 문서)');
+          }
         }
         
         // 저장 후 데이터 다시 로드
@@ -464,6 +547,7 @@ const AccommodationInfoPage: React.FC = () => {
                   </button>
                 </>
               ) : (
+                !isEditMode && (
                 <button
                   onClick={handleEdit}
                   className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
@@ -471,6 +555,7 @@ const AccommodationInfoPage: React.FC = () => {
                   <Edit className="h-4 w-4 mr-2" />
                   수정
                 </button>
+                )
               )}
             </>
           )}
@@ -480,25 +565,25 @@ const AccommodationInfoPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="space-y-6">
+            <div className="space-y-6">
         {/* 기본정보 */}
         <div className="bg-white rounded-lg border p-4">
           <h3 className="font-semibold text-gray-900 mb-2">기본정보</h3>
           <div className="space-y-2 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-gray-500">기숙사명</span>
-              {isEditing ? (
-                <input
-                  type="text"
+                {isEditing ? (
+                  <input
+                    type="text"
                   value={editForm.name || ''}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   className="text-right bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none"
                   placeholder="기숙사명"
-                />
-              ) : (
+                  />
+                ) : (
                 <span className="text-gray-900">{displayInfo.name}</span>
-              )}
-            </div>
+                )}
+              </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-500">유형</span>
               {isEditing ? (
@@ -523,22 +608,22 @@ const AccommodationInfoPage: React.FC = () => {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-500">주소</span>
-              {isEditing ? (
-                <input
+                {isEditing ? (
+                  <input
                   type="text"
                   value={editForm.address || ''}
                   onChange={(e) => handleInputChange('address', e.target.value)}
                   className="text-right bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none"
                   placeholder="주소를 입력하세요 (번지, 호수 포함)"
-                />
-              ) : (
+                  />
+                ) : (
                 <span className="text-gray-900">{displayInfo.address}</span>
-              )}
-            </div>
-            <div className="flex items-center justify-between">
+                )}
+              </div>
+                <div className="flex items-center justify-between">
               <span className="text-gray-500">직장까지 거리</span>
               {isEditing ? (
-                <input
+                  <input
                   type="text"
                   value={editForm.distanceFromWorkplace || ''}
                   onChange={(e) => handleInputChange('distanceFromWorkplace', e.target.value)}
@@ -560,34 +645,34 @@ const AccommodationInfoPage: React.FC = () => {
               {isEditing || displayInfo.contactPerson ? (
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">담당자</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={editForm.contactPerson || ''}
-                      onChange={(e) => handleInputChange('contactPerson', e.target.value)}
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editForm.contactPerson || ''}
+                    onChange={(e) => handleInputChange('contactPerson', e.target.value)}
                       className="text-right bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none"
-                      placeholder="담당자명을 입력하세요"
-                    />
-                  ) : (
+                    placeholder="담당자명을 입력하세요"
+                  />
+                ) : (
                     <span className="text-gray-900">{displayInfo.contactPerson}</span>
-                  )}
-                </div>
+                )}
+              </div>
               ) : null}
               {isEditing || displayInfo.contactPhone ? (
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">연락처</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={editForm.contactPhone || ''}
-                      onChange={(e) => handleInputChange('contactPhone', e.target.value)}
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editForm.contactPhone || ''}
+                    onChange={(e) => handleInputChange('contactPhone', e.target.value)}
                       className="text-right bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none"
-                      placeholder="연락처를 입력하세요"
-                    />
-                  ) : (
+                    placeholder="연락처를 입력하세요"
+                  />
+                ) : (
                     <span className="text-gray-900">{displayInfo.contactPhone}</span>
-                  )}
-                </div>
+                )}
+              </div>
               ) : null}
             </div>
           </div>
@@ -595,76 +680,79 @@ const AccommodationInfoPage: React.FC = () => {
 
         {/* 기숙사 이미지 갤러리 */}
         <div className="bg-white rounded-lg border p-4">
-          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900 flex items-center">
-              <Camera className="h-5 w-5 mr-2" />
-              기숙사 이미지
+                <Camera className="h-5 w-5 mr-2" />
+                기숙사 이미지
             </h3>
             {isOwner && isEditing && (
-              <div className="flex items-center space-x-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImages}
-                  className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
-                >
-                  <Upload className="h-4 w-4 mr-1" />
-                  {uploadingImages ? '업로드 중...' : '이미지 추가'}
-                </button>
+                <div className="flex items-center space-x-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImages}
+                    className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    {uploadingImages ? '업로드 중...' : '이미지 추가'}
+                  </button>
+                </div>
+              )}
+            </div>
+            
+                        {((isEditing ? editForm.images : displayInfo.images) || []).length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {(isEditing ? (editForm.images || []) : (displayInfo.images || [])).map((image, index) => (
+                  <div key={index} className="relative group aspect-video bg-gray-100 rounded-lg overflow-hidden cursor-pointer">
+                    <img
+                      src={image}
+                      alt={`기숙사 이미지 ${index + 1}`}
+                      className="w-full h-full object-cover hover:opacity-80 transition-opacity"
+                      onClick={() => handleImagePreview(image, `기숙사 이미지 ${index + 1}`)}
+                      onError={(e) => {
+                        console.error('이미지 로드 실패:', image);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                      onLoad={() => {
+                        // 개발 환경에서만 로그 출력
+        if (process.env.NODE_ENV === 'development') {
+          console.log('이미지 로드 성공');
+        }
+                      }}
+                    />
+                    {isOwner && isEditing && (
+                      <button
+                        onClick={() => handleImageDelete(image, index)}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
+                        클릭하여 크게 보기
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <Camera className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>등록된 기숙사 이미지가 없습니다.</p>
+              {isOwner && isEditing && (
+                <p className="text-sm mt-2">이미지를 추가해보세요.</p>
+                )}
               </div>
             )}
           </div>
-          
-          {((isEditing ? editForm.images : displayInfo.images) || []).length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {(isEditing ? (editForm.images || []) : (displayInfo.images || [])).map((image, index) => (
-                <div key={index} className="relative group aspect-video bg-gray-100 rounded-lg overflow-hidden cursor-pointer">
-                  <img
-                    src={image}
-                    alt={`기숙사 이미지 ${index + 1}`}
-                    className="w-full h-full object-cover hover:opacity-80 transition-opacity"
-                    onClick={() => handleImagePreview(image, `기숙사 이미지 ${index + 1}`)}
-                    onError={(e) => {
-                      console.error('이미지 로드 실패:', image);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                    onLoad={() => {
-                      console.log('이미지 로드 성공:', image);
-                    }}
-                  />
-                  {isOwner && isEditing && (
-                    <button
-                      onClick={() => handleImageDelete(image, index)}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
-                      클릭하여 크게 보기
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-gray-500">
-              <Camera className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>등록된 기숙사 이미지가 없습니다.</p>
-              {isOwner && isEditing && (
-                <p className="text-sm mt-2">이미지를 추가해보세요.</p>
-              )}
-            </div>
-          )}
-        </div>
 
                 {/* 객실 유형 */}
         <div className="bg-white rounded-lg border p-4">
@@ -1006,77 +1094,77 @@ const AccommodationInfoPage: React.FC = () => {
         <div className="bg-white rounded-lg border p-4">
           <h3 className="font-semibold text-gray-900 mb-4">객실 시설</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {isEditing ? (
-              <>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.wifi || false}
-                    onChange={(e) => handleInputChange('wifi', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <Wifi className="h-4 w-4 mr-2" />
-                  와이파이
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.tv || false}
-                    onChange={(e) => handleInputChange('tv', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <Tv className="h-4 w-4 mr-2" />
-                  TV
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.refrigerator || false}
-                    onChange={(e) => handleInputChange('refrigerator', e.target.checked)}
-                    className="mr-2"
-                  />
-                  냉장고
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.airConditioning || false}
-                    onChange={(e) => handleInputChange('airConditioning', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <AirVent className="h-4 w-4 mr-2" />
-                  에어컨
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.laundry || false}
-                    onChange={(e) => handleInputChange('laundry', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <span className="mr-2">🧺</span>
-                  세탁기
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.kitchen || false}
-                    onChange={(e) => handleInputChange('kitchen', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <span className="mr-2">🍳</span>
-                  주방
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.parkingAvailable || false}
-                    onChange={(e) => handleInputChange('parkingAvailable', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <ParkingCircle className="h-4 w-4 mr-2" />
-                  주차 가능
-                </label>
+                  {isEditing ? (
+                    <>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editForm.wifi || false}
+                          onChange={(e) => handleInputChange('wifi', e.target.checked)}
+                          className="mr-2"
+                        />
+                        <Wifi className="h-4 w-4 mr-2" />
+                        와이파이
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editForm.tv || false}
+                          onChange={(e) => handleInputChange('tv', e.target.checked)}
+                          className="mr-2"
+                        />
+                        <Tv className="h-4 w-4 mr-2" />
+                        TV
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editForm.refrigerator || false}
+                          onChange={(e) => handleInputChange('refrigerator', e.target.checked)}
+                          className="mr-2"
+                        />
+                        냉장고
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editForm.airConditioning || false}
+                          onChange={(e) => handleInputChange('airConditioning', e.target.checked)}
+                          className="mr-2"
+                        />
+                        <AirVent className="h-4 w-4 mr-2" />
+                        에어컨
+                      </label>
+                                              <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={editForm.laundry || false}
+                            onChange={(e) => handleInputChange('laundry', e.target.checked)}
+                            className="mr-2"
+                          />
+                          <span className="mr-2">🧺</span>
+                          세탁기
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={editForm.kitchen || false}
+                            onChange={(e) => handleInputChange('kitchen', e.target.checked)}
+                            className="mr-2"
+                          />
+                          <span className="mr-2">🍳</span>
+                          주방
+                        </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editForm.parkingAvailable || false}
+                          onChange={(e) => handleInputChange('parkingAvailable', e.target.checked)}
+                          className="mr-2"
+                        />
+                        <ParkingCircle className="h-4 w-4 mr-2" />
+                        주차 가능
+                      </label>
                 <label className="flex items-center">
                   <input
                     type="checkbox"
@@ -1115,9 +1203,9 @@ const AccommodationInfoPage: React.FC = () => {
                      placeholder="기타 시설"
                    />
                  </div>
-              </>
-            ) : (
-              <>
+                    </>
+                  ) : (
+                    <>
                 {displayInfo.wifi && (
                   <div className="flex items-center text-green-600">
                     <Wifi className="h-4 w-4 mr-2" />
@@ -1141,20 +1229,20 @@ const AccommodationInfoPage: React.FC = () => {
                     <span>에어컨</span>
                   </div>
                 )}
-                {displayInfo.laundry && (
-                  <div className="flex items-center text-green-600">
-                    <span>🧺 세탁기</span>
-                  </div>
-                )}
-                {displayInfo.kitchen && (
-                  <div className="flex items-center text-green-600">
-                    <span>🍳 주방</span>
-                  </div>
-                )}
-                {displayInfo.parkingAvailable && (
-                  <div className="flex items-center text-green-600">
-                    <ParkingCircle className="h-4 w-4 mr-2" />
-                    <span>주차 가능</span>
+                      {displayInfo.laundry && (
+                        <div className="flex items-center text-green-600">
+                          <span>🧺 세탁기</span>
+                        </div>
+                      )}
+                      {displayInfo.kitchen && (
+                        <div className="flex items-center text-green-600">
+                          <span>🍳 주방</span>
+                        </div>
+                      )}
+                      {displayInfo.parkingAvailable && (
+                        <div className="flex items-center text-green-600">
+                          <ParkingCircle className="h-4 w-4 mr-2" />
+                          <span>주차 가능</span>
                   </div>
                 )}
                 {displayInfo.petAllowed && (
@@ -1176,23 +1264,23 @@ const AccommodationInfoPage: React.FC = () => {
                          ({displayInfo.otherFacilitiesText})
                        </span>
                      )}
-                   </div>
-                 )}
-              </>
-            )}
-          </div>
-        </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
 
 
 
         {/* 부대 시설 */}
         <div className="bg-white rounded-lg border p-4">
           <h3 className="font-semibold text-gray-900 mb-4">부대 시설</h3>
-          {isEditing ? (
+                  {isEditing ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
                   checked={editForm.facilityOptions?.parking || false}
                   onChange={(e) => {
                     setEditForm(prev => ({
@@ -1203,13 +1291,13 @@ const AccommodationInfoPage: React.FC = () => {
                       }
                     }));
                   }}
-                  className="mr-2"
-                />
+                          className="mr-2"
+                        />
                 <span>주차장</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
+                      </label>
+                                              <label className="flex items-center">
+                          <input
+                            type="checkbox"
                   checked={editForm.facilityOptions?.laundry || false}
                   onChange={(e) => {
                     setEditForm(prev => ({
@@ -1220,10 +1308,10 @@ const AccommodationInfoPage: React.FC = () => {
                       }
                     }));
                   }}
-                  className="mr-2"
-                />
+                            className="mr-2"
+                          />
                 <span>세탁실</span>
-              </label>
+                        </label>
               <label className="flex items-center">
                 <input
                   type="checkbox"
@@ -1373,20 +1461,20 @@ const AccommodationInfoPage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {displayInfo.facilityOptions?.parking && (
-                <div className="flex items-center text-green-600">
+                        <div className="flex items-center text-green-600">
                   <span>✓ 주차장</span>
-                </div>
-              )}
+                        </div>
+                      )}
               {displayInfo.facilityOptions?.laundry && (
-                <div className="flex items-center text-green-600">
+                        <div className="flex items-center text-green-600">
                   <span>✓ 세탁실</span>
-                </div>
-              )}
+                        </div>
+                      )}
               {displayInfo.facilityOptions?.kitchen && (
                 <div className="flex items-center text-green-600">
                   <span>✓ 공용주방</span>
                 </div>
-              )}
+                  )}
               {displayInfo.facilityOptions?.gym && (
                 <div className="flex items-center text-green-600">
                   <span>✓ 체육관</span>
@@ -1395,12 +1483,12 @@ const AccommodationInfoPage: React.FC = () => {
               {displayInfo.facilityOptions?.studyRoom && (
                 <div className="flex items-center text-green-600">
                   <span>✓ 스터디룸</span>
-                </div>
+              </div>
               )}
               {displayInfo.facilityOptions?.lounge && (
                 <div className="flex items-center text-green-600">
                   <span>✓ 휴게실</span>
-                </div>
+            </div>
               )}
               {displayInfo.facilityOptions?.wifi && (
                 <div className="flex items-center text-green-600">
@@ -1429,7 +1517,7 @@ const AccommodationInfoPage: React.FC = () => {
               )}
             </div>
           )}
-        </div>
+          </div>
 
 
 
@@ -1551,8 +1639,8 @@ const AccommodationInfoPage: React.FC = () => {
                         </div>
                         {link.url && (
                           <a href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm">
-                            방문
-                          </a>
+                          방문
+                        </a>
                         )}
                       </div>
                     )}
@@ -1569,7 +1657,7 @@ const AccommodationInfoPage: React.FC = () => {
             )}
           </div>
         ) : null}
-      </div>
+        </div>
 
       {/* 이미지 미리보기 모달 */}
       <ImagePreviewModal
