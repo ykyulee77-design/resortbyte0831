@@ -5,6 +5,9 @@ export interface Address {
   address: string;
   roadAddress: string;
   jibunAddress: string;
+  region?: string;
+  sido?: string;
+  sigungu?: string;
 }
 
 export interface AddressSearchProps {
@@ -31,143 +34,197 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     }
   }, [value, isEditing]);
 
-  // 주소 검색 함수
+  // 주소에서 지역 정보 추출
+  const extractRegionInfo = (address: string): { region: string; sido: string; sigungu: string } => {
+    const parts = address.split(' ');
+    let region = '';
+    let sido = '';
+    let sigungu = '';
+
+    if (parts.length >= 2) {
+      sido = parts[0];
+      sigungu = parts[1];
+      region = `${sido} ${sigungu}`;
+    } else if (parts.length === 1) {
+      sido = parts[0];
+      region = sido;
+    }
+
+    return { region, sido, sigungu };
+  };
+
+  // 샘플 주소 데이터 함수
+  const getSampleAddresses = (keyword: string): Address[] => {
+    const sampleAddresses: Address[] = [
+      {
+        zipCode: '06123',
+        address: '서울특별시 강남구 테헤란로 427',
+        roadAddress: '서울특별시 강남구 테헤란로 427',
+        jibunAddress: '서울특별시 강남구 역삼동 737-32',
+        region: '서울특별시 강남구',
+        sido: '서울특별시',
+        sigungu: '강남구'
+      },
+      {
+        zipCode: '06124',
+        address: '서울특별시 강남구 역삼로 180',
+        roadAddress: '서울특별시 강남구 역삼로 180',
+        jibunAddress: '서울특별시 강남구 역삼동 737-32',
+        region: '서울특별시 강남구',
+        sido: '서울특별시',
+        sigungu: '강남구'
+      },
+      {
+        zipCode: '06125',
+        address: '서울특별시 강남구 삼성로 86길 20',
+        roadAddress: '서울특별시 강남구 삼성로 86길 20',
+        jibunAddress: '서울특별시 강남구 삼성동 159-1',
+        region: '서울특별시 강남구',
+        sido: '서울특별시',
+        sigungu: '강남구'
+      },
+      {
+        zipCode: '06131',
+        address: '서울특별시 강남구 선릉로 433',
+        roadAddress: '서울특별시 강남구 선릉로 433',
+        jibunAddress: '서울특별시 강남구 역삼동 737-32',
+        region: '서울특별시 강남구',
+        sido: '서울특별시',
+        sigungu: '강남구'
+      },
+      {
+        zipCode: '06134',
+        address: '서울특별시 강남구 영동대로 123',
+        roadAddress: '서울특별시 강남구 영동대로 123',
+        jibunAddress: '서울특별시 강남구 삼성동 123-45',
+        region: '서울특별시 강남구',
+        sido: '서울특별시',
+        sigungu: '강남구'
+      },
+      {
+        zipCode: '06136',
+        address: '서울특별시 강남구 봉은사로 123',
+        roadAddress: '서울특별시 강남구 봉은사로 123',
+        jibunAddress: '서울특별시 강남구 삼성동 123-45',
+        region: '서울특별시 강남구',
+        sido: '서울특별시',
+        sigungu: '강남구'
+      },
+      {
+        zipCode: '06138',
+        address: '서울특별시 강남구 학동로 123',
+        roadAddress: '서울특별시 강남구 학동로 123',
+        jibunAddress: '서울특별시 강남구 청담동 123-45',
+        region: '서울특별시 강남구',
+        sido: '서울특별시',
+        sigungu: '강남구'
+      },
+      {
+        zipCode: '06140',
+        address: '서울특별시 강남구 언주로 123',
+        roadAddress: '서울특별시 강남구 언주로 123',
+        jibunAddress: '서울특별시 강남구 역삼동 123-45',
+        region: '서울특별시 강남구',
+        sido: '서울특별시',
+        sigungu: '강남구'
+      },
+      {
+        zipCode: '06142',
+        address: '서울특별시 강남구 강남대로 123',
+        roadAddress: '서울특별시 강남구 강남대로 123',
+        jibunAddress: '서울특별시 강남구 역삼동 123-45',
+        region: '서울특별시 강남구',
+        sido: '서울특별시',
+        sigungu: '강남구'
+      },
+      {
+        zipCode: '06144',
+        address: '서울특별시 강남구 개포로 123',
+        roadAddress: '서울특별시 강남구 개포로 123',
+        jibunAddress: '서울특별시 강남구 개포동 123-45',
+        region: '서울특별시 강남구',
+        sido: '서울특별시',
+        sigungu: '강남구'
+      }
+    ];
+
+    // 키워드로 필터링
+    return sampleAddresses.filter(addr => {
+      const searchLower = keyword.toLowerCase();
+      const searchTerms = keyword.split(' ').filter(term => term.length > 0);
+      
+      const exactMatch = 
+        addr.address.toLowerCase().includes(searchLower) ||
+        addr.roadAddress.toLowerCase().includes(searchLower) ||
+        addr.jibunAddress.toLowerCase().includes(searchLower) ||
+        addr.zipCode.includes(keyword) ||
+        addr.region?.toLowerCase().includes(searchLower) ||
+        addr.sido?.toLowerCase().includes(searchLower) ||
+        addr.sigungu?.toLowerCase().includes(searchLower);
+      
+      const partialMatch = searchTerms.some(term => 
+        addr.address.toLowerCase().includes(term.toLowerCase()) ||
+        addr.roadAddress.toLowerCase().includes(term.toLowerCase()) ||
+        addr.jibunAddress.toLowerCase().includes(term.toLowerCase()) ||
+        addr.region?.toLowerCase().includes(term.toLowerCase()) ||
+        addr.sido?.toLowerCase().includes(term.toLowerCase()) ||
+        addr.sigungu?.toLowerCase().includes(term.toLowerCase())
+      );
+      
+      return exactMatch || partialMatch;
+    });
+  };
+
+  // 주소 검색 함수 (실제 API 연동)
   const searchAddresses = async (keyword: string) => {
-    if (keyword.length < 2) return;
+    if (keyword.length < 1) return;
 
     setIsLoading(true);
     try {
-      // 실제 주소 데이터 (실제로는 API 응답 사용)
-      const realAddressData: Address[] = [
-        {
-          zipCode: '06123',
-          address: '서울특별시 강남구 테헤란로 123',
-          roadAddress: '서울특별시 강남구 테헤란로 123',
-          jibunAddress: '서울특별시 강남구 역삼동 123-45'
-        },
-        {
-          zipCode: '06124',
-          address: '서울특별시 강남구 역삼로 456',
-          roadAddress: '서울특별시 강남구 역삼로 456',
-          jibunAddress: '서울특별시 강남구 역삼동 456-78'
-        },
-        {
-          zipCode: '06125',
-          address: '서울특별시 강남구 삼성로 789',
-          roadAddress: '서울특별시 강남구 삼성로 789',
-          jibunAddress: '서울특별시 강남구 삼성동 789-12'
-        },
-        {
-          zipCode: '48001',
-          address: '부산광역시 해운대구 해운대로 264',
-          roadAddress: '부산광역시 해운대구 해운대로 264',
-          jibunAddress: '부산광역시 해운대구 우동 1434'
-        },
-        {
-          zipCode: '41931',
-          address: '대구광역시 중구 동성로 2길 80',
-          roadAddress: '대구광역시 중구 동성로 2길 80',
-          jibunAddress: '대구광역시 중구 동성로 2가 1'
-        },
-        {
-          zipCode: '22001',
-          address: '인천광역시 중구 해안대로 196',
-          roadAddress: '인천광역시 중구 해안대로 196',
-          jibunAddress: '인천광역시 중구 해안동 1가 1'
-        },
-        {
-          zipCode: '61452',
-          address: '광주광역시 서구 상무민주로 123',
-          roadAddress: '광주광역시 서구 상무민주로 123',
-          jibunAddress: '광주광역시 서구 치평동 1234'
-        },
-        {
-          zipCode: '35201',
-          address: '대전광역시 중구 중앙로 76',
-          roadAddress: '대전광역시 중구 중앙로 76',
-          jibunAddress: '대전광역시 중구 대사동 123'
-        },
-        {
-          zipCode: '44701',
-          address: '울산광역시 남구 삼산로 123',
-          roadAddress: '울산광역시 남구 삼산로 123',
-          jibunAddress: '울산광역시 남구 삼산동 1234'
-        },
-        {
-          zipCode: '30123',
-          address: '세종특별자치시 한누리대로 2130',
-          roadAddress: '세종특별자치시 한누리대로 2130',
-          jibunAddress: '세종특별자치시 한솔동 123'
-        },
-        {
-          zipCode: '16489',
-          address: '경기도 수원시 영통구 창룡대로 257',
-          roadAddress: '경기도 수원시 영통구 창룡대로 257',
-          jibunAddress: '경기도 수원시 영통구 원천동 1234'
-        },
-        {
-          zipCode: '24201',
-          address: '강원도 춘천시 중앙로 123',
-          roadAddress: '강원도 춘천시 중앙로 123',
-          jibunAddress: '강원도 춘천시 중앙로 1가 123'
-        },
-        {
-          zipCode: '28501',
-          address: '충청북도 청주시 상당구 상당로 123',
-          roadAddress: '충청북도 청주시 상당구 상당로 123',
-          jibunAddress: '충청북도 청주시 상당구 북문로 1가 123'
-        },
-        {
-          zipCode: '31123',
-          address: '충청남도 천안시 동남구 병천면 충절로 123',
-          roadAddress: '충청남도 천안시 동남구 병천면 충절로 123',
-          jibunAddress: '충청남도 천안시 동남구 병천면 1234'
-        },
-        {
-          zipCode: '54801',
-          address: '전라북도 전주시 완산구 전주로 123',
-          roadAddress: '전라북도 전주시 완산구 전주로 123',
-          jibunAddress: '전라북도 전주시 완산구 전동 123'
-        },
-        {
-          zipCode: '58601',
-          address: '전라남도 목포시 옥암로 123',
-          roadAddress: '전라남도 목포시 옥암로 123',
-          jibunAddress: '전라남도 목포시 옥암동 1234'
-        },
-        {
-          zipCode: '37601',
-          address: '경상북도 포항시 남구 포스코대로 123',
-          roadAddress: '경상북도 포항시 남구 포스코대로 123',
-          jibunAddress: '경상북도 포항시 남구 구룡포읍 1234'
-        },
-        {
-          zipCode: '51501',
-          address: '경상남도 창원시 의창구 창원대로 123',
-          roadAddress: '경상남도 창원시 의창구 창원대로 123',
-          jibunAddress: '경상남도 창원시 의창구 동정동 1234'
-        },
-        {
-          zipCode: '63123',
-          address: '제주특별자치도 제주시 첨단로 123',
-          roadAddress: '제주특별자치도 제주시 첨단로 123',
-          jibunAddress: '제주특별자치도 제주시 아라동 1234'
-        }
-      ];
+      // 실제 주소 API 호출 (공공데이터 포털 도로명주소 API)
+      const API_KEY = process.env.REACT_APP_JUSO_API_KEY || 'dev';
+      
+      if (API_KEY === 'dev') {
+        // 개발 환경에서는 샘플 데이터 사용
+        console.log('개발 환경: 샘플 주소 데이터 사용');
+        const sampleAddresses = getSampleAddresses(keyword);
+        setAddresses(sampleAddresses);
+        setShowDropdown(true);
+        return;
+      }
 
-      // 키워드로 필터링
-      const filtered = realAddressData.filter(addr => 
-        addr.address.toLowerCase().includes(keyword.toLowerCase()) ||
-        addr.roadAddress.toLowerCase().includes(keyword.toLowerCase()) ||
-        addr.jibunAddress.toLowerCase().includes(keyword.toLowerCase()) ||
-        addr.zipCode.includes(keyword)
-      );
-
-      setAddresses(filtered);
-      setShowDropdown(true);
+      // 실제 API 호출
+      const response = await fetch(`https://www.juso.go.kr/addrlink/addrLinkApi.do?currentPage=1&countPerPage=10&keyword=${encodeURIComponent(keyword)}&confmKey=${API_KEY}&resultType=json`);
+      
+      if (!response.ok) {
+        throw new Error(`API 호출 실패: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.results && data.results.juso) {
+        const apiAddresses: Address[] = data.results.juso.map((juso: any) => ({
+          zipCode: juso.zipNo,
+          address: juso.roadAddr,
+          roadAddress: juso.roadAddr,
+          jibunAddress: juso.jibunAddr,
+          region: `${juso.admCd.split(' ')[0]} ${juso.admCd.split(' ')[1]}`,
+          sido: juso.admCd.split(' ')[0],
+          sigungu: juso.admCd.split(' ')[1]
+        }));
+        
+        setAddresses(apiAddresses);
+        setShowDropdown(true);
+      } else {
+        setAddresses([]);
+        setShowDropdown(true);
+      }
     } catch (error) {
       console.error('주소 검색 오류:', error);
-      setAddresses([]);
+      // API 오류 시 샘플 데이터로 폴백
+      const sampleAddresses = getSampleAddresses(keyword);
+      setAddresses(sampleAddresses);
+      setShowDropdown(true);
     } finally {
       setIsLoading(false);
     }
@@ -176,13 +233,13 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
   // 디바운스된 검색
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchTerm.length >= 2) {
+      if (searchTerm.length >= 1) {
         searchAddresses(searchTerm);
       } else {
         setAddresses([]);
         setShowDropdown(false);
       }
-    }, 300);
+    }, 200);
 
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
@@ -195,6 +252,12 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
 
   const handleAddressSelect = (address: Address) => {
     console.log('주소 선택됨:', address);
+    
+    if (!address.region) {
+      const regionInfo = extractRegionInfo(address.address);
+      address = { ...address, ...regionInfo };
+    }
+    
     onAddressSelect(address);
     setSearchTerm(address.address);
     setIsEditing(false);
@@ -203,7 +266,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
 
   const handleInputFocus = () => {
     setIsEditing(true);
-    if (searchTerm.length >= 2) {
+    if (searchTerm.length >= 1) {
       setShowDropdown(true);
     }
   };
@@ -217,12 +280,13 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      // Enter 키를 누르면 현재 입력된 값으로 주소를 설정
+      const regionInfo = extractRegionInfo(searchTerm);
       const customAddress: Address = {
         zipCode: '',
         address: searchTerm,
         roadAddress: searchTerm,
-        jibunAddress: searchTerm
+        jibunAddress: searchTerm,
+        ...regionInfo
       };
       onAddressSelect(customAddress);
       setIsEditing(false);
@@ -231,7 +295,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
   };
 
   const handleSearchClick = () => {
-    if (searchTerm.length >= 2) {
+    if (searchTerm.length >= 1) {
       searchAddresses(searchTerm);
     }
   };
@@ -253,7 +317,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         <button
           type="button"
           onClick={handleSearchClick}
-          disabled={searchTerm.length < 2 || isLoading}
+          disabled={searchTerm.length < 1 || isLoading}
           className="mt-1 px-4 py-2 bg-resort-600 text-white border border-resort-600 rounded-r-md hover:bg-resort-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-resort-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? '검색중...' : '🔍'}
@@ -282,6 +346,9 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
                   <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded mr-2">
                     📮 {address.zipCode}
                   </span>
+                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded mr-2">
+                    🏘️ {address.region}
+                  </span>
                   {address.jibunAddress}
                 </div>
               </li>
@@ -290,7 +357,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         </div>
       )}
 
-      {showDropdown && searchTerm.length >= 2 && addresses.length === 0 && !isLoading && (
+      {showDropdown && searchTerm.length >= 1 && addresses.length === 0 && !isLoading && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
           <div className="p-4 text-center text-gray-500">
             검색 결과가 없습니다. Enter 키를 눌러 직접 입력하세요.
@@ -300,6 +367,10 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
 
       <div className="text-xs text-gray-500 mt-1">
         💡 {searchTerm ? '실제 주소를 검색하거나 직접 입력하세요' : '주소를 입력하고 🔍 버튼을 클릭하거나 Enter를 눌러 검색하세요'}
+        <br />
+        <span className="text-blue-600">
+          📌 실제 주소 API 연동을 원하시면 공공데이터 포털(www.data.go.kr)에서 도로명주소 API 키를 발급받아 .env 파일에 REACT_APP_JUSO_API_KEY로 설정하세요
+        </span>
       </div>
     </div>
   );

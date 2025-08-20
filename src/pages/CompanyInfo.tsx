@@ -1,36 +1,48 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { CompanyInfo } from '../types';
-import { Building, MapPin, Phone, Mail, Globe, Users, Calendar, Home, Star, CheckCircle, Edit, Save, X, Plus, Trash2 } from 'lucide-react';
+import { Building, MapPin, Phone, Mail, Globe, Users, Calendar, Home, Star, CheckCircle, Edit, Save, X, Plus, Trash2, Upload, Eye } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
-// import AddressSearch, { Address } from '../components/AddressSearch';
+import AddressSearch, { Address } from '../components/AddressSearch';
+import { uploadImage, deleteImage, validateImageFile, compressImage } from '../utils/imageUpload';
+import ImagePreviewModal from '../components/ImagePreviewModal';
 
 const CompanyInfoPage: React.FC = () => {
   const { employerId } = useParams<{ employerId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>({});
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImageName, setPreviewImageName] = useState<string>('');
+  const [customDormitoryFacility, setCustomDormitoryFacility] = useState<string>('');
+
+  // URL 파라미터로 수정 모드 확인
+  const shouldEdit = searchParams.get('edit') === 'true';
 
   const fetchCompanyInfo = async () => {
     if (!employerId) return;
     setLoading(true);
     try {
+      // 1. companyInfo 컬렉션에서 회사 정보 가져오기
       const ref = doc(db, 'companyInfo', employerId);
       const snap = await getDoc(ref);
+      
+      let companyData: any = {};
+      
       if (snap.exists()) {
-        const data = { id: snap.id, ...snap.data() } as CompanyInfo;
-        setCompanyInfo(data);
-        setFormData(data);
+        companyData = { id: snap.id, ...snap.data() } as CompanyInfo;
       } else {
         // 새로 생성할 경우 기본값 설정
-        const defaultData = {
+        companyData = {
           id: '',
           employerId: employerId,
           name: '',
@@ -48,14 +60,32 @@ const CompanyInfoPage: React.FC = () => {
           address: '',
           createdAt: new Date(),
           updatedAt: new Date(),
-          region: '',
-          dormitory: false,
-          dormitoryFacilities: [],
-          salaryRange: '',
-          environment: '도심' as const,
-          workTimeType: '고정제' as const
+          region: ''
         };
-        setFormData(defaultData);
+      }
+
+      // 2. users 컬렉션에서 이메일 정보 가져오기
+      try {
+        const userRef = doc(db, 'users', employerId);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          // 이메일 정보가 있으면 companyData에 추가
+          if (userData.email) {
+            companyData.contactEmail = userData.email;
+          }
+        }
+      } catch (userError) {
+        console.error('사용자 정보 가져오기 실패:', userError);
+      }
+
+      setCompanyInfo(companyData);
+      setFormData(companyData);
+      
+      // URL 파라미터에 따라 수정 모드로 전환
+      if (shouldEdit && isOwner) {
+        setIsEditing(true);
       }
     } catch (error) {
       console.error('회사 정보 불러오기 실패:', error);
@@ -99,6 +129,148 @@ const CompanyInfoPage: React.FC = () => {
     }));
   };
 
+  // 이미지 업로드 함수
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      console.log('선택된 파일이 없습니다.');
+      return;
+    }
+
+    console.log(`이미지 업로드 시작: ${files.length}개 파일 선택됨`);
+    
+    try {
+      setUploadingImages(true);
+      const fileArray = Array.from(files);
+      const uploadedUrls: string[] = [];
+
+      for (const file of fileArray) {
+        console.log(`파일 처리 중: ${file.name} (${file.size} bytes, ${file.type})`);
+        
+        // 파일 검증
+        const validation = validateImageFile(file);
+        if (!validation.valid) {
+          console.error(`파일 검증 실패: ${file.name} - ${validation.error}`);
+          alert(`파일 "${file.name}": ${validation.error}`);
+          continue;
+        }
+        console.log(`파일 검증 통과: ${file.name}`);
+
+        // 이미지 압축 (필요시)
+        let processedFile = file;
+        if (file.size > 1024 * 1024) { // 1MB 이상인 경우 압축
+          console.log(`이미지 압축 시작: ${file.name}`);
+          try {
+            processedFile = await compressImage(file, 1920);
+            console.log(`이미지 압축 완료: ${file.name}`);
+          } catch (compressError) {
+            console.error('이미지 압축 실패:', compressError);
+            // 압축 실패시 원본 파일 사용
+          }
+        }
+
+        // 이미지 업로드
+        console.log(`Firebase Storage 업로드 시작: ${file.name}`);
+        const result = await uploadImage(processedFile, {
+          folder: 'company-images',
+          metadata: {
+            uploadedBy: employerId || '',
+            uploadType: 'company-info',
+            originalName: file.name
+          }
+        });
+
+        if (result.success && result.url) {
+          console.log(`업로드 성공: ${file.name} -> ${result.url}`);
+          uploadedUrls.push(result.url);
+        } else {
+          console.error(`업로드 실패: ${file.name} - ${result.error}`);
+          alert(`파일 "${file.name}" 업로드에 실패했습니다: ${result.error}`);
+        }
+      }
+
+      // 업로드된 이미지들을 기존 이미지 배열에 추가
+      if (uploadedUrls.length > 0) {
+        console.log(`업로드 완료: ${uploadedUrls.length}개 파일 성공`);
+        setFormData((prev: any) => ({
+          ...prev,
+          images: [...(prev.images || []), ...uploadedUrls]
+        }));
+        alert(`${uploadedUrls.length}개 이미지가 성공적으로 업로드되었습니다.`);
+      } else {
+        console.log('업로드된 파일이 없습니다.');
+      }
+
+    } catch (error) {
+      console.error('이미지 업로드 중 오류:', error);
+      alert('이미지 업로드 중 오류가 발생했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
+    } finally {
+      setUploadingImages(false);
+      console.log('이미지 업로드 프로세스 완료');
+    }
+  };
+
+  // 이미지 삭제 함수
+  const handleImageDelete = async (imageUrl: string, index: number) => {
+    if (!window.confirm('이 이미지를 삭제하시겠습니까?')) return;
+
+    console.log(`이미지 삭제 시작: index=${index}`);
+    console.log(`이미지 URL: ${imageUrl}`);
+    console.log(`이미지 URL 타입: ${typeof imageUrl}`);
+    console.log(`이미지 URL 길이: ${imageUrl?.length || 0}`);
+
+    // 빈 이미지 항목인지 확인
+    if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'undefined' || imageUrl === 'null') {
+      console.log('빈 이미지 항목 감지, UI에서만 제거합니다.');
+      
+      // 상태에서 이미지 제거 (Firebase Storage 삭제 없이)
+      setFormData((prev: any) => {
+        const newImages = prev.images?.filter((_: string, i: number) => i !== index) || [];
+        console.log(`빈 이미지 항목 제거: ${prev.images?.length}개 -> ${newImages.length}개`);
+        return {
+          ...prev,
+          images: newImages
+        };
+      });
+      
+      alert('빈 이미지 항목이 제거되었습니다.');
+      return;
+    }
+
+    try {
+      // 실제 이미지인 경우 Firebase Storage에서 삭제
+      const result = await deleteImage(imageUrl);
+      
+      if (result.success) {
+        console.log('Firebase Storage에서 이미지 삭제 성공');
+        
+        // 상태에서 이미지 제거
+        setFormData((prev: any) => {
+          const newImages = prev.images?.filter((_: string, i: number) => i !== index) || [];
+          console.log(`이미지 배열 업데이트: ${prev.images?.length}개 -> ${newImages.length}개`);
+          return {
+            ...prev,
+            images: newImages
+          };
+        });
+        
+        alert('이미지가 삭제되었습니다.');
+      } else {
+        console.error('Firebase Storage에서 이미지 삭제 실패:', result.error);
+        alert('이미지 삭제에 실패했습니다: ' + result.error);
+      }
+    } catch (error) {
+      console.error('이미지 삭제 중 예외 발생:', error);
+      alert('이미지 삭제 중 오류가 발생했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
+    }
+  };
+
+  // 이미지 미리보기 함수
+  const handleImagePreview = (imageUrl: string, imageName?: string) => {
+    setPreviewImage(imageUrl);
+    setPreviewImageName(imageName || '회사 이미지');
+  };
+
   const handleSave = async () => {
     if (!employerId) return;
     
@@ -122,6 +294,9 @@ const CompanyInfoPage: React.FC = () => {
 
       await fetchCompanyInfo();
       setIsEditing(false);
+      
+      // 저장 후 대시보드로 리다이렉트
+      navigate('/employer-dashboard');
     } catch (error) {
       console.error('회사 정보 저장 실패:', error);
       alert('저장에 실패했습니다. 다시 시도해주세요.');
@@ -252,43 +427,103 @@ const CompanyInfoPage: React.FC = () => {
           <div className="bg-white rounded-lg border p-6">
             <h2 className="text-xl font-semibold mb-4">회사 이미지</h2>
             {isEditing ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {displayInfo.images && displayInfo.images.length > 0 ? (
-                  displayInfo.images.map((image: string, index: number) => (
-                    <div key={index} className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                      <img
-                        src={image}
-                        alt={`회사 이미지 ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        onClick={() => removeArrayItem('images', index)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-70 hover:opacity-100"
-                        title="이미지 삭제"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+              <div className="space-y-4">
+                {/* 이미지 업로드 버튼 */}
+                <div className="flex items-center justify-center w-full">
+                  <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg transition-colors ${
+                    uploadingImages 
+                      ? 'border-orange-300 bg-orange-50 cursor-not-allowed' 
+                      : 'border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer'
+                  }`}>
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      {uploadingImages ? (
+                        <>
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mb-2"></div>
+                          <p className="mb-2 text-sm text-orange-600 font-semibold">업로드 중...</p>
+                          <p className="text-xs text-orange-500">잠시만 기다려주세요</p>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-8 h-8 mb-2 text-gray-500" />
+                          <p className="mb-2 text-sm text-gray-500">
+                            <span className="font-semibold">클릭하여 업로드</span> 또는 드래그 앤 드롭
+                          </p>
+                          <p className="text-xs text-gray-500">PNG, JPG, JPEG, HEIC (최대 10MB)</p>
+                        </>
+                      )}
                     </div>
-                  ))
-                ) : (
-                  <p className="text-gray-500">등록된 회사 이미지가 없습니다.</p>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploadingImages}
+                    />
+                  </label>
+                </div>
+
+                {/* 업로드된 이미지 목록 */}
+                {displayInfo.images && displayInfo.images.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {displayInfo.images.map((image: string, index: number) => {
+                      // 빈 이미지 항목인지 확인
+                      const isEmptyImage = !image || image.trim() === '' || image === 'undefined' || image === 'null';
+                      
+                      return (
+                        <div key={index} className="relative group cursor-pointer">
+                          <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                            {isEmptyImage ? (
+                              <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                                <div className="text-center">
+                                  <div className="text-gray-400 text-4xl mb-2">📷</div>
+                                  <p className="text-gray-500 text-sm">빈 이미지</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <img
+                                src={image}
+                                alt={`회사 이미지 ${index + 1}`}
+                                className="w-full h-full object-cover hover:opacity-80 transition-opacity"
+                                onClick={() => handleImagePreview(image, `회사 이미지 ${index + 1}`)}
+                              />
+                            )}
+                          </div>
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-2">
+                              {!isEmptyImage && (
+                                <button
+                                  onClick={() => handleImagePreview(image, `회사 이미지 ${index + 1}`)}
+                                  className="p-2 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100 transition-colors"
+                                  title="미리보기"
+                                >
+                                  <Eye className="h-4 w-4 text-gray-700" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleImageDelete(image, index)}
+                                className="p-2 bg-red-500 bg-opacity-80 rounded-full hover:bg-opacity-100 transition-colors"
+                                title={isEmptyImage ? "빈 항목 삭제" : "이미지 삭제"}
+                              >
+                                <Trash2 className="h-4 w-4 text-white" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
-                <button
-                  onClick={() => addArrayItem('images')}
-                  className="aspect-video bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 hover:bg-blue-200"
-                >
-                  <Plus className="h-6 w-6" />
-                </button>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {displayInfo.images && displayInfo.images.length > 0 ? (
                   displayInfo.images.map((image: string, index: number) => (
-                    <div key={index} className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                    <div key={index} className="aspect-video bg-gray-100 rounded-lg overflow-hidden cursor-pointer" onClick={() => handleImagePreview(image, `회사 이미지 ${index + 1}`)}>
                       <img
                         src={image}
                         alt={`회사 이미지 ${index + 1}`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover hover:opacity-80 transition-opacity"
                       />
                     </div>
                   ))
@@ -367,80 +602,7 @@ const CompanyInfoPage: React.FC = () => {
             </p>
           </div>
 
-          {/* 근무 환경 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl font-semibold mb-4">근무 환경</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm font-medium text-gray-700 mb-1">환경</div>
-                <div className="text-gray-900">
-                  {isEditing ? (
-                    <select
-                      value={displayInfo.environment}
-                      onChange={(e) => handleInputChange('environment', e.target.value as '도심' | '외곽' | '기타')}
-                      className="bg-transparent border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    >
-                      <option value="도심">도심</option>
-                      <option value="외곽">외곽</option>
-                      <option value="기타">기타</option>
-                    </select>
-                  ) : (
-                    displayInfo.environment
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-700 mb-1">근무타입</div>
-                <div className="text-gray-900">
-                  {isEditing ? (
-                    <select
-                      value={displayInfo.workTimeType}
-                      onChange={(e) => handleInputChange('workTimeType', e.target.value as '고정제' | '유연제' | '기타')}
-                      className="bg-transparent border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    >
-                      <option value="고정제">고정제</option>
-                      <option value="유연제">유연제</option>
-                      <option value="기타">기타</option>
-                    </select>
-                  ) : (
-                    displayInfo.workTimeType
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-700 mb-1">급여 범위</div>
-                <div className="text-gray-900">
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={displayInfo.salaryRange || ''}
-                      onChange={(e) => handleInputChange('salaryRange', e.target.value)}
-                      className="bg-transparent border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="예시: 3000만원 ~ 5000만원"
-                    />
-                  ) : (
-                    displayInfo.salaryRange || '급여 정보 미등록'
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-700 mb-1">지역</div>
-                <div className="text-gray-900">
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={displayInfo.address || ''}
-                      onChange={(e) => handleInputChange('address', e.target.value)}
-                      className="bg-transparent border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="주소를 입력하세요"
-                    />
-                  ) : (
-                    displayInfo.address || '주소 미등록'
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+
 
           {/* 기숙사 정보 */}
           <div className="bg-white rounded-lg border p-6">
@@ -478,26 +640,82 @@ const CompanyInfoPage: React.FC = () => {
                 )}
               </div>
               
-              {displayInfo.dormitory && displayInfo.dormitoryFacilities && displayInfo.dormitoryFacilities.length > 0 && (
+              {displayInfo.dormitory && (
                 <div>
                   <div className="text-sm font-medium text-gray-700 mb-2">기숙사 시설</div>
-                  <div className="flex flex-wrap gap-2">
-                    {displayInfo.dormitoryFacilities.map((facility: string, index: number) => (
-                      <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={facility}
-                            onChange={(e) => handleArrayChange('dormitoryFacilities', index, e.target.value)}
-                            className="bg-transparent border border-gray-300 rounded-md p-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="시설 항목"
-                          />
-                        ) : (
-                          facility
-                        )}
-                      </span>
-                    ))}
-                  </div>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-0">
+                        {[
+                          '주차장', '엘리베이터', '헬스장', '독서실',
+                          '커뮤니티룸', '정원/테라스', 'CCTV',
+                          '세탁실', '공동주방', '휴게실', '야외공간',
+                          '직원식당', '셔틀버스'
+                        ].map((facility) => (
+                          <label key={facility} className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={(displayInfo.dormitoryFacilities || []).includes(facility)}
+                              onChange={(e) => {
+                                const current = displayInfo.dormitoryFacilities || [];
+                                if (e.target.checked) {
+                                  if (!current.includes(facility)) {
+                                    handleInputChange('dormitoryFacilities', [...current, facility]);
+                                  }
+                                } else {
+                                  handleInputChange('dormitoryFacilities', current.filter((f: string) => f !== facility));
+                                }
+                              }}
+                              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <span className="text-sm text-gray-700">{facility}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="flex items-center">
+                        <span className="text-sm text-gray-700 mr-3">기타</span>
+                        <input
+                          type="text"
+                          value={customDormitoryFacility}
+                          onChange={(e) => setCustomDormitoryFacility(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const val = customDormitoryFacility.trim();
+                              if (!val) return;
+                              const current = displayInfo.dormitoryFacilities || [];
+                              if (!current.includes(val)) {
+                                handleInputChange('dormitoryFacilities', [...current, val]);
+                              }
+                              setCustomDormitoryFacility('');
+                            }
+                          }}
+                          onBlur={() => {
+                            const val = customDormitoryFacility.trim();
+                            if (!val) return;
+                            const current = displayInfo.dormitoryFacilities || [];
+                            if (!current.includes(val)) {
+                              handleInputChange('dormitoryFacilities', [...current, val]);
+                            }
+                            setCustomDormitoryFacility('');
+                          }}
+                          placeholder="기타 항목 직접 입력"
+                          className="flex-1 p-2 border border-gray-300 rounded"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    (displayInfo.dormitoryFacilities && displayInfo.dormitoryFacilities.length > 0) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {displayInfo.dormitoryFacilities.map((facility: string, index: number) => (
+                          <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                            {facility}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500">등록된 기숙사 시설이 없습니다.</p>
+                    )
+                  )}
                 </div>
               )}
             </div>
@@ -559,23 +777,6 @@ const CompanyInfoPage: React.FC = () => {
                     />
                   ) : (
                     displayInfo.companySize || '규모 미등록'
-                  )}
-                </div>
-              </div>
-              
-              <div>
-                <div className="text-sm font-medium text-gray-700">지역</div>
-                <div className="text-gray-900">
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={displayInfo.region || ''}
-                      onChange={(e) => handleInputChange('region', e.target.value)}
-                      className="bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none"
-                      placeholder="지역을 입력하세요"
-                    />
-                  ) : (
-                    displayInfo.region || '지역 미등록'
                   )}
                 </div>
               </div>
@@ -701,6 +902,14 @@ const CompanyInfoPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 이미지 미리보기 모달 */}
+      <ImagePreviewModal
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        imageUrl={previewImage || ''}
+        imageName={previewImageName}
+      />
     </div>
   );
 };

@@ -11,7 +11,8 @@ const Navbar: React.FC = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate('/');
+      // 로그아웃 후 소개페이지로 리다이렉트
+      window.location.href = '/';
     } catch (error) {
       console.error('로그아웃 실패:', error);
     }

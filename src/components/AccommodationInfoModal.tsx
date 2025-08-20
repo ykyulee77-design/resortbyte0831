@@ -534,69 +534,44 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">시설</label>
-                  <div className="space-y-2">
-                    {accommodationInfo.facilities?.map((facility, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={facility}
-                          onChange={(e) => handleArrayChange('facilities', index, e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
-                          placeholder="시설을 입력하세요"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeArrayItem('facilities', index)}
-                          className="p-2 text-red-500 hover:text-red-700 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => addArrayItem('facilities')}
-                      className="flex items-center text-resort-600 hover:text-resort-700 transition-colors"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      시설 추가
-                    </button>
+                                                                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">공용시설</label>
+                    <div className="space-y-3">
+                                             {[
+                         '주차장', '엘리베이터', '헬스장', '독서실',
+                         '커뮤니티룸', '정원/테라스', 'CCTV',
+                         '세탁실', '공동주방', '휴게실', '야외공간',
+                         '직원식당', '셔틀버스'
+                       ].map((facility) => (
+                        <label key={facility} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={accommodationInfo.facilities?.includes(facility) || false}
+                            onChange={(e) => {
+                              const currentFacilities = accommodationInfo.facilities || [];
+                              if (e.target.checked) {
+                                if (!currentFacilities.includes(facility)) {
+                                  setAccommodationInfo(prev => ({
+                                    ...prev,
+                                    facilities: [...currentFacilities, facility]
+                                  }));
+                                }
+                              } else {
+                                setAccommodationInfo(prev => ({
+                                  ...prev,
+                                  facilities: currentFacilities.filter(f => f !== facility)
+                                }));
+                              }
+                            }}
+                            className="mr-3 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">{facility}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">공과금 포함 항목</label>
-                  <div className="space-y-2">
-                    {accommodationInfo.utilities?.map((utility, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={utility}
-                          onChange={(e) => handleArrayChange('utilities', index, e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
-                          placeholder="공과금 항목을 입력하세요"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeArrayItem('utilities', index)}
-                          className="p-2 text-red-500 hover:text-red-700 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => addArrayItem('utilities')}
-                      className="flex items-center text-resort-600 hover:text-resort-700 transition-colors"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      공과금 항목 추가
-                    </button>
-                  </div>
-                </div>
+                                 
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">기숙사 규칙</label>
@@ -667,19 +642,41 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          방 타입 <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={room.type}
-                          onChange={(e) => handleRoomTypeChange(index, 'type', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
-                          placeholder="예: 2인실, 4인실, 1인실"
-                          required
-                        />
-                      </div>
+                                             <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">
+                           방 타입 (복수 선택 가능) <span className="text-red-500">*</span>
+                         </label>
+                         <div className="space-y-2">
+                           {['1인실', '2인실', '3인실', '4인실', '기타'].map((type) => (
+                             <label key={type} className="flex items-center">
+                               <input
+                                 type="checkbox"
+                                 checked={room.type?.includes(type) || false}
+                                 onChange={(e) => {
+                                   const currentTypes = room.type?.split(',').map(t => t.trim()).filter(t => t) || [];
+                                   
+                                   if (e.target.checked) {
+                                     // 체크된 경우 추가
+                                     if (!currentTypes.includes(type)) {
+                                       currentTypes.push(type);
+                                     }
+                                   } else {
+                                     // 체크 해제된 경우 제거
+                                     const index = currentTypes.indexOf(type);
+                                     if (index > -1) {
+                                       currentTypes.splice(index, 1);
+                                     }
+                                   }
+                                   
+                                   handleRoomTypeChange(index, 'type', currentTypes.join(', '));
+                                 }}
+                                 className="mr-2 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300 rounded"
+                               />
+                               <span className="text-sm text-gray-700">{type}</span>
+                             </label>
+                           ))}
+                         </div>
+                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -700,28 +697,49 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          월세 (원)
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={room.price}
-                            onChange={(e) => handleRoomTypeChange(index, 'price', Number(e.target.value))}
-                            min="0"
-                            step="10000"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
-                            placeholder="0"
-                          />
-                          <span className="absolute right-3 top-2 text-gray-500 text-sm">원</span>
-                        </div>
-                        {room.price > 0 && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            {room.price.toLocaleString()}원
-                          </p>
-                        )}
-                      </div>
+                                             <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-2">
+                           월세
+                         </label>
+                         <div className="space-y-2">
+                           <div className="flex items-center space-x-4">
+                             <label className="flex items-center">
+                               <input
+                                 type="radio"
+                                 name={`modalRentType-${index}`}
+                                 checked={room.price === 0}
+                                 onChange={() => handleRoomTypeChange(index, 'price', 0)}
+                                 className="mr-2 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300"
+                               />
+                               <span className="text-sm text-gray-700">무료</span>
+                             </label>
+                             <label className="flex items-center">
+                               <input
+                                 type="radio"
+                                 name={`modalRentType-${index}`}
+                                 checked={room.price > 0}
+                                 onChange={() => handleRoomTypeChange(index, 'price', 1)}
+                                 className="mr-2 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300"
+                               />
+                               <span className="text-sm text-gray-700">유료</span>
+                             </label>
+                           </div>
+                           {room.price > 0 && (
+                             <div className="relative">
+                               <input
+                                 type="number"
+                                 value={room.price === 1 ? '' : room.price}
+                                 onChange={(e) => handleRoomTypeChange(index, 'price', Number(e.target.value))}
+                                 min="1"
+                                 step="10000"
+                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
+                                 placeholder="월세 금액을 입력하세요"
+                               />
+                               <span className="absolute right-3 top-2 text-gray-500 text-sm">원</span>
+                             </div>
+                           )}
+                         </div>
+                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -793,7 +811,7 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
                     <div className="text-center">
                       <p className="text-gray-600">총 수용 가능 인원</p>
                       <p className="text-lg font-semibold text-resort-600">
-                        {accommodationInfo.roomTypes.reduce((sum, room) => sum + (room.capacity * room.available), 0)}명
+                        {accommodationInfo.roomTypes.reduce((sum, room) => sum + ((room.capacity || 0) * room.available), 0)}명
                       </p>
                     </div>
                     <div className="text-center">

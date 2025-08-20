@@ -86,6 +86,7 @@ export interface AccommodationInfo {
   currentOccupancy: number;
   roomTypes: RoomType[];
   facilities: string[];
+  facilitiesOther?: string;
   monthlyRent: number;
   utilities: string[];
   images: string[];
@@ -97,7 +98,46 @@ export interface AccommodationInfo {
   updatedAt: Timestamp;
   // 새로운 필드들 추가
   deposit?: number; // 보증금
+  // 객실 유형 체크박스 필드 추가
+  roomTypeOptions?: {
+    singleRoom?: boolean; // 1인실
+    doubleRoom?: boolean; // 2인실
+    tripleRoom?: boolean; // 3인실
+    quadRoom?: boolean; // 4인실
+    otherRoom?: boolean; // 기타
+  };
+  // 요금 유형 필드 추가
+  paymentType?: 'free' | 'paid'; // 무료 또는 유료
+  // 객실별 월세 필드 추가
+  roomPrices?: {
+    singleRoom?: number; // 1인실 월세 (천원 단위)
+    doubleRoom?: number; // 2인실 월세 (천원 단위)
+    tripleRoom?: number; // 3인실 월세 (천원 단위)
+    quadRoom?: number; // 4인실 월세 (천원 단위)
+    otherRoom?: number; // 기타 월세 (천원 단위)
+  };
+  // 기타 객실 유형 텍스트 필드 추가
+  otherRoomType?: string; // 기타 객실 유형 설명
+  // 부대시설 체크박스 필드 추가
+  facilityOptions?: {
+    parking?: boolean; // 주차장
+    laundry?: boolean; // 세탁실
+    kitchen?: boolean; // 공용주방
+    gym?: boolean; // 체육관
+    studyRoom?: boolean; // 스터디룸
+    lounge?: boolean; // 휴게실
+    wifi?: boolean; // 와이파이
+    security?: boolean; // 보안시설
+    elevator?: boolean; // 엘리베이터
+    other?: boolean; // 기타
+  };
+  otherFacilityText?: string; // 부대시설 기타 텍스트
+  // 객실시설 기타 필드 추가
+  otherFacilities?: boolean; // 기타 시설 체크박스
+  otherFacilitiesText?: string; // 기타 시설 텍스트
   contractPeriod?: string; // 계약기간
+  contractStartDate?: string; // 계약 시작일
+  contractEndDate?: string; // 계약 종료일
   moveInDate?: string; // 입주 가능일
   petAllowed?: boolean; // 반려동물 허용
   smokingAllowed?: boolean; // 흡연 허용
@@ -139,14 +179,46 @@ export interface AccommodationInfo {
   safetyRating?: number; // 안전도 평점
   accessibility?: string[]; // 접근성
   sustainability?: string[]; // 친환경 요소
+  // 비용 정보 (부대비용) 추가 필드
+  utilitiesCostType?: '무료' | '실비' | '유료';
+  utilitiesCostAmount?: number;
+  mealCostType?: '무료' | '유료';
+  mealCostAmount?: number;
+  mealNote?: string; // 식사 추가 정보
+  // 새로운 비용 정보 구조
+  costInfo?: {
+    room?: {
+      type: '무료' | '유료';
+      amount?: number;
+      note?: string;
+    };
+    meal?: {
+      type: '무료' | '유료';
+      amount?: number;
+      note?: string;
+    };
+    utilities?: {
+      type: '무료' | '실비' | '유료';
+      amount?: number;
+      note?: string;
+    };
+    other?: {
+      type: '무료' | '유료';
+      amount?: number;
+      note?: string;
+    };
+  };
 }
 
 export interface RoomType {
   type: string;
-  capacity: number;
+  capacity?: number;
   price: number;
   available: number;
   description: string;
+  // 식사 정보 (편집 섹션 요구사항)
+  mealType?: '무료' | '유료';
+  mealNote?: string;
 }
 
 export interface JobPost {
@@ -160,10 +232,6 @@ export interface JobPost {
   jobTitle?: string; // 채용직무 필드 추가
   description: string;
   location: string;
-  workPeriod?: {
-    startDate: string;
-    endDate: string;
-  };
   salary: {
     min: number;
     max: number;
@@ -176,7 +244,7 @@ export interface JobPost {
     hours: string;
   };
   workTypes?: WorkType[];
-  workTimeType?: '무관' | '근무타입 설정';
+  workTimeType?: '주간 근무타입' | '야간 근무타입' | '주말근무타입' | '주중근무타입' | '무관';
   scheduleType?: 'traditional' | 'flexible' | 'smart_matching';
   startDate: Timestamp;
   endDate?: Timestamp;
@@ -187,9 +255,6 @@ export interface JobPost {
   views?: number;
   contactInfo?: { email: string; phone: string };
   memo?: string;
-  accommodation?: { provided: boolean; info: string };
-  meal?: { provided: boolean; info: string };
-  employeeBenefits?: string;
 }
 
 export interface Application {

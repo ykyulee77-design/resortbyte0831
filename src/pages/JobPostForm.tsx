@@ -33,6 +33,8 @@ interface JobPostFormData {
   scheduleType: 'traditional' | 'flexible' | 'smart_matching';
   workTypes: WorkType[];
   workTimeType: '무관' | '근무타입 설정';
+  environment: '도심' | '외곽' | '기타';
+  salaryRange: string;
   images: File[];
   contactInfo: {
     email: string;
@@ -81,6 +83,8 @@ const JobPostForm: React.FC = () => {
     scheduleType: 'smart_matching',
     workTypes: [],
     workTimeType: '무관',
+    environment: '도심',
+    salaryRange: '',
     images: [],
     contactInfo: {
       email: '',
@@ -174,6 +178,8 @@ const JobPostForm: React.FC = () => {
         ...prev,
         title: companyInfo.name ? `${companyInfo.name} 채용공고` : prev.title,
         location: companyInfo.address || companyInfo.region || prev.location,
+        environment: companyInfo.environment || '도심',
+        salaryRange: companyInfo.salaryRange || '',
         contactInfo: {
           email: companyInfo.contactEmail || prev.contactInfo.email,
           phone: companyInfo.contactPhone || prev.contactInfo.phone
@@ -243,13 +249,15 @@ const JobPostForm: React.FC = () => {
           jobTitle: data.jobTitle || data.title || '', // jobTitle이 없으면 title을 기본값으로 사용
           description: data.description,
           location: data.location,
-          workPeriod: data.workPeriod || { startDate: '', endDate: '' },
+          workPeriod: (data as any).workPeriod || { startDate: '', endDate: '' },
           salary: data.salary,
           requirements: data.requirements || [''],
           benefits: data.benefits || [''],
           scheduleType: data.scheduleType || 'traditional',
           workTypes: data.workTypes || [],
-          workTimeType: data.workTimeType === '근무타입 설정' ? '근무타입 설정' : '무관',
+          workTimeType: (data as any).workTimeType === '근무타입 설정' ? '근무타입 설정' : '무관',
+          environment: (data as any).environment || '도심',
+          salaryRange: (data as any).salaryRange || '',
           images: [],
           contactInfo: (data as any).contactInfo || { email: '', phone: '' },
           accommodation: (data as any).accommodation || { provided: false, info: '' },

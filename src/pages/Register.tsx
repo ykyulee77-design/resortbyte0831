@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
-// import AddressSearch, { Address } from '../components/AddressSearch';
 
 const Register: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -311,7 +310,7 @@ const Register: React.FC = () => {
                     value={formData.companyAddress}
                     onChange={handleInputChange}
                     className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-resort-500 focus:border-resort-500 focus:z-10 sm:text-sm"
-                    placeholder="회사 주소를 입력하세요"
+                    placeholder="회사 주소를 입력하세요 (예: 서울특별시 강남구 테헤란로 427)"
                   />
                 </div>
 

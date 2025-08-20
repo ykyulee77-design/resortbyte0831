@@ -167,6 +167,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // 회사 정보 companyInfo 컬렉션에도 저장
         await setDoc(doc(db, 'companyInfo', firebaseUser.uid), {
+          employerId: firebaseUser.uid, // employerId 필드 추가
           name: employerInfo.companyName,
           address: employerInfo.companyAddress,
           phone: employerInfo.companyPhone,
@@ -227,6 +228,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await signOut(auth);
       setUser(null);
+      // 로그아웃 후 소개페이지로 리다이렉트
+      window.location.href = '/';
     } catch (error: any) {
       console.error('로그아웃 실패:', error);
       throw error;

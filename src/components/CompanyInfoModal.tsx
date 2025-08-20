@@ -119,26 +119,37 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
   // 이미지 업로드 함수
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+      console.log('선택된 파일이 없습니다.');
+      return;
+    }
 
+    console.log(`이미지 업로드 시작: ${files.length}개 파일 선택됨`);
+    
     try {
       setUploadingImages(true);
       const fileArray = Array.from(files);
       const uploadedUrls: string[] = [];
 
       for (const file of fileArray) {
+        console.log(`파일 처리 중: ${file.name} (${file.size} bytes, ${file.type})`);
+        
         // 파일 검증
         const validation = validateImageFile(file);
         if (!validation.valid) {
+          console.error(`파일 검증 실패: ${file.name} - ${validation.error}`);
           alert(`파일 "${file.name}": ${validation.error}`);
           continue;
         }
+        console.log(`파일 검증 통과: ${file.name}`);
 
         // 이미지 압축 (필요시)
         let processedFile = file;
         if (file.size > 1024 * 1024) { // 1MB 이상인 경우 압축
+          console.log(`이미지 압축 시작: ${file.name}`);
           try {
             processedFile = await compressImage(file, 1920);
+            console.log(`이미지 압축 완료: ${file.name}`);
           } catch (compressError) {
             console.error('이미지 압축 실패:', compressError);
             // 압축 실패시 원본 파일 사용
@@ -146,6 +157,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
         }
 
         // 이미지 업로드
+        console.log(`Firebase Storage 업로드 시작: ${file.name}`);
         const result = await uploadImage(processedFile, {
           folder: 'company-images',
           metadata: {
@@ -156,25 +168,32 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
         });
 
         if (result.success && result.url) {
+          console.log(`업로드 성공: ${file.name} -> ${result.url}`);
           uploadedUrls.push(result.url);
         } else {
+          console.error(`업로드 실패: ${file.name} - ${result.error}`);
           alert(`파일 "${file.name}" 업로드에 실패했습니다: ${result.error}`);
         }
       }
 
       // 업로드된 이미지들을 기존 이미지 배열에 추가
       if (uploadedUrls.length > 0) {
+        console.log(`업로드 완료: ${uploadedUrls.length}개 파일 성공`);
         setCompanyInfo(prev => ({
           ...prev,
           images: [...(prev.images || []), ...uploadedUrls]
         }));
+        alert(`${uploadedUrls.length}개 이미지가 성공적으로 업로드되었습니다.`);
+      } else {
+        console.log('업로드된 파일이 없습니다.');
       }
 
     } catch (error) {
       console.error('이미지 업로드 중 오류:', error);
-      alert('이미지 업로드 중 오류가 발생했습니다.');
+      alert('이미지 업로드 중 오류가 발생했습니다: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
     } finally {
       setUploadingImages(false);
+      console.log('이미지 업로드 프로세스 완료');
     }
   };
 
@@ -450,13 +469,27 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
                   <div className="space-y-4">
                     {/* 이미지 업로드 버튼 */}
                     <div className="flex items-center justify-center w-full">
-                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                      <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg transition-colors ${
+                        uploadingImages 
+                          ? 'border-orange-300 bg-orange-50 cursor-not-allowed' 
+                          : 'border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer'
+                      }`}>
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <Upload className="w-8 h-8 mb-2 text-gray-500" />
-                          <p className="mb-2 text-sm text-gray-500">
-                            <span className="font-semibold">클릭하여 업로드</span> 또는 드래그 앤 드롭
-                          </p>
-                          <p className="text-xs text-gray-500">PNG, JPG, JPEG (최대 5MB)</p>
+                          {uploadingImages ? (
+                            <>
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mb-2"></div>
+                              <p className="mb-2 text-sm text-orange-600 font-semibold">업로드 중...</p>
+                              <p className="text-xs text-orange-500">잠시만 기다려주세요</p>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-8 h-8 mb-2 text-gray-500" />
+                              <p className="mb-2 text-sm text-gray-500">
+                                <span className="font-semibold">클릭하여 업로드</span> 또는 드래그 앤 드롭
+                              </p>
+                              <p className="text-xs text-gray-500">PNG, JPG, JPEG, HEIC (최대 10MB)</p>
+                            </>
+                          )}
                         </div>
                         <input
                           type="file"
@@ -632,13 +665,13 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
         </div>
       </div>
 
-                    {/* 이미지 미리보기 모달 - 임시 비활성화 */}
-              {/* <ImagePreviewModal
-                isOpen={!!previewImage}
-                onClose={() => setPreviewImage(null)}
-                imageUrl={previewImage || ''}
-                imageName={previewImageName}
-              /> */}
+      {/* 이미지 미리보기 모달 */}
+      <ImagePreviewModal
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        imageUrl={previewImage || ''}
+        imageName={previewImageName}
+      />
     </div>
   );
 };
