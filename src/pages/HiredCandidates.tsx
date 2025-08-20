@@ -73,7 +73,7 @@ const HiredCandidates: React.FC = () => {
             education: data.education || '',
             availableStartDate: data.availableStartDate ? (data.availableStartDate.toDate ? data.availableStartDate.toDate() : new Date(data.availableStartDate)) : undefined,
             skills: data.skills || [],
-            expectedSalary: data.expectedSalary || 0,
+            hourlyWage: data.hourlyWage || 0,
                          message: data.message || '',
              jobTitle: data.jobTitle,
              employerName: data.employerName,
@@ -285,12 +285,12 @@ const HiredCandidates: React.FC = () => {
                            <Calendar className="h-4 w-4 mr-2" />
                            <span>지원일: {application.appliedAt.toLocaleDateString('ko-KR')}</span>
                          </div>
-                         {application.expectedSalary && application.expectedSalary > 0 && (
-                           <div className="flex items-center">
-                             <DollarSign className="h-4 w-4 mr-2" />
-                             <span>희망급여: {application.expectedSalary.toLocaleString()}원</span>
-                           </div>
-                         )}
+                                                   {application.hourlyWage && application.hourlyWage > 0 && (
+                            <div className="flex items-center">
+                              <DollarSign className="h-4 w-4 mr-2" />
+                              <span>희망시급: {application.hourlyWage.toLocaleString()}원/시간</span>
+                            </div>
+                          )}
                          {application.availableStartDate && (
                            <div className="flex items-center">
                              <Calendar className="h-4 w-4 mr-2" />

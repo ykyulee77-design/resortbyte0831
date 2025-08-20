@@ -168,6 +168,11 @@ function App() {
                 <JobPostDetail />
               </HomeLayout>
             } />
+            <Route path="/job-post/:id" element={
+              <HomeLayout>
+                <JobPostDetail />
+              </HomeLayout>
+            } />
             
             {/* 회사 정보 관련 라우트 */}
             <Route path="/company/:employerId" element={

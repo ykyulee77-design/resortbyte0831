@@ -65,7 +65,7 @@ const Applications: React.FC = () => {
             education: data.education || '',
             availableStartDate: data.availableStartDate ? (data.availableStartDate.toDate ? data.availableStartDate.toDate() : new Date(data.availableStartDate)) : undefined,
             skills: data.skills || [],
-            expectedSalary: data.expectedSalary || 0,
+            hourlyWage: data.hourlyWage || 0,
             message: data.message || '',
             jobTitle: data.jobTitle,
             employerName: data.employerName,

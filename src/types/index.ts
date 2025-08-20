@@ -10,8 +10,34 @@ export interface Resume {
   photoUrl?: string;
   showEvaluations?: boolean;
   education?: string;
-  expectedSalary?: number;
+  hourlyWage?: number; // 시급 (원)
   availableStartDate?: string;
+  // 추가된 필드들
+  address?: string;
+  gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
+  workType?: 'full_time' | 'part_time' | 'temporary' | 'freelance';
+  workSchedule?: 'day' | 'night' | 'shift' | 'flexible';
+  workDays?: 'weekdays' | 'weekends' | 'both' | 'flexible';
+  travelWilling?: boolean;
+  dormitoryWilling?: boolean;
+  drivingLicense?: boolean;
+  customerServiceExp?: boolean;
+  restaurantExp?: boolean;
+  languages?: string[];
+  computerSkills?: string[];
+  preferredTimeType?: 'general' | 'specific'; // 선호근무시간 타입: 일반/시간지정
+  preferredTimeSlots?: TimeSlot[]; // 선호 근무시간 (시간지정일 때만 사용)
+  previousJobs?: {
+    company: string;
+    position: string;
+    period: string;
+    reason: string;
+  }[];
+  emergencyContact?: {
+    name: string;
+    relationship: string;
+    phone: string;
+  };
 }
 
 export interface User {
@@ -270,7 +296,7 @@ export interface Application {
   education?: string;
   availableStartDate?: Date;
   skills?: string[];
-  expectedSalary?: number;
+  hourlyWage?: number; // 시급 (원)
   selectedWorkTypeIds?: string[]; // 선택된 근무타입 ID들을 배열로 변경
   updatedAt?: Date;
   employerFeedback?: string;

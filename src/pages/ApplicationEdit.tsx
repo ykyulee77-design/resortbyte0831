@@ -17,7 +17,7 @@ const ApplicationEdit: React.FC = () => {
   const [experience, setExperience] = useState('');
   const [education, setEducation] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
-  const [expectedSalary, setExpectedSalary] = useState<number>(0);
+  const [hourlyWage, setHourlyWage] = useState<number>(0);
   const [availableStartDate, setAvailableStartDate] = useState('');
   const [message, setMessage] = useState('');
   const [newSkill, setNewSkill] = useState('');
@@ -48,7 +48,7 @@ const ApplicationEdit: React.FC = () => {
         setExperience(applicationData.experience || '');
         setEducation(applicationData.education || '');
         setSkills(applicationData.skills || []);
-        setExpectedSalary(applicationData.expectedSalary || 0);
+        setHourlyWage(applicationData.hourlyWage || 0);
         setAvailableStartDate(applicationData.availableStartDate ? 
           applicationData.availableStartDate.toISOString().split('T')[0] : '');
         setMessage(applicationData.message || '');
@@ -86,7 +86,7 @@ const ApplicationEdit: React.FC = () => {
          experience,
          education,
          skills,
-         expectedSalary: expectedSalary || undefined,
+         hourlyWage: hourlyWage || undefined,
          availableStartDate: availableStartDate ? new Date(availableStartDate) : undefined,
          message,
          updatedAt: new Date(),
@@ -258,18 +258,24 @@ const ApplicationEdit: React.FC = () => {
             </div>
           </div>
 
-          {/* 희망 급여 */}
+          {/* 희망 시급 */}
           <div className="mb-6">
             <label className="block text-lg font-semibold text-gray-800 mb-3">
-              희망 급여 (원)
+              희망 시급 (원/시간)
             </label>
-            <input
-              type="number"
-              value={expectedSalary || ''}
-              onChange={(e) => setExpectedSalary(Number(e.target.value))}
-              placeholder="희망 급여를 입력하세요"
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={hourlyWage || ''}
+                onChange={(e) => setHourlyWage(Number(e.target.value))}
+                min="10000"
+                step="1000"
+                placeholder="희망 시급을 입력하세요"
+                className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-500 whitespace-nowrap">원/시간</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">최소 10,000원부터 1,000원 단위로 입력 가능</p>
           </div>
 
           {/* 입사 가능일 */}

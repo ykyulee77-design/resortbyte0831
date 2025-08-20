@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, LogOut, Trash2, AlertTriangle, FileText, Edit, Save, XCircle, Phone, Briefcase, GraduationCap, Award, DollarSign, Home, Globe } from 'lucide-react';
+import { User, LogOut, Trash2, AlertTriangle, FileText, Edit, Save, XCircle, Phone, Briefcase, GraduationCap, Award, DollarSign, Home, Globe, Users, Clock } from 'lucide-react';
 import { doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { deleteUser, getAuth } from 'firebase/auth';
 import { Resume } from '../types';
+import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
 
 const Profile: React.FC = () => {
   const { user, logout } = useAuth();
@@ -18,12 +19,37 @@ const Profile: React.FC = () => {
   const [resumeSaving, setResumeSaving] = useState(false);
   // 구인자용 회사 정보
   const [companyInfo, setCompanyInfo] = useState<any | null>(null);
-  const [companyLoading, setCompanyLoading] = useState(false);
+
+  // 이력서 옵션들
+
+
+
+
+
+
+  const languageOptions = [
+    '한국어 (모국어)',
+    '영어 (초급)',
+    '영어 (중급)',
+    '영어 (고급)',
+    '중국어',
+    '일본어',
+    '베트남어',
+    '기타'
+  ];
+
+  const computerSkillOptions = [
+    'MS Office (Word, Excel, PowerPoint)',
+    '이메일/인터넷',
+    '포토샵/그래픽 디자인',
+    '회계 프로그램',
+    'POS 시스템',
+    '기타'
+  ];
 
   useEffect(() => {
     const fetchCompany = async () => {
       if (!user?.uid || user.role !== 'employer') return;
-      setCompanyLoading(true);
       try {
         const ref = doc(db, 'companyInfo', user.uid);
         const snap = await getDoc(ref);
@@ -39,8 +65,6 @@ const Profile: React.FC = () => {
         }
       } catch (e) {
         console.error('회사 정보 로딩 실패:', e);
-      } finally {
-        setCompanyLoading(false);
       }
     };
     fetchCompany();
@@ -100,7 +124,7 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleResumeChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleResumeChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setResumeEdit(prev => ({ ...prev, [name]: value }));
   };
@@ -344,7 +368,7 @@ const Profile: React.FC = () => {
                 </h4>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">학력</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">최종 출신학교</label>
                     <p className="text-sm text-gray-900">{user?.resume?.education || '미입력'}</p>
                   </div>
                   <div>
@@ -359,18 +383,94 @@ const Profile: React.FC = () => {
                 </div>
               </div>
 
-              {/* 급여 및 근무 정보 */}
+              {/* 근무 선호도 - 스케줄 그리드 */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-indigo-600" />
+                  선호 근무시간
+                </h4>
+                
+                {/* 선호근무시간 타입 표시 */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">선호근무시간 타입</label>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      user?.resume?.preferredTimeType === 'general' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : user?.resume?.preferredTimeType === 'specific'
+                        ? 'bg-purple-100 text-purple-800'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                                             {user?.resume?.preferredTimeType === 'general' ? '일반' :
+                        user?.resume?.preferredTimeType === 'specific' ? '선호시간 있음' : '미설정'}
+                    </span>
+                    {user?.resume?.preferredTimeType === 'general' && (
+                      <span className="text-sm text-gray-500">시간대에 상관없이 근무 가능</span>
+                    )}
+                                         {user?.resume?.preferredTimeType === 'specific' && (
+                       <span className="text-sm text-gray-500">선호하는 시간대가 있음</span>
+                     )}
+                  </div>
+                </div>
+
+                {/* 시간지정일 때만 스케줄 그리드 표시 */}
+                {user?.resume?.preferredTimeType === 'specific' && user?.resume?.preferredTimeSlots && user.resume.preferredTimeSlots.length > 0 ? (
+                  <div className="border-t border-gray-200 pt-4">
+                    <h5 className="text-sm font-medium text-gray-900 mb-3">선호 시간대</h5>
+                    <UnifiedScheduleGrid
+                      selectedTimeSlots={user.resume.preferredTimeSlots}
+                      mode="view"
+                      title="선호 근무시간"
+                      description="설정된 선호 근무시간"
+                      showStatistics={true}
+                      showActions={false}
+                      jobseekerView={true}
+                      readOnly={true}
+                    />
+                  </div>
+                                 ) : user?.resume?.preferredTimeType === 'specific' ? (
+                   <div className="border-t border-gray-200 pt-4">
+                     <div className="text-center py-6">
+                       <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                         <Clock className="w-6 h-6 text-purple-500" />
+                       </div>
+                       <p className="text-purple-600 text-sm font-medium">선호하는 시간대가 있음</p>
+                       <p className="text-purple-500 text-xs mt-1">선호 시간대를 설정해보세요</p>
+                     </div>
+                   </div>
+                ) : user?.resume?.preferredTimeType === 'general' ? (
+                  <div className="border-t border-gray-200 pt-4">
+                    <div className="text-center py-6">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Clock className="w-6 h-6 text-blue-500" />
+                      </div>
+                      <p className="text-blue-600 text-sm font-medium">시간대에 상관없이 근무 가능</p>
+                      <p className="text-blue-500 text-xs mt-1">모든 시간대의 일자리에 지원할 수 있습니다</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Clock className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <p className="text-gray-500">선호 근무시간이 설정되지 않았습니다</p>
+                    <p className="text-sm text-gray-400 mt-1">편집 모드에서 선호하는 시간을 설정해보세요</p>
+                  </div>
+                )}
+              </div>
+
+              {/* 급여 및 기타 선호도 */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-yellow-600" />
-                  급여 및 근무 정보
+                  급여 및 기타 선호도
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">희망 급여</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">희망 시급</label>
                     <p className="text-sm text-gray-900">
-                      {user?.resume?.expectedSalary 
-                        ? `${user?.resume?.expectedSalary?.toLocaleString?.()}원` 
+                      {user?.resume?.hourlyWage 
+                        ? `${user?.resume?.hourlyWage?.toLocaleString?.()}원/시간` 
                         : '미입력'
                       }
                     </p>
@@ -378,6 +478,59 @@ const Profile: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">입사 가능일</label>
                     <p className="text-sm text-gray-900">{user?.resume?.availableStartDate || '미입력'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">기타 선호사항</label>
+                    <div className="space-y-1">
+                      {user?.resume?.travelWilling && <p className="text-sm text-gray-900">• 출장 가능</p>}
+                      {user?.resume?.dormitoryWilling && <p className="text-sm text-gray-900">• 기숙사 이용 희망</p>}
+                      {user?.resume?.drivingLicense && <p className="text-sm text-gray-900">• 운전면허 보유</p>}
+                      {!user?.resume?.travelWilling && !user?.resume?.dormitoryWilling && !user?.resume?.drivingLicense && 
+                        <p className="text-sm text-gray-500">미입력</p>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 경험 및 스킬 */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-green-600" />
+                  경험 및 스킬
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">관련 경험</label>
+                    <div className="space-y-1">
+                      {user?.resume?.customerServiceExp && <p className="text-sm text-gray-900">• 고객 응대 경험</p>}
+                      {user?.resume?.restaurantExp && <p className="text-sm text-gray-900">• 음식점/호텔 경험</p>}
+                      {!user?.resume?.customerServiceExp && !user?.resume?.restaurantExp && 
+                        <p className="text-sm text-gray-500">미입력</p>
+                      }
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">언어 능력</label>
+                    <div className="space-y-1">
+                      {user?.resume?.languages && user.resume.languages.length > 0 ? 
+                        user.resume.languages.map(lang => (
+                          <p key={lang} className="text-sm text-gray-900">• {lang}</p>
+                        ))
+                        : <p className="text-sm text-gray-500">미입력</p>
+                      }
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">컴퓨터 활용 능력</label>
+                  <div className="space-y-1">
+                    {user?.resume?.computerSkills && user.resume.computerSkills.length > 0 ? 
+                      user.resume.computerSkills.map(skill => (
+                        <p key={skill} className="text-sm text-gray-900">• {skill}</p>
+                      ))
+                      : <p className="text-sm text-gray-500">미입력</p>
+                    }
                   </div>
                 </div>
               </div>
@@ -444,8 +597,11 @@ const Profile: React.FC = () => {
                       value={resumeEdit.jobType || ''}
                       onChange={handleResumeChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="리조트 서비스, 호텔 관리 등"
+                      placeholder="예: 리조트 서비스, 호텔 관리, 음식점 서비스 등"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      추천: 리조트 서비스, 호텔 관리, 음식점 서비스, 청소/정리, 안내/접수, 운전/배송 등
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">경력</label>
@@ -455,8 +611,11 @@ const Profile: React.FC = () => {
                       value={resumeEdit.career || ''}
                       onChange={handleResumeChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="신입, 1년차, 3년차 등"
+                      placeholder="예: 신입, 2년, 호텔업 3년 경험 등"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      추천: 신입, 1년 미만, 1-3년, 3-5년, 5년 이상 등
+                    </p>
                   </div>
                 </div>
               </div>
@@ -469,15 +628,18 @@ const Profile: React.FC = () => {
                 </h4>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">학력</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">최종 출신학교</label>
                     <input
                       type="text"
                       name="education"
                       value={resumeEdit.education || ''}
                       onChange={handleResumeChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="고등학교 졸업, 대학교 졸업 등"
+                      placeholder="예: 서울대학교 경영학과 졸업, 고등학교 졸업 등"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      추천: 고등학교 졸업, 대학교 졸업, 대학원 졸업 등
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">자격증/특기</label>
@@ -496,23 +658,106 @@ const Profile: React.FC = () => {
                 </div>
               </div>
 
-              {/* 급여 및 근무 정보 */}
+              {/* 근무 선호도 - 스케줄 그리드 */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-indigo-600" />
+                  선호 근무시간 설정
+                </h4>
+                <p className="text-sm text-gray-600 mb-4">
+                  선호하는 근무시간을 설정하면 맞춤 일자리를 추천받을 수 있습니다.
+                </p>
+                
+                {/* 선호근무시간 타입 선택 */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">선호근무시간 타입</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-indigo-300 transition-colors">
+                      <input
+                        type="radio"
+                        name="preferredTimeType"
+                        value="general"
+                        checked={resumeEdit.preferredTimeType === 'general'}
+                        onChange={(e) => {
+                          setResumeEdit(prev => ({ 
+                            ...prev, 
+                            preferredTimeType: e.target.value as 'general' | 'specific',
+                            preferredTimeSlots: e.target.value === 'general' ? [] : prev.preferredTimeSlots
+                          }));
+                        }}
+                        className="mr-3 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">일반</div>
+                        <div className="text-sm text-gray-500">시간대에 상관없이 근무 가능</div>
+                      </div>
+                    </label>
+                    
+                    <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-indigo-300 transition-colors">
+                      <input
+                        type="radio"
+                        name="preferredTimeType"
+                        value="specific"
+                        checked={resumeEdit.preferredTimeType === 'specific'}
+                        onChange={(e) => {
+                          setResumeEdit(prev => ({ 
+                            ...prev, 
+                            preferredTimeType: e.target.value as 'general' | 'specific'
+                          }));
+                        }}
+                        className="mr-3 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">선호시간 있음</div>
+                        <div className="text-sm text-gray-500">선호하는 시간대가 있음</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 시간지정 선택 시에만 스케줄 그리드 표시 */}
+                {resumeEdit.preferredTimeType === 'specific' && (
+                  <div className="border-t border-gray-200 pt-6">
+                    <h5 className="text-sm font-medium text-gray-900 mb-3">선호 시간대 설정</h5>
+                    <UnifiedScheduleGrid
+                      selectedTimeSlots={resumeEdit.preferredTimeSlots || []}
+                      onChange={(timeSlots) => {
+                        setResumeEdit(prev => ({ ...prev, preferredTimeSlots: timeSlots }));
+                      }}
+                      mode="edit"
+                      title="선호 근무시간"
+                      description="선호하는 근무시간을 클릭하여 설정하세요"
+                      showStatistics={true}
+                      showActions={false}
+                      jobseekerView={true}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* 급여 및 기타 선호도 */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-yellow-600" />
-                  급여 및 근무 정보
+                  급여 및 기타 선호도
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">희망 급여 (월)</label>
-                    <input
-                      type="number"
-                      name="expectedSalary"
-                      value={resumeEdit.expectedSalary || ''}
-                      onChange={handleResumeChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="2000000"
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">희망 시급</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        name="hourlyWage"
+                        value={resumeEdit.hourlyWage || ''}
+                        onChange={handleResumeChange}
+                        min="10000"
+                        step="1000"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        placeholder="10000"
+                      />
+                      <span className="text-sm text-gray-500 whitespace-nowrap">원/시간</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">최소 10,000원부터 1,000원 단위로 입력 가능</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">입사 가능일</label>
@@ -524,6 +769,120 @@ const Profile: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       placeholder="즉시 가능, 2024-02-01 등"
                     />
+                  </div>
+                  <div className="md:col-span-2 space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">기타 선호사항</label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name="travelWilling"
+                          checked={resumeEdit.travelWilling || false}
+                          onChange={(e) => setResumeEdit(prev => ({ ...prev, travelWilling: e.target.checked }))}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-sm text-gray-700">출장 가능</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name="dormitoryWilling"
+                          checked={resumeEdit.dormitoryWilling || false}
+                          onChange={(e) => setResumeEdit(prev => ({ ...prev, dormitoryWilling: e.target.checked }))}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-sm text-gray-700">기숙사 이용 희망</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name="drivingLicense"
+                          checked={resumeEdit.drivingLicense || false}
+                          onChange={(e) => setResumeEdit(prev => ({ ...prev, drivingLicense: e.target.checked }))}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-sm text-gray-700">운전면허 보유</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 경험 및 스킬 */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-green-600" />
+                  경험 및 스킬
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">관련 경험</label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name="customerServiceExp"
+                          checked={resumeEdit.customerServiceExp || false}
+                          onChange={(e) => setResumeEdit(prev => ({ ...prev, customerServiceExp: e.target.checked }))}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-sm text-gray-700">고객 응대 경험</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name="restaurantExp"
+                          checked={resumeEdit.restaurantExp || false}
+                          onChange={(e) => setResumeEdit(prev => ({ ...prev, restaurantExp: e.target.checked }))}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-sm text-gray-700">음식점/호텔 경험</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">언어 능력</label>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {languageOptions.map(lang => (
+                        <label key={lang} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={resumeEdit.languages?.includes(lang) || false}
+                            onChange={(e) => {
+                              const currentLangs = resumeEdit.languages || [];
+                              const newLangs = e.target.checked
+                                ? [...currentLangs, lang]
+                                : currentLangs.filter(l => l !== lang);
+                              setResumeEdit(prev => ({ ...prev, languages: newLangs }));
+                            }}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className="text-sm text-gray-700">{lang}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">컴퓨터 활용 능력</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {computerSkillOptions.map(skill => (
+                      <label key={skill} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={resumeEdit.computerSkills?.includes(skill) || false}
+                          onChange={(e) => {
+                            const currentSkills = resumeEdit.computerSkills || [];
+                            const newSkills = e.target.checked
+                              ? [...currentSkills, skill]
+                              : currentSkills.filter(s => s !== skill);
+                            setResumeEdit(prev => ({ ...prev, computerSkills: newSkills }));
+                          }}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-sm text-gray-700">{skill}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               </div>

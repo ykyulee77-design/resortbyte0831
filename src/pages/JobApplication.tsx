@@ -179,7 +179,7 @@ const JobApplication: React.FC = () => {
         education: resumeEdit.education || '', // 이력서에서 자동 가져오기
         availableStartDate: resumeEdit.availableStartDate ? new Date(resumeEdit.availableStartDate as string) : null, // 이력서에서 자동 가져오기
         skills: [], // 통합된 지원 동기에 포함
-        expectedSalary: resumeEdit.expectedSalary ? Number(resumeEdit.expectedSalary) * 1000 : 0, // 시급을 원 단위로 변환 (천원 -> 원)
+        hourlyWage: resumeEdit.hourlyWage || 0, // 시급 (원)
         message: '', // 추가 정보는 제거
         selectedWorkTypeIds: application.selectedWorkTypeIds, // 선택된 근무타입 ID들 배열로 변경
         // 연락처 정보 추가
@@ -423,14 +423,16 @@ const JobApplication: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">희망 시급 (천원)</label>
+                              <label className="block text-sm font-medium text-gray-700">희망 시급 (원/시간)</label>
               <input 
-                name="expectedSalary"
+                                name="hourlyWage"
                 type="number"
-                value={resumeEdit.expectedSalary || ''} 
+                value={resumeEdit.hourlyWage || ''}
                 onChange={handleResumeChange}
-                className="mt-1 block w-full border rounded px-2 py-1" 
-                placeholder="희망 시급을 천원 단위로 입력해주세요 (예: 10 = 10,000원)"
+                min="10000"
+                step="1000"
+                className="mt-1 block w-full border rounded px-2 py-1"
+                placeholder="희망 시급을 입력해주세요 (최소 10,000원)"
               />
             </div>
             <div className="md:col-span-2">

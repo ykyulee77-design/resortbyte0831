@@ -76,7 +76,7 @@ const ApplicationDetail: React.FC = () => {
           education: data.education || '',
           availableStartDate: data.availableStartDate ? (data.availableStartDate.toDate ? data.availableStartDate.toDate() : new Date(data.availableStartDate)) : undefined,
           skills: data.skills || [],
-          expectedSalary: data.expectedSalary || 0,
+          hourlyWage: data.hourlyWage || 0,
           message: data.message || '',
           jobTitle: data.jobTitle,
           employerName: data.employerName,
@@ -448,10 +448,10 @@ const ApplicationDetail: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">희망 조건</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-blue-800 mb-1">희망 급여</h4>
+                    <h4 className="font-medium text-blue-800 mb-1">희망 시급</h4>
                     <p className="text-blue-700">
-                      {application.expectedSalary || jobseeker.resume?.expectedSalary ? 
-                        `${(application.expectedSalary || jobseeker.resume?.expectedSalary || 0).toLocaleString()}원` : 
+                      {application.hourlyWage || jobseeker.resume?.hourlyWage ? 
+                        `${(application.hourlyWage || jobseeker.resume?.hourlyWage || 0).toLocaleString()}원/시간` : 
                         '미입력'
                       }
                     </p>
