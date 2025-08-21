@@ -54,6 +54,8 @@ const AccommodationList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [priceFilter, setPriceFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [regionFilter, setRegionFilter] = useState<string>('all');
+  const [facilityFilter, setFacilityFilter] = useState<string>('all');
 
   useEffect(() => {
     const fetchAccommodations = async () => {
@@ -100,19 +102,32 @@ const AccommodationList: React.FC = () => {
   }, []);
 
   const filteredAccommodations = accommodations.filter(accommodation => {
-    const matchesSearch = accommodation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (accommodation.employerName && accommodation.employerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    // 검색: 회사명, 구인 공고명, 지역
+    const matchesSearch = searchTerm === '' || 
+                         (accommodation.companyInfo?.name && accommodation.companyInfo.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         accommodation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          accommodation.address.toLowerCase().includes(searchTerm.toLowerCase());
     
+    // 비용: 무료/유료
     const matchesPrice = priceFilter === 'all' || 
-                        (priceFilter === 'low' && (accommodation.monthlyRent || 0) <= 200000) ||
-                        (priceFilter === 'medium' && (accommodation.monthlyRent || 0) > 200000 && (accommodation.monthlyRent || 0) <= 400000) ||
-                        (priceFilter === 'high' && (accommodation.monthlyRent || 0) > 400000);
+                        (priceFilter === 'free' && (accommodation.monthlyRent || 0) === 0) ||
+                        (priceFilter === 'paid' && (accommodation.monthlyRent || 0) > 0);
     
+    // 기숙사 유형
     const matchesType = typeFilter === 'all' || 
-                       (accommodation.roomTypes && accommodation.roomTypes.some(room => room.type.includes(typeFilter)));
+                       accommodation.type === typeFilter;
+    
+    // 지역 필터
+    const matchesRegion = regionFilter === 'all' || 
+                         (accommodation.address && accommodation.address.includes(regionFilter));
+    
+    // 편의시설 필터
+    const matchesFacility = facilityFilter === 'all' || 
+                           (accommodation.facilities && accommodation.facilities.some(facility => 
+                             facility.toLowerCase().includes(facilityFilter.toLowerCase())
+                           ));
 
-    return matchesSearch && matchesPrice && matchesType;
+    return matchesSearch && matchesPrice && matchesType && matchesRegion && matchesFacility;
   });
 
   const formatPrice = (price: number | undefined) => {
@@ -157,14 +172,14 @@ const AccommodationList: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 필터 섹션 */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="flex flex-col lg:flex-row gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {/* 검색 */}
-            <div className="flex-1">
+            <div className="lg:col-span-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="기숙사명, 구인자명, 주소로 검색..."
+                  placeholder="회사명, 기숙사명, 지역으로 검색..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-transparent"
@@ -172,33 +187,116 @@ const AccommodationList: React.FC = () => {
               </div>
             </div>
 
-            {/* 가격 필터 */}
-            <div className="lg:w-48">
+            {/* 비용 필터 */}
+            <div>
               <select
                 value={priceFilter}
                 onChange={(e) => setPriceFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-transparent"
               >
-                <option value="all">가격 전체</option>
-                <option value="low">20만원 이하</option>
-                <option value="medium">20-40만원</option>
-                <option value="high">40만원 이상</option>
+                <option value="all">비용 전체</option>
+                <option value="free">무료</option>
+                <option value="paid">유료</option>
               </select>
             </div>
 
-            {/* 타입 필터 */}
-            <div className="lg:w-48">
+            {/* 기숙사 유형 필터 */}
+            <div>
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-transparent"
               >
-                <option value="all">타입 전체</option>
-                <option value="1인실">1인실</option>
-                <option value="2인실">2인실</option>
-                <option value="4인실">4인실</option>
-                <option value="6인실">6인실</option>
+                <option value="all">유형 전체</option>
+                <option value="dormitory">기숙사</option>
+                <option value="apartment">아파트</option>
+                <option value="house">주택</option>
+                <option value="other">기타</option>
               </select>
+            </div>
+
+            {/* 지역 필터 */}
+            <div>
+              <select
+                value={regionFilter}
+                onChange={(e) => setRegionFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-transparent"
+              >
+                <option value="all">지역 전체</option>
+                <option value="강원도">강원도</option>
+                <option value="경기도">경기도</option>
+                <option value="충청도">충청도</option>
+                <option value="전라도">전라도</option>
+                <option value="경상도">경상도</option>
+                <option value="제주도">제주도</option>
+              </select>
+            </div>
+          </div>
+          
+          {/* 편의시설 필터 */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex flex-wrap gap-2">
+              <span className="text-sm font-medium text-gray-700 mr-2">편의시설:</span>
+              <button
+                onClick={() => setFacilityFilter('all')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  facilityFilter === 'all' 
+                    ? 'bg-resort-500 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                전체
+              </button>
+              <button
+                onClick={() => setFacilityFilter('wifi')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  facilityFilter === 'wifi' 
+                    ? 'bg-resort-500 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                와이파이
+              </button>
+              <button
+                onClick={() => setFacilityFilter('parking')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  facilityFilter === 'parking' 
+                    ? 'bg-resort-500 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                주차
+              </button>
+              <button
+                onClick={() => setFacilityFilter('laundry')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  facilityFilter === 'laundry' 
+                    ? 'bg-resort-500 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                세탁
+              </button>
+              <button
+                onClick={() => setFacilityFilter('kitchen')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  facilityFilter === 'kitchen' 
+                    ? 'bg-resort-500 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                주방
+              </button>
+              <button
+                onClick={() => setFacilityFilter('gym')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  facilityFilter === 'gym' 
+                    ? 'bg-resort-500 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                체육관
+              </button>
             </div>
           </div>
         </div>
