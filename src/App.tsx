@@ -194,7 +194,11 @@ function App() {
             <Route path="/resort/:id/reviews" element={<ResortReview />} />
 
             {/* 기숙사 관련 라우트 */}
-            <Route path="/accommodations" element={<AccommodationList />} />
+            <Route path="/accommodations" element={
+              <HomeLayout>
+                <AccommodationList />
+              </HomeLayout>
+            } />
 
             {/* 대시보드 리다이렉트 - 역할별로 자동 리다이렉트 */}
             <Route path="/dashboard" element={
