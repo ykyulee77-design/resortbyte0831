@@ -3,11 +3,23 @@ import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AccommodationInfo, ExternalLink } from '../types';
+
+interface CompanyInfo {
+  id: string;
+  name: string;
+  industry?: string;
+  size?: string;
+  website?: string;
+  phone?: string;
+  description?: string;
+  location?: string;
+}
 import { 
   Home, MapPin, Phone, Users, DollarSign, CheckCircle, Star, Edit, Save, X,
   Upload, Trash2, Plus, ExternalLink as ExternalLinkIcon, Camera, Wifi, Car, Utensils,
   Shield, Clock, Users as UsersIcon, Bed, Bath, Tv, AirVent,
-  ParkingCircle, Dog, Wrench, AlertTriangle, Heart, ThumbsUp, MessageCircle
+  ParkingCircle, Dog, Wrench, AlertTriangle, Heart, ThumbsUp, MessageCircle,
+  Briefcase, Globe
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,6 +31,7 @@ const AccommodationInfoPage: React.FC = () => {
   const { employerId } = useParams<{ employerId: string }>();
   const { user } = useAuth();
   const [accommodationInfo, setAccommodationInfo] = useState<AccommodationInfo | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<AccommodationInfo>>({});
@@ -32,10 +45,12 @@ const AccommodationInfoPage: React.FC = () => {
     if (!employerId) return;
     setLoading(true);
     try {
-      const ref = doc(db, 'accommodationInfo', employerId);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const data = { id: snap.id, ...snap.data() } as AccommodationInfo;
+      // 기숙사 정보 가져오기
+      const accommodationRef = doc(db, 'accommodationInfo', employerId);
+      const accommodationSnap = await getDoc(accommodationRef);
+      
+      if (accommodationSnap.exists()) {
+        const data = { id: accommodationSnap.id, ...accommodationSnap.data() } as AccommodationInfo;
         console.log('기숙사 정보 로드:', data);
         console.log('이미지 배열:', data.images);
         console.log('기본정보:', {
@@ -47,6 +62,19 @@ const AccommodationInfoPage: React.FC = () => {
         });
         setAccommodationInfo(data);
         setEditForm(data);
+      }
+      
+      // 회사 정보 가져오기
+      try {
+        const companyRef = doc(db, 'companyInfo', employerId);
+        const companySnap = await getDoc(companyRef);
+        if (companySnap.exists()) {
+          const companyData = { id: companySnap.id, ...companySnap.data() } as CompanyInfo;
+          console.log('회사 정보 로드:', companyData);
+          setCompanyInfo(companyData);
+        }
+      } catch (companyError) {
+        console.log('회사 정보가 없습니다:', companyError);
       }
     } catch (error) {
       console.error('기숙사 정보 불러오기 실패:', error);
@@ -552,6 +580,62 @@ const AccommodationInfoPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* 회사 정보 */}
+        {companyInfo && (
+          <div className="bg-white rounded-lg border p-4">
+            <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-gray-500" />
+              회사 정보
+            </h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">회사명</span>
+                <span className="text-gray-900 font-medium">{companyInfo.name}</span>
+              </div>
+              {companyInfo.industry && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">업종</span>
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                    {companyInfo.industry}
+                  </span>
+                </div>
+              )}
+              {companyInfo.size && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">회사 규모</span>
+                  <span className="text-gray-900">{companyInfo.size}</span>
+                </div>
+              )}
+              {companyInfo.location && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">회사 위치</span>
+                  <span className="text-gray-900">{companyInfo.location}</span>
+                </div>
+              )}
+              {companyInfo.website && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">웹사이트</span>
+                  <a 
+                    href={companyInfo.website.startsWith('http') ? companyInfo.website : `https://${companyInfo.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  >
+                    <Globe className="w-3 h-3" />
+                    방문
+                  </a>
+                </div>
+              )}
+              {companyInfo.description && (
+                <div className="flex items-start justify-between">
+                  <span className="text-gray-500">회사 소개</span>
+                  <span className="text-gray-900 text-right max-w-xs">{companyInfo.description}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 연락처 */}
         {(isEditing || displayInfo.contactPerson || displayInfo.contactPhone) && (
