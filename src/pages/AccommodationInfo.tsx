@@ -3,17 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AccommodationInfo, ExternalLink } from '../types';
-
-interface CompanyInfo {
-  id: string;
-  name: string;
-  industry?: string;
-  size?: string;
-  website?: string;
-  phone?: string;
-  description?: string;
-  location?: string;
-}
 import { 
   Home, MapPin, Phone, Users, DollarSign, CheckCircle, Star, Edit, Save, X,
   Upload, Trash2, Plus, ExternalLink as ExternalLinkIcon, Camera, Wifi, Car, Utensils,
@@ -25,6 +14,17 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import { uploadImage, deleteImage, compressImage } from '../utils/imageUpload';
+
+interface CompanyInfo {
+  id: string;
+  name: string;
+  industry?: string;
+  size?: string;
+  website?: string;
+  phone?: string;
+  description?: string;
+  location?: string;
+}
 
 
 const AccommodationInfoPage: React.FC = () => {
