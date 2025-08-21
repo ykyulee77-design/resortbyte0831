@@ -181,12 +181,10 @@ function App() {
                 <CompanyInfoPage />
               </HomeLayout>
             } />
-            <Route path="/accommodation/:employerId" element={
-              <ProtectedRoute allowedRoles={['employer']}>
-                <Layout>
-                  <AccommodationInfoPage />
-                </Layout>
-              </ProtectedRoute>
+            <Route path="/accommodation-info/:employerId" element={
+              <HomeLayout>
+                <AccommodationInfoPage />
+              </HomeLayout>
             } />
             
             {/* 리뷰 관련 라우트 */}

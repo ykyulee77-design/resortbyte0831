@@ -32,6 +32,7 @@ interface Accommodation {
     name: string;
     url: string;
   }>;
+  isPublic?: boolean;
   createdAt: any;
 }
 
@@ -47,11 +48,13 @@ const AccommodationList: React.FC = () => {
       try {
         const accommodationsQuery = query(collection(db, 'accommodationInfo'));
         const snapshot = await getDocs(accommodationsQuery);
-        const accommodationsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          employerId: doc.id,
-          ...doc.data()
-        })) as Accommodation[];
+        const accommodationsData = snapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            employerId: doc.id,
+            ...doc.data()
+          })) as Accommodation[])
+          .filter(accommodation => accommodation.isPublic !== false); // 공개된 기숙사만 표시 (isPublic이 false가 아닌 경우)
         
         setAccommodations(accommodationsData);
       } catch (error) {

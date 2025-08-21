@@ -199,6 +199,7 @@ export interface AccommodationInfo {
   cleaningService?: boolean; // 청소 서비스
   cleaningFrequency?: string; // 청소 빈도
   mealService?: boolean; // 식사 서비스
+  isPublic?: boolean; // 공개 여부
   mealOptions?: string[]; // 식사 옵션
   noiseLevel?: 'quiet' | 'moderate' | 'lively'; // 소음 수준
   neighborhood?: string; // 주변 환경

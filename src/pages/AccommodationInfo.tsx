@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AccommodationInfo, ExternalLink } from '../types';
@@ -17,15 +17,10 @@ import { uploadImage, deleteImage, compressImage } from '../utils/imageUpload';
 
 const AccommodationInfoPage: React.FC = () => {
   const { employerId } = useParams<{ employerId: string }>();
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [accommodationInfo, setAccommodationInfo] = useState<AccommodationInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  // URL 파라미터에서 edit=true인지 확인하여 자동으로 편집 모드 진입
-  const isEditMode = searchParams.get('edit') === 'true';
-  const [isEditing, setIsEditing] = useState(isEditMode);
+  const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<AccommodationInfo>>({});
   const [saving, setSaving] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -41,10 +36,15 @@ const AccommodationInfoPage: React.FC = () => {
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const data = { id: snap.id, ...snap.data() } as AccommodationInfo;
-        // 개발 환경에서만 로그 출력
-        if (process.env.NODE_ENV === 'development') {
-          console.log('기숙사 정보 로드 완료');
-        }
+        console.log('기숙사 정보 로드:', data);
+        console.log('이미지 배열:', data.images);
+        console.log('기본정보:', {
+          name: data.name,
+          type: data.type,
+          address: data.address,
+          contactPerson: data.contactPerson,
+          contactPhone: data.contactPhone
+        });
         setAccommodationInfo(data);
         setEditForm(data);
       }
@@ -58,12 +58,6 @@ const AccommodationInfoPage: React.FC = () => {
   useEffect(() => {
     fetchAccommodationInfo();
   }, [employerId]);
-
-  // URL 파라미터 변경 감지하여 편집 모드 자동 진입
-  useEffect(() => {
-    const editParam = searchParams.get('edit');
-    setIsEditing(editParam === 'true');
-  }, [searchParams]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -117,38 +111,22 @@ const AccommodationInfoPage: React.FC = () => {
         smokingAllowed: false,
         averageRating: 0,
         totalReviews: 0,
-        externalLinks: []
+        externalLinks: [],
+        isPublic: true
       });
     }
   };
 
   const handleCancel = () => {
-    if (isEditMode) {
-      // URL에서 edit=true로 진입한 경우 대시보드로 돌아가기
-      navigate('/employer-dashboard');
-    } else {
-      // 페이지 내에서 수정 버튼으로 진입한 경우 편집 모드만 종료
     setIsEditing(false);
     setEditForm(accommodationInfo || {});
-    }
   };
 
   const handleSave = async () => {
-    if (!employerId) {
-      alert('사용자 정보를 찾을 수 없습니다.');
-      return;
-    }
+    if (!employerId) return;
     
-    // 필수 필드 검증
-    if (!editForm.name || !editForm.address) {
-      alert('기숙사명과 주소는 필수 입력 항목입니다.');
-      return;
-    }
-    
-    // 개발 환경에서만 로그 출력
-    if (process.env.NODE_ENV === 'development') {
-      console.log('저장 시작');
-    }
+    console.log('저장 시작 - editForm:', editForm);
+    console.log('저장할 이미지 배열:', editForm.images);
     
     setSaving(true);
     try {
@@ -159,77 +137,32 @@ const AccommodationInfoPage: React.FC = () => {
       
       if (docSnap.exists()) {
         // 기존 데이터 업데이트
-        // 개발 환경에서만 로그 출력
-        if (process.env.NODE_ENV === 'development') {
         console.log('기존 문서 업데이트 중...');
-        }
-        
-        // undefined 값 제거
-        const cleanData = Object.fromEntries(
-          Object.entries(editForm).filter(([_, value]) => value !== undefined)
-        );
-        
         await updateDoc(ref, {
-          ...cleanData,
+          ...editForm,
           updatedAt: new Date()
         });
-        // 개발 환경에서만 로그 출력
-        if (process.env.NODE_ENV === 'development') {
         console.log('기존 문서 업데이트 완료');
-        }
       } else {
         // 새 데이터 생성
         console.log('새 문서 생성 중...');
-        
-        // undefined 값 제거
-        const cleanData = Object.fromEntries(
-          Object.entries(editForm).filter(([_, value]) => value !== undefined)
-        );
-        
         await setDoc(ref, {
-          ...cleanData,
+          ...editForm,
           id: employerId,
           employerId: employerId,
           createdAt: new Date(),
           updatedAt: new Date()
         });
-        // 개발 환경에서만 로그 출력
-        if (process.env.NODE_ENV === 'development') {
         console.log('새 문서 생성 완료');
-        }
       }
       
       await fetchAccommodationInfo();
-      
-      if (isEditMode) {
-        // URL에서 edit=true로 진입한 경우 저장 후 대시보드로 돌아가기
-        alert('기숙사 정보가 성공적으로 저장되었습니다.');
-        navigate('/employer-dashboard');
-      } else {
-        // 페이지 내에서 수정한 경우 편집 모드만 종료
       setIsEditing(false);
-      }
-      
-      // 개발 환경에서만 로그 출력
-      if (process.env.NODE_ENV === 'development') {
-      console.log('저장 완료');
-      }
+      console.log('저장 완료 - accommodationInfo:', accommodationInfo);
+      console.log('저장 완료 - editForm:', editForm);
     } catch (error) {
       console.error('기숙사 정보 저장 실패:', error);
-      
-      // 더 자세한 오류 메시지 제공
-      let errorMessage = '저장에 실패했습니다. 다시 시도해주세요.';
-      if (error instanceof Error) {
-        if (error.message.includes('permission')) {
-          errorMessage = '권한이 없습니다. 로그인 상태를 확인해주세요.';
-        } else if (error.message.includes('network')) {
-          errorMessage = '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.';
-        } else {
-          errorMessage = `저장 오류: ${error.message}`;
-        }
-      }
-      
-      alert(errorMessage);
+      alert('저장에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setSaving(false);
     }
@@ -267,16 +200,10 @@ const AccommodationInfoPage: React.FC = () => {
         .map(result => result.url!)
         .filter(Boolean);
       
-              // 개발 환경에서만 로그 출력
-        if (process.env.NODE_ENV === 'development') {
-          console.log('이미지 업로드 완료');
-        }
+      console.log('업로드된 이미지 URLs:', newImages);
       
       const updatedImages = [...(editForm.images || []), ...newImages];
-              // 개발 환경에서만 로그 출력
-        if (process.env.NODE_ENV === 'development') {
-          console.log('이미지 배열 업데이트 완료');
-        }
+      console.log('업데이트된 이미지 배열:', updatedImages);
       
       setEditForm(prev => ({
         ...prev,
@@ -284,10 +211,7 @@ const AccommodationInfoPage: React.FC = () => {
       }));
 
       // 이미지 업로드 후 자동 저장
-              // 개발 환경에서만 로그 출력
-        if (process.env.NODE_ENV === 'development') {
-          console.log('이미지 자동 저장 시작...');
-        }
+      console.log('이미지 업로드 후 자동 저장 시작...');
       const updatedForm = {
         ...editForm,
         images: updatedImages
@@ -303,10 +227,7 @@ const AccommodationInfoPage: React.FC = () => {
             images: updatedImages,
             updatedAt: new Date()
           });
-          // 개발 환경에서만 로그 출력
-          if (process.env.NODE_ENV === 'development') {
           console.log('이미지 자동 저장 성공');
-          }
         } else {
           await setDoc(ref, {
             ...updatedForm,
@@ -316,10 +237,7 @@ const AccommodationInfoPage: React.FC = () => {
             createdAt: new Date(),
             updatedAt: new Date()
           });
-          // 개발 환경에서만 로그 출력
-          if (process.env.NODE_ENV === 'development') {
           console.log('이미지 자동 저장 성공 (새 문서)');
-          }
         }
         
         // 저장 후 데이터 다시 로드
@@ -547,7 +465,6 @@ const AccommodationInfoPage: React.FC = () => {
                   </button>
                 </>
               ) : (
-                !isEditMode && (
                 <button
                   onClick={handleEdit}
                   className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
@@ -555,7 +472,6 @@ const AccommodationInfoPage: React.FC = () => {
                   <Edit className="h-4 w-4 mr-2" />
                   수정
                 </button>
-                )
               )}
             </>
           )}
@@ -721,10 +637,7 @@ const AccommodationInfoPage: React.FC = () => {
                         e.currentTarget.style.display = 'none';
                       }}
                       onLoad={() => {
-                        // 개발 환경에서만 로그 출력
-        if (process.env.NODE_ENV === 'development') {
-          console.log('이미지 로드 성공');
-        }
+                        console.log('이미지 로드 성공:', image);
                       }}
                     />
                     {isOwner && isEditing && (

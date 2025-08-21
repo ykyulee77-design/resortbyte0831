@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building, Home, ChevronRight, ChevronDown, Plus, FileText, Users, Eye, MapPin, DollarSign, Clock, CheckCircle } from 'lucide-react';
+import { Building, Home, ChevronRight, ChevronDown, Plus, FileText, Users, Eye, MapPin, DollarSign, Clock, CheckCircle, EyeOff, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, getDocs, query, where, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -55,6 +55,33 @@ const CompanyDashboard: React.FC = () => {
   const handleImagePreview = (imageUrl: string, imageName?: string) => {
     setPreviewImage(imageUrl);
     setPreviewImageName(imageName || '이미지');
+  };
+
+  // 기숙사 공개/비공개 토글 핸들러
+  const handleAccommodationVisibilityToggle = async () => {
+    if (!user?.uid || !accommodationInfo) return;
+    
+    try {
+      const ref = doc(db, 'accommodationInfo', user.uid);
+      const newVisibility = !accommodationInfo.isPublic;
+      
+      await setDoc(ref, {
+        ...accommodationInfo,
+        isPublic: newVisibility,
+        updatedAt: new Date()
+      }, { merge: true });
+      
+      // 로컬 상태 업데이트
+      setAccommodationInfo({
+        ...accommodationInfo,
+        isPublic: newVisibility
+      });
+      
+      alert(newVisibility ? '기숙사 정보가 공개되었습니다.' : '기숙사 정보가 비공개되었습니다.');
+    } catch (error) {
+      console.error('기숙사 공개 상태 변경 실패:', error);
+      alert('공개 상태 변경에 실패했습니다.');
+    }
   };
 
   // URL 앵커 감지 및 스크롤
@@ -613,8 +640,29 @@ const CompanyDashboard: React.FC = () => {
                       기숙사 상세 정보
                     </h3>
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleAccommodationVisibilityToggle}
+                        className={`text-xs px-3 py-1 rounded transition-colors flex items-center gap-1 ${
+                          accommodationInfo.isPublic 
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                        title={accommodationInfo.isPublic ? '현재 공개됨' : '현재 비공개됨'}
+                      >
+                        {accommodationInfo.isPublic ? (
+                          <>
+                            <Globe className="w-3 h-3" />
+                            공개
+                          </>
+                        ) : (
+                          <>
+                            <EyeOff className="w-3 h-3" />
+                            비공개
+                          </>
+                        )}
+                      </button>
                       <Link
-                        to={`/accommodation/${user?.uid}?edit=true`}
+                        to={`/accommodation-info/${user?.uid}?edit=true`}
                         className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
                       >
                         수정
