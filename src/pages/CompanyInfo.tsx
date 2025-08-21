@@ -12,6 +12,7 @@ const CompanyInfoPage: React.FC = () => {
   const { employerId } = useParams<{ employerId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -222,8 +223,8 @@ const CompanyInfoPage: React.FC = () => {
               )}
             </>
           )}
-          <Link to="/jobs" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-            목록으로
+          <Link to="/employer-dashboard" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+            대시보드로
           </Link>
         </div>
       </div>

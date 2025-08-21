@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Building, Home, ChevronRight, ChevronDown, Plus, FileText, Users, Eye, MapPin, DollarSign, Clock, CheckCircle, EyeOff, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, getDocs, query, where, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import { workTypeService } from '../utils/scheduleMatchingService';
@@ -37,8 +37,13 @@ const calculateTotalHoursPerWeek = (schedules: any[]): number => {
 
 const CompanyDashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isCompanySectionCollapsed, setIsCompanySectionCollapsed] = useState(false);
   const [isAccommodationSectionCollapsed, setIsAccommodationSectionCollapsed] = useState(false);
+  const [isCompanyEditing, setIsCompanyEditing] = useState(false);
+  const [companyEditData, setCompanyEditData] = useState<any>({});
+  const [isAccommodationEditing, setIsAccommodationEditing] = useState(false);
+  const [accommodationEditData, setAccommodationEditData] = useState<any>({});
   const [jobPosts, setJobPosts] = useState<JobPost[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
@@ -97,6 +102,14 @@ const CompanyDashboard: React.FC = () => {
     }
   }, [jobPosts]); // jobPosts가 로드된 후 실행
 
+  // 브라우저 히스토리 정리 - 편집 페이지로의 이동 기록 제거
+  useEffect(() => {
+    if (window.location.pathname === '/employer-dashboard') {
+      // 현재 URL이 대시보드인데 히스토리에 편집 페이지가 남아있을 수 있으므로 정리
+      window.history.replaceState(null, '', '/employer-dashboard');
+    }
+  }, []);
+
   // Firebase에서 데이터 로딩
   useEffect(() => {
     const loadData = async () => {
@@ -147,7 +160,7 @@ const CompanyDashboard: React.FC = () => {
             const userDoc = await getDoc(userDocRef);
             
             if (userDoc.exists()) {
-              const userData = userDoc.data();
+              const userData = userDoc.data() as any;
               
               if (userData.employerInfo) {
                 companyData = userData.employerInfo;
@@ -317,9 +330,124 @@ const CompanyDashboard: React.FC = () => {
     }
   }, [user?.uid]);
 
+  const handleCompanyEditStart = () => {
+    setCompanyEditData(companyInfo || {});
+    setIsCompanyEditing(true);
+  };
+
+  const handleCompanyEditCancel = () => {
+    setCompanyEditData({});
+    setIsCompanyEditing(false);
+    
+    // 현재 페이지를 대시보드로 유지 (히스토리 변경 없이)
+    window.history.replaceState(null, '', '/employer-dashboard');
+  };
+
+  const handleCompanyEditSave = async () => {
+    if (!user?.uid) return;
+    
+    try {
+      const companyRef = doc(db, 'companyInfo', user.uid);
+      await setDoc(companyRef, {
+        ...companyEditData,
+        employerId: user.uid,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      
+      // 로컬 상태 업데이트
+      setCompanyInfo((prev: any) => prev ? {
+        ...prev,
+        ...companyEditData
+      } : companyEditData);
+      
+      setIsCompanyEditing(false);
+      setCompanyEditData({});
+      
+      // 현재 페이지를 대시보드로 유지 (히스토리 변경 없이)
+      window.history.replaceState(null, '', '/employer-dashboard');
+      
+      console.log('회사 정보 저장 완료');
+    } catch (error) {
+      console.error('회사 정보 저장 실패:', error);
+      alert('저장에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
+
+  const handleCompanyInputChange = (field: string, value: string) => {
+    setCompanyEditData((prev: any) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleAccommodationEditStart = () => {
+    setAccommodationEditData(accommodationInfo || {});
+    setIsAccommodationEditing(true);
+  };
+
+  const handleAccommodationEditCancel = () => {
+    setAccommodationEditData({});
+    setIsAccommodationEditing(false);
+    
+    // 현재 페이지를 대시보드로 유지 (히스토리 변경 없이)
+    window.history.replaceState(null, '', '/employer-dashboard');
+  };
+
+  const handleAccommodationEditSave = async () => {
+    if (!user?.uid) return;
+    
+    try {
+      const accommodationRef = doc(db, 'accommodationInfo', user.uid);
+      await setDoc(accommodationRef, {
+        ...accommodationEditData,
+        employerId: user.uid,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      
+      // 로컬 상태 업데이트
+      setAccommodationInfo((prev: any) => prev ? {
+        ...prev,
+        ...accommodationEditData
+      } : accommodationEditData);
+      
+      setIsAccommodationEditing(false);
+      setAccommodationEditData({});
+      
+      // 현재 페이지를 대시보드로 유지 (히스토리 변경 없이)
+      window.history.replaceState(null, '', '/employer-dashboard');
+      
+      console.log('기숙사 정보 저장 완료');
+    } catch (error) {
+      console.error('기숙사 정보 저장 실패:', error);
+      alert('저장에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
+
+  const handleAccommodationInputChange = (field: string, value: string) => {
+    setAccommodationEditData((prev: any) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   // 특정 공고의 지원자 수 계산
   const getApplicationsForJob = (jobId: string) => {
     return applications.filter(app => app.jobPostId === jobId);
+  };
+
+  // 지원자 관리: 공고 제목, 지원일 포맷 보조 함수
+  const getJobTitleById = (jobId: string): string => {
+    const post = jobPosts.find(p => p.id === jobId);
+    return post?.title || '공고 없음';
+  };
+
+  const formatAppliedDate = (value: any): string => {
+    try {
+      const date = value?.toDate ? value.toDate() : (value ? new Date(value) : null);
+      return date ? new Date(date).toLocaleDateString() : '날짜 없음';
+    } catch {
+      return '날짜 없음';
+    }
   };
 
   if (loading) {
@@ -342,26 +470,43 @@ const CompanyDashboard: React.FC = () => {
           <p className="mt-2 text-gray-600">회사 정보와 구인 현황을 관리하세요</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-6">
           {/* 1. 회사 정보 섹션 */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="space-y-4">
             {/* 회사 기본 정보 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                              <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 shadow-md">
+                                              <div className="px-6 py-4 border-b border-blue-100 bg-blue-50 shadow-sm">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-                        <Building className="w-5 h-5 text-white" />
+                      <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shadow-sm">
+                        <Building className="w-5 h-5 text-blue-600" />
                       </div>
                       회사 정보
                     </h3>
                     <div className="flex items-center gap-2">
-                      <Link
-                        to={`/company/${user?.uid}?edit=true`}
-                        className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                      >
-                        수정
-                      </Link>
+                      {isCompanyEditing ? (
+                        <>
+                          <button
+                            onClick={handleCompanyEditSave}
+                            className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                          >
+                            저장
+                          </button>
+                          <button
+                            onClick={handleCompanyEditCancel}
+                            className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                          >
+                            취소
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={handleCompanyEditStart}
+                          className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                        >
+                          수정
+                        </button>
+                      )}
                       <button
                         onClick={() => setIsCompanySectionCollapsed(!isCompanySectionCollapsed)}
                         className="text-gray-500 hover:text-gray-700"
@@ -373,14 +518,22 @@ const CompanyDashboard: React.FC = () => {
                 </div>
               
               {!isCompanySectionCollapsed && (
-                <div className="p-6 space-y-6">
+                <div className="p-5 space-y-4">
                   {/* 회사 기본 정보 */}
-                  <div className="bg-white rounded-lg border p-4">
-                    <h3 className="font-semibold text-gray-900 mb-3">기본 정보</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                      <div className="bg-white rounded-lg border p-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">기본 정보</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-base">
                       <div>
                         <span className="text-gray-500">회사명</span>
-                        {companyInfo?.name ? (
+                        {isCompanyEditing ? (
+                          <input
+                            type="text"
+                            value={companyEditData.name || ''}
+                            onChange={(e) => handleCompanyInputChange('name', e.target.value)}
+                            className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                            placeholder="회사명을 입력하세요"
+                          />
+                        ) : companyInfo?.name ? (
                           <p className="text-gray-900 font-medium">{companyInfo.name}</p>
                         ) : (
                           <div className="flex items-center justify-between p-2 bg-orange-50 border border-orange-200 rounded-lg">
@@ -391,7 +544,15 @@ const CompanyDashboard: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-gray-500">주소</span>
-                        {companyInfo?.address || companyInfo?.companyAddress ? (
+                        {isCompanyEditing ? (
+                          <input
+                            type="text"
+                            value={companyEditData.address || companyEditData.companyAddress || ''}
+                            onChange={(e) => handleCompanyInputChange('address', e.target.value)}
+                            className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                            placeholder="회사 주소를 입력하세요"
+                          />
+                        ) : companyInfo?.address || companyInfo?.companyAddress ? (
                           <p className="text-gray-900 font-medium">
                             {companyInfo.address || companyInfo.companyAddress}
                           </p>
@@ -404,7 +565,15 @@ const CompanyDashboard: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-gray-500">업종</span>
-                        {companyInfo?.industry ? (
+                        {isCompanyEditing ? (
+                          <input
+                            type="text"
+                            value={companyEditData.industry || ''}
+                            onChange={(e) => handleCompanyInputChange('industry', e.target.value)}
+                            className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                            placeholder="업종을 입력하세요"
+                          />
+                        ) : companyInfo?.industry ? (
                           <p className="text-gray-900 font-medium">{companyInfo.industry}</p>
                         ) : (
                           <div className="flex items-center justify-between p-2 bg-orange-50 border border-orange-200 rounded-lg">
@@ -451,11 +620,19 @@ const CompanyDashboard: React.FC = () => {
 
                   {/* 연락처 정보 */}
                   <div className="bg-white rounded-lg border p-4">
-                    <h3 className="font-semibold text-gray-900 mb-3">연락처 정보</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">연락처 정보</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-base">
                       <div>
                         <span className="text-gray-500">회사 전화번호</span>
-                        {companyInfo?.phone || companyInfo?.companyPhone ? (
+                        {isCompanyEditing ? (
+                          <input
+                            type="tel"
+                            value={companyEditData.phone || companyEditData.companyPhone || ''}
+                            onChange={(e) => handleCompanyInputChange('phone', e.target.value)}
+                            className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                            placeholder="회사 전화번호를 입력하세요"
+                          />
+                        ) : companyInfo?.phone || companyInfo?.companyPhone ? (
                           <p className="text-gray-900 font-medium">{companyInfo.phone || companyInfo.companyPhone}</p>
                         ) : (
                           <div className="flex items-center justify-between p-2 bg-orange-50 border border-orange-200 rounded-lg">
@@ -488,11 +665,11 @@ const CompanyDashboard: React.FC = () => {
                   {/* 담당자 목록 */}
                   {companyRegistrants.length > 0 && (
                     <div className="bg-white rounded-lg border p-4">
-                      <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
                         <Users className="h-4 w-4 mr-2" />
                         담당자 ({companyRegistrants.length}명)
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {companyRegistrants.map((registrant, index) => (
                           <div 
                             key={registrant.id} 
@@ -559,7 +736,7 @@ const CompanyDashboard: React.FC = () => {
                   
                   {/* 회사 소개 & 이미지 */}
                   <div className="bg-white rounded-lg border p-4">
-                    <h3 className="font-semibold text-gray-900 mb-3">회사 소개</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">회사 소개</h3>
                     {companyInfo?.description ? (
                       <p className="text-sm text-gray-800 leading-6 whitespace-pre-wrap mb-3">
                         {companyInfo.description}
@@ -594,8 +771,8 @@ const CompanyDashboard: React.FC = () => {
                   
                   {/* 복리후생 & 회사 문화 & 근무 환경 */}
                   <div className="bg-white rounded-lg border p-4">
-                    <h3 className="font-semibold text-gray-900 mb-3">복리후생</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">복리후생</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="p-3">
                         <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">복리후생</h4>
                         {companyInfo?.benefits && companyInfo.benefits.length > 0 ? (
@@ -631,7 +808,7 @@ const CompanyDashboard: React.FC = () => {
             {/* 2. 기숙사 상세 정보 */}
             {accommodationInfo ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-yellow-50">
+                <div className="px-6 py-5 border-b border-blue-100 bg-blue-50 shadow-sm">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
                       <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -661,12 +838,29 @@ const CompanyDashboard: React.FC = () => {
                           </>
                         )}
                       </button>
-                      <Link
-                        to={`/accommodation-info/${user?.uid}?edit=true`}
-                        className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
-                      >
-                        수정
-                      </Link>
+                      {isAccommodationEditing ? (
+                        <>
+                          <button
+                            onClick={handleAccommodationEditSave}
+                            className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                          >
+                            저장
+                          </button>
+                          <button
+                            onClick={handleAccommodationEditCancel}
+                            className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                          >
+                            취소
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={handleAccommodationEditStart}
+                          className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
+                        >
+                          수정
+                        </button>
+                      )}
                       <button
                         onClick={() => setIsAccommodationSectionCollapsed(!isAccommodationSectionCollapsed)}
                         className="text-gray-500 hover:text-gray-700"
@@ -691,14 +885,24 @@ const CompanyDashboard: React.FC = () => {
                 </div>
                 
                 {!isAccommodationSectionCollapsed && (
-                  <div className="p-6 space-y-4">
+                  <div className="p-5 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-white rounded-lg border p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">기본 정보</h3>
-                        <div className="space-y-2 text-sm">
+                                              <div className="bg-white rounded-lg border p-4">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">기본 정보</h3>
+                          <div className="space-y-2 text-base">
                           <div className="flex justify-between">
                             <span className="text-gray-500">기숙사명:</span>
-                            <span className="font-medium">{accommodationInfo.name}</span>
+                            {isAccommodationEditing ? (
+                              <input
+                                type="text"
+                                value={accommodationEditData.name || ''}
+                                onChange={(e) => handleAccommodationInputChange('name', e.target.value)}
+                                className="text-right font-medium border border-gray-300 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                                placeholder="기숙사명을 입력하세요"
+                              />
+                            ) : (
+                              <span className="font-medium">{accommodationInfo.name}</span>
+                            )}
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">유형:</span>
@@ -713,12 +917,22 @@ const CompanyDashboard: React.FC = () => {
                         </div>
                       </div>
                       
-                      <div className="bg-white rounded-lg border p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">위치 정보</h3>
-                        <div className="text-sm space-y-2">
+                                              <div className="bg-white rounded-lg border p-4">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">위치 정보</h3>
+                          <div className="text-base space-y-2">
                           <div className="flex items-start">
                             <span className="text-gray-500 w-24 shrink-0">주소</span>
-                            <div className="font-medium text-gray-900 flex-1 break-words whitespace-pre-wrap">{accommodationInfo.address}</div>
+                            {isAccommodationEditing ? (
+                              <input
+                                type="text"
+                                value={accommodationEditData.address || ''}
+                                onChange={(e) => handleAccommodationInputChange('address', e.target.value)}
+                                className="font-medium text-gray-900 flex-1 border border-gray-300 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                                placeholder="주소를 입력하세요"
+                              />
+                            ) : (
+                              <div className="font-medium text-gray-900 flex-1 break-words whitespace-pre-wrap">{accommodationInfo.address}</div>
+                            )}
                           </div>
                           <div className="flex items-start">
                             <span className="text-gray-500 w-24 shrink-0">직장까지 거리</span>
@@ -753,10 +967,20 @@ const CompanyDashboard: React.FC = () => {
                     )}
 
                     {/* 기타 */}
-                    {accommodationInfo.description && (
+                    {(accommodationInfo.description || isAccommodationEditing) && (
                       <div className="bg-white rounded-lg border p-4">
                         <h3 className="font-semibold text-gray-900 mb-2">기타</h3>
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{accommodationInfo.description}</p>
+                        {isAccommodationEditing ? (
+                          <textarea
+                            value={accommodationEditData.description || ''}
+                            onChange={(e) => handleAccommodationInputChange('description', e.target.value)}
+                            className="w-full text-sm text-gray-800 border border-gray-300 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                            placeholder="기숙사에 대한 설명을 입력하세요"
+                            rows={3}
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap">{accommodationInfo.description}</p>
+                        )}
                       </div>
                     )}
 
@@ -1138,7 +1362,7 @@ const CompanyDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-yellow-50">
+                <div className="px-6 py-5 border-b border-blue-100 bg-blue-50 shadow-sm">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
                       <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -1147,321 +1371,436 @@ const CompanyDashboard: React.FC = () => {
                       기숙사 상세 정보
                     </h3>
                     <div className="flex items-center gap-2">
-                      <Link
-                        to={`/accommodation-info/${user?.uid}?edit=true`}
-                        className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
-                      >
-                        등록
-                      </Link>
+                      {isAccommodationEditing ? (
+                        <>
+                          <button
+                            onClick={handleAccommodationEditSave}
+                            className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                          >
+                            저장
+                          </button>
+                          <button
+                            onClick={handleAccommodationEditCancel}
+                            className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                          >
+                            취소
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={handleAccommodationEditStart}
+                          className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
+                        >
+                          {accommodationInfo ? '수정' : '등록'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="p-6">
-                  {/* 기숙사 정보 없을 때 안내문 */}
-                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-start gap-2">
-                      <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-blue-600 text-xs">ℹ</span>
+                  {isAccommodationEditing ? (
+                    <div className="space-y-4">
+                      {/* 기본 정보 편집 */}
+                      <div className="bg-white rounded-lg border p-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">기본 정보</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-base">
+                          <div>
+                            <span className="text-gray-500">기숙사명</span>
+                            <input
+                              type="text"
+                              value={accommodationEditData.name || ''}
+                              onChange={(e) => handleAccommodationInputChange('name', e.target.value)}
+                              className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                              placeholder="기숙사명을 입력하세요"
+                            />
+                          </div>
+                          <div>
+                            <span className="text-gray-500">유형</span>
+                            <select
+                              value={accommodationEditData.type || 'dormitory'}
+                              onChange={(e) => handleAccommodationInputChange('type', e.target.value)}
+                              className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                            >
+                              <option value="dormitory">기숙사</option>
+                              <option value="apartment">아파트</option>
+                              <option value="house">단독주택</option>
+                              <option value="other">기타</option>
+                            </select>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">주소</span>
+                            <input
+                              type="text"
+                              value={accommodationEditData.address || ''}
+                              onChange={(e) => handleAccommodationInputChange('address', e.target.value)}
+                              className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                              placeholder="기숙사 주소를 입력하세요"
+                            />
+                          </div>
+                          <div>
+                            <span className="text-gray-500">직장까지 거리</span>
+                            <input
+                              type="text"
+                              value={accommodationEditData.distanceFromWorkplace || ''}
+                              onChange={(e) => handleAccommodationInputChange('distanceFromWorkplace', e.target.value)}
+                              className="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                              placeholder="예: 도보 5분, 차량 10분"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-blue-700">
-                        <p className="font-medium mb-1">기숙사 정보 등록 안내</p>
-                        <p>기숙사 정보를 등록하면 구직자들이 기숙사 목록에서 해당 정보를 확인할 수 있습니다. 등록 후에는 공개/비공개 설정을 통해 정보 노출을 관리할 수 있습니다.</p>
+
+                      {/* 설명 */}
+                      <div className="bg-white rounded-lg border p-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">기타 설명</h3>
+                        <textarea
+                          value={accommodationEditData.description || ''}
+                          onChange={(e) => handleAccommodationInputChange('description', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                          placeholder="기숙사에 대한 추가 설명을 입력하세요"
+                          rows={3}
+                        />
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Home className="w-8 h-8 text-orange-600" />
-                    </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">기숙사 정보가 등록되지 않았습니다</h4>
-                    <p className="text-sm text-gray-600 mb-4">구직자들이 기숙사 정보를 확인할 수 있도록 상세 정보를 등록해보세요</p>
-                    <div className="space-y-2">
-                      <p className="text-xs text-gray-500">• 기숙사 유형 및 위치 정보</p>
-                      <p className="text-xs text-gray-500">• 객실별 비용 및 시설 정보</p>
-                      <p className="text-xs text-gray-500">• 기숙사 이미지 및 규칙</p>
-                    </div>
-                    {user?.uid && (
-                      <div className="mt-6">
-                        <Link
-                          to={`/accommodation-info/${user.uid}?edit=true`}
-                          className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          기숙사 정보 등록하기
-                        </Link>
+                  ) : (
+                    <>
+                      {/* 기숙사 정보 없을 때 안내문 */}
+                      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-blue-600 text-xs">ℹ</span>
+                          </div>
+                          <div className="text-xs text-blue-700">
+                            <p className="font-medium mb-1">기숙사 정보 등록 안내</p>
+                            <p>기숙사 정보를 등록하면 구직자들이 기숙사 목록에서 해당 정보를 확인할 수 있습니다. 등록 후에는 공개/비공개 설정을 통해 정보 노출을 관리할 수 있습니다.</p>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                      
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Home className="w-8 h-8 text-orange-600" />
+                        </div>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">기숙사 정보가 등록되지 않았습니다</h4>
+                        <p className="text-sm text-gray-600 mb-4">구직자들이 기숙사 정보를 확인할 수 있도록 상세 정보를 등록해보세요</p>
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-500">• 기숙사 유형 및 위치 정보</p>
+                          <p className="text-xs text-gray-500">• 객실별 비용 및 시설 정보</p>
+                          <p className="text-xs text-gray-500">• 기숙사 이미지 및 규칙</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
           </div>
 
-          {/* 3. 사이드바 - 구인 현황 */}
-          <div className="space-y-6">
-            {/* 구인 현황 요약 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">구인 현황</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="group relative bg-gradient-to-br from-blue-100 to-indigo-200 rounded-xl border-2 border-blue-300 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-bl-full opacity-20"></div>
-                  <div className="flex items-center justify-between relative z-10">
-                    <div>
-                      <span className="text-sm font-medium text-blue-700">총 공고</span>
-                      <div className="text-3xl font-bold text-blue-900 mt-2">{jobPosts.length}개</div>
+          {/* 구인 현황 (메인 영역) */}
+          {/* 섹션 임시 제거: 파싱 오류 해결 후 재도입 예정 */}
+          {/* <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">구인 현황</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="rounded-xl border border-blue-100 p-6 bg-blue-50">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-3"></div>
+                <div className="text-sm font-medium text-gray-700">총 공고</div>
+                <div className="text-3xl font-bold text-gray-900 mt-2">{jobPosts.length}개</div>
+              </div>
+              <div className="rounded-xl border border-emerald-100 p-6 bg-emerald-50">
+                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-3"></div>
+                <div className="text-sm font-medium text-gray-700">총 지원자</div>
+                <div className="text-3xl font-bold text-gray-900 mt-2">{applications.length}명</div>
+              </div>
+              <div className="rounded-xl border border-amber-100 p-6 bg-amber-50">
+                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-3"></div>
+                <div className="text-sm font-medium text-gray-700">검토 대기</div>
+                <div className="text-3xl font-bold text-gray-900 mt-2">{applications.filter(app => app.status === 'pending').length}명</div>
+              </div>
+              <div className="rounded-xl border border-purple-100 p-6 bg-purple-50">
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-3"></div>
+                <div className="text-sm font-medium text-gray-700">채용 완료</div>
+                <div className="text-3xl font-bold text-gray-900 mt-2">{applications.filter(app => app.status === 'accepted').length}명</div>
+              </div>
+            </div>
+          </div> */}
+
+          {/* 4. 구인공고 */}
+          <div id="job-posts" className="mt-8 lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-blue-100 bg-blue-50 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shadow-sm">
+                      <FileText className="w-5 h-5 text-blue-600" />
                     </div>
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                      <FileText className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                </div>
-                <div className="group relative bg-gradient-to-br from-emerald-100 to-teal-200 rounded-xl border-2 border-emerald-300 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-bl-full opacity-20"></div>
-                  <div className="flex items-center justify-between relative z-10">
-                    <div>
-                      <span className="text-sm font-medium text-emerald-700">총 지원자</span>
-                      <div className="text-3xl font-bold text-emerald-900 mt-2">{applications.length}명</div>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                      <Users className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                </div>
-                <div className="group relative bg-gradient-to-br from-amber-100 to-orange-200 rounded-xl border-2 border-amber-300 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-bl-full opacity-20"></div>
-                  <div className="flex items-center justify-between relative z-10">
-                    <div>
-                      <span className="text-sm font-medium text-amber-700">검토 대기</span>
-                      <div className="text-3xl font-bold text-amber-900 mt-2">
-                        {applications.filter(app => app.status === 'pending').length}명
-                      </div>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
-                      <Clock className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                </div>
-                <div className="group relative bg-gradient-to-br from-purple-100 to-violet-200 rounded-xl border-2 border-purple-300 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-400 to-violet-500 rounded-bl-full opacity-20"></div>
-                  <div className="flex items-center justify-between relative z-10">
-                    <div>
-                      <span className="text-sm font-medium text-purple-700">채용 완료</span>
-                      <div className="text-3xl font-bold text-purple-900 mt-2">
-                        {applications.filter(app => app.status === 'accepted').length}명
-                      </div>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg">
-                      <CheckCircle className="w-6 h-6 text-white" />
-                    </div>
+                    구인공고
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to="/applications"
+                      className="inline-flex items-center px-5 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium border border-gray-300"
+                    >
+                      <Users className="w-4 h-4 mr-2" />
+                      <span>지원자 관리</span>
+                    </Link>
+                    <Link
+                      to="/job-post/new"
+                      className="inline-flex items-center px-5 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-sm font-semibold border border-gray-300"
+                    >
+                      <Plus className="w-4 h-4 mr-2 relative z-10" />
+                      <span className="relative z-10">새 공고 등록</span>
+                    </Link>
                   </div>
                 </div>
               </div>
-            </div>
+              
+              <div className="p-5 space-y-6">
+                {/* 공고 목록 */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
+                      <FileText className="w-4 h-4 text-blue-600" />
+                    </div>
+                    공고 목록
+                  </h4>
+                  {jobPosts.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg">
+                      <p className="text-gray-600 mb-4">등록된 공고가 없습니다.</p>
+                      <Link
+                        to="/job-post/new"
+                        className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                      >
+                        <Plus className="w-4 w-4 mr-1" />
+                        첫 공고 등록하기
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {jobPosts.map((post) => (
+                        <div key={post.id} className="group flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-medium text-gray-900 flex-shrink-0">{post.title}</h5>
+                                <span className="text-sm text-gray-500 truncate">{post.description}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
+                              <span className="text-green-600 whitespace-nowrap">
+                                {post.location}
+                              </span>
+                              <span className="text-blue-600 font-medium whitespace-nowrap">
+                                {post.salary.min.toLocaleString()}~{post.salary.max.toLocaleString()}원
+                              </span>
+                              <span className="text-emerald-600 font-medium whitespace-nowrap">
+                                지원자 {getApplicationsForJob(post.id).length}명
+                              </span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                                post.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                {post.isActive ? '활성' : '비활성'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <Link
+                              to={`/job/${post.id}`}
+                              className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 transition-colors"
+                            >
+                              보기
+                            </Link>
+                            <Link
+                              to={`/applications?jobId=${post.id}`}
+                              className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200 transition-colors"
+                            >
+                              지원자
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-            {/* 빠른 액션 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">빠른 액션</h3>
-              <div className="space-y-4">
-                <Link
-                  to="/job-post/new"
-                  className="group relative w-full flex items-center justify-center px-6 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                  <Plus className="w-5 h-5 mr-3 relative z-10" />
-                  <span className="relative z-10">새 공고 등록</span>
-                </Link>
-                <Link
-                  to="/applications"
-                  className="group relative w-full flex items-center justify-center px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                  <Users className="w-5 h-5 mr-3 relative z-10" />
-                  <span className="relative z-10">지원자 관리</span>
-                </Link>
-                <Link
-                  to={`/company/${user?.uid}`}
-                  className="group relative w-full flex items-center justify-center px-6 py-4 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-xl hover:from-purple-600 hover:to-violet-700 transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-violet-400 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                  <Building className="w-5 h-5 mr-3 relative z-10" />
-                  <span className="relative z-10">회사 정보 수정</span>
-                </Link>
+                {/* 근무타입 목록 */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
+                        <Users className="w-4 h-4 text-blue-600" />
+                      </div>
+                      근무타입
+                    </h4>
+                    <Link
+                      to="/work-types"
+                      className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium border border-gray-300"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      관리
+                    </Link>
+                  </div>
+                  
+                  {workTypes.length === 0 ? (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg">
+                      <p className="text-gray-600 mb-3">등록된 근무타입이 없습니다.</p>
+                      <Link
+                        to="/job-post/new"
+                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                      >
+                        <Plus className="w-4 w-4 mr-1" />
+                        근무타입 생성하기
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {workTypes.map((workType) => (
+                        <div key={workType.id} className="group flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-medium text-gray-900 flex-shrink-0">{workType.name}</h5>
+                                {workType.description && (
+                                  <span className="text-sm text-gray-500 truncate">{workType.description}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
+                              <span className="text-emerald-600 font-medium whitespace-nowrap">
+                                주 {calculateTotalHoursPerWeek(workType.schedules || [])}시간
+                              </span>
+                              {workType.hourlyWage && workType.hourlyWage > 0 && (
+                                <span className="text-green-600 whitespace-nowrap">
+                                  시급 {workType.hourlyWage.toLocaleString()}원
+                                </span>
+                              )}
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                                workType.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                {workType.isActive !== false ? '활성' : '비활성'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 4. 구인공고 */}
-        <div id="job-posts" className="mt-8">
+                {/* 지원자 관리 */}
+        <div className="mt-8 lg:col-span-2">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-br from-purple-100 via-violet-100 to-indigo-100 shadow-md">
+            <div className="px-6 py-4 border-b border-blue-100 bg-blue-50 shadow-sm">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center shadow-md">
-                    <FileText className="w-5 h-5 text-white" />
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shadow-sm">
+                    <Users className="w-5 h-5 text-blue-600" />
                   </div>
-                  구인공고
+                  지원자 관리
                 </h3>
-                <Link
-                  to="/job-post/new"
-                  className="group relative inline-flex items-center px-5 py-2 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-lg hover:from-purple-600 hover:to-violet-700 transition-all duration-300 text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-violet-400 rounded-lg opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-                  <Plus className="w-4 h-4 mr-2 relative z-10" />
-                  <span className="relative z-10">새 공고 등록</span>
-                </Link>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-8">
-              {/* 공고 목록 */}
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-violet-600 rounded-lg flex items-center justify-center shadow-sm">
-                    <FileText className="w-4 h-4 text-white" />
-                  </div>
-                  공고 목록
-                </h4>
-                {jobPosts.length === 0 ? (
-                  <div className="text-center py-8 bg-gray-50 rounded-lg">
-                    <p className="text-gray-600 mb-4">등록된 공고가 없습니다.</p>
-                    <Link
-                      to="/job-post/new"
-                      className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-                    >
-                      <Plus className="w-4 w-4 mr-1" />
-                      첫 공고 등록하기
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {jobPosts.map((post) => (
-                      <div key={post.id} className="group flex items-center justify-between py-3 px-4 bg-gradient-to-r from-gray-100 to-slate-100 rounded-xl border-2 border-gray-200 hover:border-purple-400 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-                        <div className="flex items-center gap-4 min-w-0 flex-1">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <h5 className="font-medium text-gray-900 flex-shrink-0">{post.title}</h5>
-                              <span className="text-sm text-gray-500 truncate">{post.description}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
-                            <span className="text-green-600 whitespace-nowrap">
-                              {post.location}
-                            </span>
-                            <span className="text-blue-600 font-medium whitespace-nowrap">
-                              {post.salary.min.toLocaleString()}~{post.salary.max.toLocaleString()}원
-                            </span>
-                            <span className="text-emerald-600 font-medium whitespace-nowrap">
-                              지원자 {getApplicationsForJob(post.id).length}명
-                            </span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                              post.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {post.isActive ? '활성' : '비활성'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          <Link
-                            to={`/job/${post.id}`}
-                            className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 transition-colors"
-                          >
-                            보기
-                          </Link>
-                          <Link
-                            to={`/applications?jobId=${post.id}`}
-                            className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200 transition-colors"
-                          >
-                            지원자
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* 근무타입 목록 */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
-                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center shadow-sm">
-                      <Users className="w-4 h-4 text-white" />
-                    </div>
-                    근무타입
-                  </h4>
+                <div className="flex items-center gap-2">
                   <Link
-                    to="/work-types"
-                    className="group relative inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-200 to-teal-200 text-emerald-800 rounded-lg hover:from-emerald-300 hover:to-teal-300 transition-all duration-300 text-sm font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                    to="/applications"
+                    className="inline-flex items-center px-5 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium border border-gray-300"
                   >
-                    <Eye className="h-4 w-4 mr-1" />
-                    관리
+                    <Users className="w-4 h-4 mr-2" />
+                    <span>전체 관리로 이동</span>
                   </Link>
                 </div>
-                
-                {workTypes.length === 0 ? (
-                  <div className="text-center py-6 bg-gray-50 rounded-lg">
-                    <p className="text-gray-600 mb-3">등록된 근무타입이 없습니다.</p>
-                    <Link
-                      to="/job-post/new"
-                      className="group relative inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                    >
-                      <Plus className="w-4 w-4 mr-1" />
-                      근무타입 생성하기
-                    </Link>
+              </div>
+            </div>
+            <div className="p-5 space-y-5">
+              {/* 지원자 요약 */}
+              <div>
+                <h4 className="text-md font-semibold text-gray-800 mb-3">지원자 요약</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
+                    <div className="text-sm text-gray-600">총 지원</div>
+                    <div className="mt-1 text-2xl font-bold text-gray-900">{applications.length}명</div>
                   </div>
+                  <div className="rounded-lg border border-blue-100 p-4 bg-blue-50">
+                    <div className="text-sm text-gray-700">검토중</div>
+                    <div className="mt-1 text-2xl font-bold text-gray-900">{applications.filter(a => a.status === 'pending').length}명</div>
+                  </div>
+                  <div className="rounded-lg border border-emerald-100 p-4 bg-emerald-50">
+                    <div className="text-sm text-gray-700">채용됨</div>
+                    <div className="mt-1 text-2xl font-bold text-gray-900">{applications.filter(a => a.status === 'accepted').length}명</div>
+                  </div>
+                  <div className="rounded-lg border border-rose-100 p-4 bg-rose-50">
+                    <div className="text-sm text-gray-700">거절됨</div>
+                    <div className="mt-1 text-2xl font-bold text-gray-900">{applications.filter(a => a.status === 'rejected').length}명</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 최신 지원 리스트 */}
+              <div>
+                <h4 className="text-md font-semibold text-gray-800 mb-3">최근 지원자</h4>
+                {applications.length === 0 ? (
+                  <div className="text-center py-6 bg-gray-50 rounded-lg text-gray-600">아직 지원자가 없습니다.</div>
                 ) : (
-                  <div className="space-y-2">
-                    {workTypes.map((workType) => (
-                                              <div key={workType.id} className="group flex items-center justify-between py-3 px-4 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-xl border-2 border-emerald-200 hover:border-emerald-400 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-                        <div className="flex items-center gap-4 min-w-0 flex-1">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <h5 className="font-medium text-gray-900 flex-shrink-0">{workType.name}</h5>
-                              {workType.description && (
-                                <span className="text-sm text-gray-500 truncate">{workType.description}</span>
-                              )}
+                  <div className="space-y-1.5">
+                    {[...applications]
+                      .sort((a: any, b: any) => {
+                        const ta = a.appliedAt?.toDate ? a.appliedAt.toDate().getTime() : (a.appliedAt ? new Date(a.appliedAt).getTime() : 0);
+                        const tb = b.appliedAt?.toDate ? b.appliedAt.toDate().getTime() : (b.appliedAt ? new Date(b.appliedAt).getTime() : 0);
+                        return tb - ta;
+                      })
+                      .slice(0, 5)
+                      .map((app) => (
+                        <div key={app.id} className="group flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-medium text-gray-900 flex-shrink-0 truncate">{app.jobseekerName || '지원자'}</h5>
+                                <span className="text-sm text-gray-500 truncate">{getJobTitleById(app.jobPostId)}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                                app.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                                app.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                                app.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {app.status || '상태 없음'}
+                              </span>
+                              <span className="text-gray-500 whitespace-nowrap">{formatAppliedDate(app.appliedAt)}</span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
-                            <span className="text-emerald-600 font-medium whitespace-nowrap">
-                              주 {calculateTotalHoursPerWeek(workType.schedules || [])}시간
-                            </span>
-                            {workType.hourlyWage && workType.hourlyWage > 0 && (
-                              <span className="text-green-600 whitespace-nowrap">
-                                시급 {workType.hourlyWage.toLocaleString()}원
-                              </span>
-                            )}
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                              workType.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {workType.isActive !== false ? '활성' : '비활성'}
-                            </span>
+                          <div className="flex items-center gap-2 ml-4">
+                            <Link
+                              to={`/applications?jobId=${app.jobPostId}`}
+                              className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition-colors"
+                            >
+                              관리
+                            </Link>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 )}
               </div>
             </div>
           </div>
         </div>
+
+        {/* 이미지 미리보기 모달 */}
+        <ImagePreviewModal
+          isOpen={!!previewImage}
+          imageUrl={previewImage || ''}
+          imageName={previewImageName}
+          onClose={() => {
+            setPreviewImage(null);
+            setPreviewImageName('');
+          }}
+        />
       </div>
-
-      {/* 이미지 미리보기 모달 */}
-      <ImagePreviewModal
-        isOpen={!!previewImage}
-        imageUrl={previewImage || ''}
-        imageName={previewImageName}
-        onClose={() => {
-          setPreviewImage(null);
-          setPreviewImageName('');
-        }}
-      />
     </div>
-  );
-};
+    );
+  };
 
-export default CompanyDashboard;
+  export default CompanyDashboard;
+

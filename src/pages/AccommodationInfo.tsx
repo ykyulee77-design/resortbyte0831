@@ -503,8 +503,8 @@ const AccommodationInfoPage: React.FC = () => {
               )}
             </>
           )}
-          <Link to="/jobs" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-            목록으로
+          <Link to="/employer-dashboard" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+            대시보드로
           </Link>
         </div>
       </div>
