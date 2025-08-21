@@ -53,10 +53,11 @@ const AccommodationList: React.FC = () => {
             id: doc.id,
             employerId: doc.id,
             ...doc.data()
-          })) as Accommodation[])
-          .filter(accommodation => accommodation.isPublic !== false); // 공개된 기숙사만 표시 (isPublic이 false가 아닌 경우)
+          })) as Accommodation[];
         
-        setAccommodations(accommodationsData);
+        const publicAccommodations = accommodationsData.filter(accommodation => accommodation.isPublic !== false); // 공개된 기숙사만 표시 (isPublic이 false가 아닌 경우)
+        
+        setAccommodations(publicAccommodations);
       } catch (error) {
         console.error('기숙사 정보 로딩 실패:', error);
       } finally {
@@ -202,7 +203,6 @@ const AccommodationList: React.FC = () => {
                       <Building className="w-12 h-12 text-gray-400" />
                     </div>
                   )}
-                  
                 </div>
 
                 {/* 정보 */}
@@ -211,9 +211,9 @@ const AccommodationList: React.FC = () => {
                     {accommodation.name}
                   </h3>
                   
-                                     <p className="text-sm text-gray-600 mb-3">
-                     {accommodation.employerName || '구인자 정보 없음'}
-                   </p>
+                  <p className="text-sm text-gray-600 mb-3">
+                    {accommodation.employerName || '구인자 정보 없음'}
+                  </p>
 
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -221,46 +221,46 @@ const AccommodationList: React.FC = () => {
                       <span className="truncate">{accommodation.address}</span>
                     </div>
                     
-                                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                       <DollarSign className="w-4 h-4" />
-                       <span className="font-semibold text-resort-600">
-                         {formatPrice(accommodation.monthlyRent)}
-                       </span>
-                     </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <DollarSign className="w-4 h-4" />
+                      <span className="font-semibold text-resort-600">
+                        {formatPrice(accommodation.monthlyRent)}
+                      </span>
+                    </div>
                     
-                                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                       <Users className="w-4 h-4" />
-                       <span>{accommodation.roomTypes ? accommodation.roomTypes.map(room => `${room.type}(${room.capacity}인실)`).join(', ') : '방 정보 없음'}</span>
-                     </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Users className="w-4 h-4" />
+                      <span>{accommodation.roomTypes ? accommodation.roomTypes.map(room => `${room.type}(${room.capacity}인실)`).join(', ') : '방 정보 없음'}</span>
+                    </div>
                   </div>
 
-                                     {/* 편의시설 */}
-                   {accommodation.facilities && accommodation.facilities.length > 0 && (
-                     <div className="mb-4">
-                       <p className="text-xs text-gray-500 mb-2">편의시설</p>
-                       <div className="flex flex-wrap gap-1">
-                         {accommodation.facilities.slice(0, 3).map((facility, index) => (
-                           <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                             {facility}
-                           </span>
-                         ))}
-                         {accommodation.facilities.length > 3 && (
-                           <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                             +{accommodation.facilities.length - 3}
-                           </span>
-                         )}
-                       </div>
-                     </div>
-                   )}
+                  {/* 편의시설 */}
+                  {accommodation.facilities && accommodation.facilities.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs text-gray-500 mb-2">편의시설</p>
+                      <div className="flex flex-wrap gap-1">
+                        {accommodation.facilities.slice(0, 3).map((facility, index) => (
+                          <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                            {facility}
+                          </span>
+                        ))}
+                        {accommodation.facilities.length > 3 && (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                            +{accommodation.facilities.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* 액션 버튼 */}
                   <div className="flex gap-2">
-                                         <Link
-                       to={`/accommodation-info/${accommodation.employerId}`}
-                       className="flex-1 bg-resort-500 hover:bg-resort-600 text-white text-center py-2 px-4 rounded-lg text-sm font-medium transition-colors"
-                     >
-                       상세보기
-                     </Link>
+                    <Link
+                      to={`/accommodation-info/${accommodation.employerId}`}
+                      className="flex-1 bg-resort-500 hover:bg-resort-600 text-white text-center py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      상세보기
+                    </Link>
                     <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
                       문의
                     </button>

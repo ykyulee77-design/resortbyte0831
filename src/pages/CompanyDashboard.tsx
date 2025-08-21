@@ -675,6 +675,19 @@ const CompanyDashboard: React.FC = () => {
                       </button>
                     </div>
                   </div>
+                  
+                  {/* 공개/비공개 안내문 */}
+                  <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
+                    <div className="flex items-start gap-2">
+                      <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-blue-600 text-xs">ℹ</span>
+                      </div>
+                      <div className="text-xs text-blue-700">
+                        <p className="font-medium mb-1">기숙사 정보 공개 설정</p>
+                        <p>기숙사 정보의 비공개를 원하시는 경우, 위의 "비공개" 버튼을 클릭하세요. 비공개로 설정하면 구직자들이 기숙사 목록에서 해당 정보를 볼 수 없습니다.</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 {!isAccommodationSectionCollapsed && (
@@ -1135,15 +1148,28 @@ const CompanyDashboard: React.FC = () => {
                     </h3>
                     <div className="flex items-center gap-2">
                       <Link
-                        to={`/accommodation/${user?.uid}?edit=true`}
+                        to={`/accommodation-info/${user?.uid}?edit=true`}
                         className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
                       >
-                        수정
+                        등록
                       </Link>
                     </div>
                   </div>
                 </div>
                 <div className="p-6">
+                  {/* 기숙사 정보 없을 때 안내문 */}
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-blue-600 text-xs">ℹ</span>
+                      </div>
+                      <div className="text-xs text-blue-700">
+                        <p className="font-medium mb-1">기숙사 정보 등록 안내</p>
+                        <p>기숙사 정보를 등록하면 구직자들이 기숙사 목록에서 해당 정보를 확인할 수 있습니다. 등록 후에는 공개/비공개 설정을 통해 정보 노출을 관리할 수 있습니다.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="text-center">
                     <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Home className="w-8 h-8 text-orange-600" />
@@ -1158,7 +1184,7 @@ const CompanyDashboard: React.FC = () => {
                     {user?.uid && (
                       <div className="mt-6">
                         <Link
-                          to={`/accommodation/${user.uid}?edit=true`}
+                          to={`/accommodation-info/${user.uid}?edit=true`}
                           className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
                         >
                           <Plus className="h-4 w-4 mr-2" />
