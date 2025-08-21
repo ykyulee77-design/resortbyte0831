@@ -318,7 +318,11 @@ const AccommodationList: React.FC = () => {
                  ) : (
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
              {filteredAccommodations.map((accommodation) => (
-               <div key={accommodation.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300 group">
+                               <Link 
+                  key={accommodation.id} 
+                  to={`/accommodation-info/${accommodation.employerId}`}
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300 group block cursor-pointer"
+                >
                  {/* 이미지 */}
                  <div className="h-40 bg-gray-100 relative overflow-hidden">
                    {accommodation.images && accommodation.images.length > 0 ? (
@@ -394,20 +398,21 @@ const AccommodationList: React.FC = () => {
                      </div>
                    )}
 
-                   {/* 액션 버튼 */}
-                   <div className="flex gap-2">
-                     <Link
-                       to={`/accommodation-info/${accommodation.employerId}`}
-                       className="flex-1 bg-resort-500 hover:bg-resort-600 text-white text-center py-2 px-3 rounded-lg text-xs font-medium transition-colors"
-                     >
-                       상세보기
-                     </Link>
-                     <button className="px-3 py-2 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors">
-                       문의
-                     </button>
-                   </div>
-                 </div>
-               </div>
+                                       {/* 문의 버튼 */}
+                    <div className="flex justify-end">
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // 문의 기능 구현 예정
+                        }}
+                        className="px-3 py-2 border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
+                      >
+                        문의
+                      </button>
+                    </div>
+                  </div>
+                </Link>
              ))}
            </div>
          )}
