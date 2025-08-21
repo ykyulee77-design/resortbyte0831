@@ -2,7 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Building, MapPin, DollarSign, Users, Star, Search, Filter } from 'lucide-react';
+import { Building, MapPin, DollarSign, Users, Star, Search, Filter, Briefcase, Phone, Globe } from 'lucide-react';
+
+interface CompanyInfo {
+  id: string;
+  name: string;
+  industry?: string;
+  size?: string;
+  website?: string;
+  phone?: string;
+  description?: string;
+  location?: string;
+}
 
 interface Accommodation {
   id: string;
@@ -34,6 +45,7 @@ interface Accommodation {
   }>;
   isPublic?: boolean;
   createdAt: any;
+  companyInfo?: CompanyInfo; // 회사 정보 추가
 }
 
 const AccommodationList: React.FC = () => {
@@ -46,18 +58,37 @@ const AccommodationList: React.FC = () => {
   useEffect(() => {
     const fetchAccommodations = async () => {
       try {
+        // 기숙사 정보 가져오기
         const accommodationsQuery = query(collection(db, 'accommodationInfo'));
-        const snapshot = await getDocs(accommodationsQuery);
-        const accommodationsData = snapshot.docs
+        const accommodationsSnapshot = await getDocs(accommodationsQuery);
+        const accommodationsData = accommodationsSnapshot.docs
           .map(doc => ({
             id: doc.id,
             employerId: doc.id,
             ...doc.data()
           })) as Accommodation[];
         
-        const publicAccommodations = accommodationsData.filter(accommodation => accommodation.isPublic !== false); // 공개된 기숙사만 표시 (isPublic이 false가 아닌 경우)
+        const publicAccommodations = accommodationsData.filter(accommodation => accommodation.isPublic !== false);
         
-        setAccommodations(publicAccommodations);
+        // 회사 정보 가져오기
+        const companyInfoQuery = query(collection(db, 'companyInfo'));
+        const companyInfoSnapshot = await getDocs(companyInfoQuery);
+        const companyInfoData = companyInfoSnapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as CompanyInfo[];
+        
+        // 기숙사 정보와 회사 정보 매칭
+        const accommodationsWithCompanyInfo = publicAccommodations.map(accommodation => {
+          const companyInfo = companyInfoData.find(company => company.id === accommodation.employerId);
+          return {
+            ...accommodation,
+            companyInfo
+          };
+        });
+        
+        setAccommodations(accommodationsWithCompanyInfo);
       } catch (error) {
         console.error('기숙사 정보 로딩 실패:', error);
       } finally {
@@ -210,6 +241,44 @@ const AccommodationList: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     {accommodation.name}
                   </h3>
+                  
+                  {/* 회사 정보 섹션 */}
+                  {accommodation.companyInfo && (
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Briefcase className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-700">회사 정보</span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-medium text-gray-900">{accommodation.companyInfo.name}</span>
+                          {accommodation.companyInfo.industry && (
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                              {accommodation.companyInfo.industry}
+                            </span>
+                          )}
+                        </div>
+                        {accommodation.companyInfo.size && (
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <Users className="w-3 h-3" />
+                            <span>{accommodation.companyInfo.size}</span>
+                          </div>
+                        )}
+                        {accommodation.companyInfo.location && (
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <MapPin className="w-3 h-3" />
+                            <span className="truncate">{accommodation.companyInfo.location}</span>
+                          </div>
+                        )}
+                        {accommodation.companyInfo.website && (
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <Globe className="w-3 h-3" />
+                            <span className="truncate">{accommodation.companyInfo.website}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   
                   <p className="text-sm text-gray-600 mb-3">
                     {accommodation.employerName || '구인자 정보 없음'}
