@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, LogOut, Menu, X, UserPlus, Home, Users, FileText, BarChart3 } from 'lucide-react';
+import { User, LogOut, Menu, X, UserPlus, Home, Users, FileText, BarChart3, Building } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -66,6 +66,10 @@ const Navbar: React.FC = () => {
             </Link>
             <Link to="/reviews" className="bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 px-3 py-2 rounded-md text-sm font-semibold flex items-center gap-1 shadow-sm transition-colors">
               <span role="img" aria-label="life">🌴</span> 리조트바이트 생활
+            </Link>
+            <Link to="/accommodations" className="bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 px-3 py-2 rounded-md text-sm font-semibold flex items-center gap-1 shadow-sm transition-colors">
+              <Building className="w-4 h-4" />
+              기숙사
             </Link>
             
             {/* 로그인 필요 메뉴 */}
@@ -150,6 +154,10 @@ const Navbar: React.FC = () => {
             </Link>
             <Link to="/reviews" className="bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 block px-3 py-2 rounded-md text-base font-semibold flex items-center gap-2 shadow-sm transition-colors">
               <span role="img" aria-label="life">🌴</span> 리조트바이트 생활
+            </Link>
+            <Link to="/accommodations" className="bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 block px-3 py-2 rounded-md text-base font-semibold flex items-center gap-2 shadow-sm transition-colors">
+              <Building className="w-4 h-4" />
+              기숙사
             </Link>
             
             {user ? (

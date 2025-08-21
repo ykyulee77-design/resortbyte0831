@@ -33,10 +33,11 @@ import ResortReview from './pages/ResortReview';
 import ReviewsMediaForm from './pages/ReviewsMediaForm';
 import CompanyInfoPage from './pages/CompanyInfo';
 import AccommodationInfoPage from './pages/AccommodationInfo';
+import AccommodationList from './pages/AccommodationList';
 import WorkTypesPage from './pages/WorkTypesPage';
 import JobPostForm from './pages/JobPostForm';
 import GatePage from './pages/GatePage';
-import CrewDashboard from './pages/CrewDashboard';
+
 
 // 레이아웃 컴포넌트
 import Layout from './components/Layout';
@@ -193,6 +194,9 @@ function App() {
             <Route path="/reviews/new" element={<ReviewForm />} />
             <Route path="/reviews/media/new" element={<ReviewsMediaForm />} />
             <Route path="/resort/:id/reviews" element={<ResortReview />} />
+
+            {/* 기숙사 관련 라우트 */}
+            <Route path="/accommodations" element={<AccommodationList />} />
 
             {/* 대시보드 리다이렉트 - 역할별로 자동 리다이렉트 */}
             <Route path="/dashboard" element={
@@ -378,14 +382,7 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 크루 대시보드 페이지 */}
-            <Route path="/crew-dashboard" element={
-              <ProtectedRoute allowedRoles={['jobseeker']}>
-                <Layout>
-                  <CrewDashboard />
-                </Layout>
-              </ProtectedRoute>
-            } />
+
 
             {/* 404 페이지 */}
             <Route path="*" element={<ErrorPage />} />

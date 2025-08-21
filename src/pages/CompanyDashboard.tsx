@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building, Home, ChevronRight, ChevronDown, Plus, FileText, Users, Eye, MapPin, DollarSign } from 'lucide-react';
+import { Building, Home, ChevronRight, ChevronDown, Plus, FileText, Users, Eye, MapPin, DollarSign, Clock, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, getDocs, query, where, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -320,11 +320,11 @@ const CompanyDashboard: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* 회사 기본 정보 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                              <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+                                              <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 shadow-md">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                      <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Building className="w-4 h-4 text-blue-600" />
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+                        <Building className="w-5 h-5 text-white" />
                       </div>
                       회사 정보
                     </h3>
@@ -444,7 +444,7 @@ const CompanyDashboard: React.FC = () => {
                             href={companyInfo.website || companyInfo.companyWebsite} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 font-medium underline"
+                            className="text-green-600 hover:text-green-800 font-medium underline"
                           >
                             {companyInfo.website || companyInfo.companyWebsite}
                           </a>
@@ -1129,26 +1129,58 @@ const CompanyDashboard: React.FC = () => {
             {/* 구인 현황 요약 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">구인 현황</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <span className="text-sm font-medium text-blue-900">총 공고</span>
-                  <span className="text-lg font-bold text-blue-600">{jobPosts.length}개</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="group relative bg-gradient-to-br from-blue-100 to-indigo-200 rounded-xl border-2 border-blue-300 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-bl-full opacity-20"></div>
+                  <div className="flex items-center justify-between relative z-10">
+                    <div>
+                      <span className="text-sm font-medium text-blue-700">총 공고</span>
+                      <div className="text-3xl font-bold text-blue-900 mt-2">{jobPosts.length}개</div>
+                    </div>
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <FileText className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                  <span className="text-sm font-medium text-green-900">총 지원자</span>
-                  <span className="text-lg font-bold text-green-600">{applications.length}명</span>
+                <div className="group relative bg-gradient-to-br from-emerald-100 to-teal-200 rounded-xl border-2 border-emerald-300 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-bl-full opacity-20"></div>
+                  <div className="flex items-center justify-between relative z-10">
+                    <div>
+                      <span className="text-sm font-medium text-emerald-700">총 지원자</span>
+                      <div className="text-3xl font-bold text-emerald-900 mt-2">{applications.length}명</div>
+                    </div>
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <Users className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                  <span className="text-sm font-medium text-yellow-900">검토 대기</span>
-                  <span className="text-lg font-bold text-yellow-600">
-                    {applications.filter(app => app.status === 'pending').length}명
-                  </span>
+                <div className="group relative bg-gradient-to-br from-amber-100 to-orange-200 rounded-xl border-2 border-amber-300 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-bl-full opacity-20"></div>
+                  <div className="flex items-center justify-between relative z-10">
+                    <div>
+                      <span className="text-sm font-medium text-amber-700">검토 대기</span>
+                      <div className="text-3xl font-bold text-amber-900 mt-2">
+                        {applications.filter(app => app.status === 'pending').length}명
+                      </div>
+                    </div>
+                    <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <Clock className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                  <span className="text-sm font-medium text-purple-900">채용 완료</span>
-                  <span className="text-lg font-bold text-purple-600">
-                    {applications.filter(app => app.status === 'accepted').length}명
-                  </span>
+                <div className="group relative bg-gradient-to-br from-purple-100 to-violet-200 rounded-xl border-2 border-purple-300 p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-400 to-violet-500 rounded-bl-full opacity-20"></div>
+                  <div className="flex items-center justify-between relative z-10">
+                    <div>
+                      <span className="text-sm font-medium text-purple-700">채용 완료</span>
+                      <div className="text-3xl font-bold text-purple-900 mt-2">
+                        {applications.filter(app => app.status === 'accepted').length}명
+                      </div>
+                    </div>
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <CheckCircle className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1156,27 +1188,30 @@ const CompanyDashboard: React.FC = () => {
             {/* 빠른 액션 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">빠른 액션</h3>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <Link
                   to="/job-post/new"
-                  className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="group relative w-full flex items-center justify-center px-6 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  새 공고 등록
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+                  <Plus className="w-5 h-5 mr-3 relative z-10" />
+                  <span className="relative z-10">새 공고 등록</span>
                 </Link>
                 <Link
                   to="/applications"
-                  className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  className="group relative w-full flex items-center justify-center px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                 >
-                  <Users className="w-4 h-4 mr-2" />
-                  지원자 관리
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+                  <Users className="w-5 h-5 mr-3 relative z-10" />
+                  <span className="relative z-10">지원자 관리</span>
                 </Link>
                 <Link
                   to={`/company/${user?.uid}`}
-                  className="w-full flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  className="group relative w-full flex items-center justify-center px-6 py-4 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-xl hover:from-purple-600 hover:to-violet-700 transition-all duration-300 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                 >
-                  <Building className="w-4 h-4 mr-2" />
-                  회사 정보 수정
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-violet-400 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+                  <Building className="w-5 h-5 mr-3 relative z-10" />
+                  <span className="relative z-10">회사 정보 수정</span>
                 </Link>
               </div>
             </div>
@@ -1186,20 +1221,21 @@ const CompanyDashboard: React.FC = () => {
         {/* 4. 구인공고 */}
         <div id="job-posts" className="mt-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-violet-50">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-br from-purple-100 via-violet-100 to-indigo-100 shadow-md">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                  <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <FileText className="w-4 h-4 text-purple-600" />
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center shadow-md">
+                    <FileText className="w-5 h-5 text-white" />
                   </div>
                   구인공고
                 </h3>
                 <Link
                   to="/job-post/new"
-                  className="inline-flex items-center px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm"
+                  className="group relative inline-flex items-center px-5 py-2 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-lg hover:from-purple-600 hover:to-violet-700 transition-all duration-300 text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                 >
-                  <Plus className="w-4 h-4 mr-1" />
-                  새 공고 등록
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-violet-400 rounded-lg opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+                  <Plus className="w-4 h-4 mr-2 relative z-10" />
+                  <span className="relative z-10">새 공고 등록</span>
                 </Link>
               </div>
             </div>
@@ -1207,8 +1243,10 @@ const CompanyDashboard: React.FC = () => {
             <div className="p-6 space-y-8">
               {/* 공고 목록 */}
               <div>
-                <h4 className="text-md font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-purple-600" />
+                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-violet-600 rounded-lg flex items-center justify-center shadow-sm">
+                    <FileText className="w-4 h-4 text-white" />
+                  </div>
                   공고 목록
                 </h4>
                 {jobPosts.length === 0 ? (
@@ -1225,7 +1263,7 @@ const CompanyDashboard: React.FC = () => {
                 ) : (
                   <div className="space-y-2">
                     {jobPosts.map((post) => (
-                      <div key={post.id} className="flex items-center justify-between py-2 px-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div key={post.id} className="group flex items-center justify-between py-3 px-4 bg-gradient-to-r from-gray-100 to-slate-100 rounded-xl border-2 border-gray-200 hover:border-purple-400 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
                         <div className="flex items-center gap-4 min-w-0 flex-1">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
@@ -1234,13 +1272,13 @@ const CompanyDashboard: React.FC = () => {
                             </div>
                           </div>
                           <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
-                            <span className="text-blue-600 whitespace-nowrap">
+                            <span className="text-green-600 whitespace-nowrap">
                               {post.location}
                             </span>
-                            <span className="text-green-600 whitespace-nowrap">
+                            <span className="text-blue-600 font-medium whitespace-nowrap">
                               {post.salary.min.toLocaleString()}~{post.salary.max.toLocaleString()}원
                             </span>
-                            <span className="text-purple-600 whitespace-nowrap">
+                            <span className="text-emerald-600 font-medium whitespace-nowrap">
                               지원자 {getApplicationsForJob(post.id).length}명
                             </span>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
@@ -1253,7 +1291,7 @@ const CompanyDashboard: React.FC = () => {
                         <div className="flex items-center gap-2 ml-4">
                           <Link
                             to={`/job/${post.id}`}
-                            className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
+                            className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 transition-colors"
                           >
                             보기
                           </Link>
@@ -1274,12 +1312,14 @@ const CompanyDashboard: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-blue-600" />
+                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center shadow-sm">
+                      <Users className="w-4 h-4 text-white" />
+                    </div>
                     근무타입
                   </h4>
                   <Link
                     to="/work-types"
-                    className="inline-flex items-center px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-sm"
+                    className="group relative inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-200 to-teal-200 text-emerald-800 rounded-lg hover:from-emerald-300 hover:to-teal-300 transition-all duration-300 text-sm font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                   >
                     <Eye className="h-4 w-4 mr-1" />
                     관리
@@ -1291,7 +1331,7 @@ const CompanyDashboard: React.FC = () => {
                     <p className="text-gray-600 mb-3">등록된 근무타입이 없습니다.</p>
                     <Link
                       to="/job-post/new"
-                      className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                      className="group relative inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 transition-all duration-300 text-sm font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                     >
                       <Plus className="w-4 w-4 mr-1" />
                       근무타입 생성하기
@@ -1300,7 +1340,7 @@ const CompanyDashboard: React.FC = () => {
                 ) : (
                   <div className="space-y-2">
                     {workTypes.map((workType) => (
-                      <div key={workType.id} className="flex items-center justify-between py-2 px-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                              <div key={workType.id} className="group flex items-center justify-between py-3 px-4 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-xl border-2 border-emerald-200 hover:border-emerald-400 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
                         <div className="flex items-center gap-4 min-w-0 flex-1">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
@@ -1311,11 +1351,11 @@ const CompanyDashboard: React.FC = () => {
                             </div>
                           </div>
                           <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
-                            <span className="text-green-600 whitespace-nowrap">
+                            <span className="text-emerald-600 font-medium whitespace-nowrap">
                               주 {calculateTotalHoursPerWeek(workType.schedules || [])}시간
                             </span>
                             {workType.hourlyWage && workType.hourlyWage > 0 && (
-                              <span className="text-blue-600 whitespace-nowrap">
+                              <span className="text-green-600 whitespace-nowrap">
                                 시급 {workType.hourlyWage.toLocaleString()}원
                               </span>
                             )}

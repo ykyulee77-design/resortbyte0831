@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs, query, where, orderBy, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, MapPin, DollarSign, Send, FileText, Bell, Clock, Sparkles, Target, User, Users, Building, Share2, Copy, Check } from 'lucide-react';
+import { MapPin, DollarSign, Send, FileText, Clock, Sparkles, Target, User, Users, Building, Share2, Check } from 'lucide-react';
 import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
 
 import ActivityTimeline from '../components/ActivityTimeline';
@@ -44,14 +44,14 @@ const JobseekerDashboard: React.FC = () => {
   const [jobPosts, setJobPosts] = useState<JobPost[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
+
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [workerAvailabilities, setWorkerAvailabilities] = useState<WorkerAvailability[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [recommendedJobs, setRecommendedJobs] = useState<JobPost[]>([]);
   const [copiedJobId, setCopiedJobId] = useState<string | null>(null);
+  const [showAllRecommendedJobs, setShowAllRecommendedJobs] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -235,9 +235,8 @@ const JobseekerDashboard: React.FC = () => {
           reasons
         };
       })
-      .filter(job => job.recommendationScore > 30) // 30점 이상만 추천
       .sort((a, b) => b.recommendationScore - a.recommendationScore)
-      .slice(0, 5); // 상위 5개만 추천
+      .slice(0, 10); // 상위 10개 추천 (더보기 기능을 위해)
 
     return recommendations;
   };
@@ -323,12 +322,8 @@ const JobseekerDashboard: React.FC = () => {
   };
 
   const filteredJobPosts = jobPosts.filter(post => {
-    const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         post.employerName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLocation = !locationFilter || post.location.includes(locationFilter);
     const notApplied = !applications.some(app => app.jobPostId === post.id);
-    
-    return matchesSearch && matchesLocation && notApplied;
+    return notApplied;
   });
 
 
@@ -366,137 +361,129 @@ const JobseekerDashboard: React.FC = () => {
 
 
 
-        {/* 메인 콘텐츠 - 가로 배치로 복원 */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
-          {/* 1. 왼쪽 사이드바 - 프로필 및 요약 */}
+        {/* 메인 콘텐츠 - 세로 배치 */}
         <div className="space-y-6">
-            {/* 프로필 카드 */}
+          {/* 내 프로필 섹션 */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="px-6 py-4 border-b border-gray-100 bg-blue-50 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <User className="w-4 h-4 text-blue-600" />
+                                  <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shadow-sm">
+                  <User className="w-5 h-5 text-white" />
                 </div>
                 내 프로필
               </h3>
             </div>
             <div className="p-6">
-              {/* 프로필 정보 */}
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                    <span className="text-base font-bold text-white">
-                      {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                    </span>
-                  </div>
-                  <div>
-                    <h4 className="text-base font-semibold text-gray-900">{user?.displayName || '사용자'}</h4>
-                    <p className="text-sm text-gray-600">{user?.email}</p>
-                  </div>
-                </div>
-
-                {/* 지원 요약 */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                    <span className="text-sm font-medium text-blue-900">총 지원</span>
-                    <span className="text-lg font-bold text-blue-600">{applications.length}개</span>
-                    </div>
-                  <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                    <span className="text-sm font-medium text-yellow-900">검토 중</span>
-                    <span className="text-lg font-bold text-yellow-600">
-                      {applications.filter(app => app.status === 'pending').length}개
-                    </span>
-                    </div>
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                    <span className="text-sm font-medium text-green-900">채용됨</span>
-                    <span className="text-lg font-bold text-green-600">
-                      {applications.filter(app => app.status === 'accepted').length}개
-                    </span>
-                </div>
-              </div>
-
-              {/* 이력서 정보 */}
-                <div className="mt-6 p-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <div className="w-4 h-4 bg-purple-100 rounded flex items-center justify-center">
-                    <FileText className="w-3 h-3 text-purple-600" />
-                  </div>
-                  이력서 정보
-                </h4>
-                  <div className="space-y-2 text-sm mb-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">상태:</span>
-                      <span className={`font-medium px-2 py-1 rounded-full text-xs ${
-                        user?.resume ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'
-                      }`}>
-                        {user?.resume ? '완료' : '미완성'}
+              <div className="space-y-6">
+                {/* 프로필 정보 행 */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center shadow-md">
+                      <span className="text-xl font-bold text-white">
+                        {user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
                       </span>
                     </div>
-                    {user?.resume && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">희망 시급:</span>
-                        <span className="text-gray-900 font-medium">
-                          {user.resume.hourlyWage ? 
-                            `${user.resume.hourlyWage.toLocaleString()}원/시간` : 
-                            '미입력'
-                          }
-                        </span>
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-900">{user?.displayName || '사용자'}</h4>
+                      <p className="text-sm text-gray-600">{user?.email}</p>
+                    </div>
                   </div>
-                    )}
+                  <div className="flex gap-2">
+                    <div className="text-center px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="text-lg font-bold text-blue-600">{applications.length}</div>
+                      <div className="text-xs text-blue-700">총지원</div>
+                    </div>
+                    <div className="text-center px-3 py-2 bg-amber-50 rounded-lg border border-amber-200">
+                      <div className="text-lg font-bold text-amber-600">{applications.filter(app => app.status === 'pending' || app.status === 'reviewing').length}</div>
+                      <div className="text-xs text-amber-700">검토중</div>
+                    </div>
+                    <div className="text-center px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                      <div className="text-lg font-bold text-emerald-600">{applications.filter(app => app.status === 'accepted').length}</div>
+                      <div className="text-xs text-emerald-700">채용됨</div>
+                    </div>
                   </div>
-                  <Link
-                    to="/profile"
-                    className="w-full text-center bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-                  >
-                    이력서 관리
-                  </Link>
                 </div>
-                </div>
-              </div>
 
-            {/* 빠른 액션 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">빠른 액션</h3>
-              <div className="space-y-3">
-                <Link
-                  to="/crew-dashboard"
-                  className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Users className="w-4 h-4 mr-2" />
-                  평가 보기
-                </Link>
-                <button
-                  onClick={() => setShowScheduleModal(true)}
-                  className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <Clock className="w-4 h-4 mr-2" />
-                  선호근무시간 설정
-                </button>
-                <Link
-                  to="/notifications"
-                  className="w-full flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  <Bell className="w-4 h-4 mr-2" />
-                  알림 설정
-                </Link>
+
+
+                {/* 이력서 정보 행 */}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-600" />
+                    이력서
+                  </h4>
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-8">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-600">상태:</span>
+                        <span className={`font-medium px-3 py-1 rounded-full text-sm ${
+                          user?.resume ? 'text-gray-900 bg-gray-200' : 'text-gray-600 bg-gray-100'
+                        }`}>
+                          {user?.resume ? '완료' : '미완성'}
+                        </span>
+                      </div>
+                      {user?.resume && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-600">희망 시급:</span>
+                          <span className="text-gray-900 font-medium">
+                            {user.resume.hourlyWage ? 
+                              `${user.resume.hourlyWage.toLocaleString()}원` : 
+                              '미입력'
+                            }
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <Link
+                      to="/profile"
+                      className="group relative bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300 text-sm font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                    >
+                      <span className="relative z-10">이력서 관리</span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* 크루 행 */}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Target className="w-4 h-4 text-gray-600" />
+                    크루
+                  </h4>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-lg font-bold text-gray-900">8개</div>
+                      <div className="text-xs text-gray-600">다시 같이 일해요</div>
+                      <div className="text-xs text-gray-500 mt-1">(총 12개 근무경험)</div>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-lg font-bold text-gray-900">156h</div>
+                      <div className="text-xs text-gray-600">총 근무시간</div>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-lg font-bold text-gray-900">4.8</div>
+                      <div className="text-xs text-gray-600">평균 평점</div>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-lg font-bold text-gray-900">98%</div>
+                      <div className="text-xs text-gray-600">만족도</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* 최근 활동 */}
-            <ActivityTimeline activities={activities} maxItems={5} />
           </div>
 
-          {/* 2. 메인 콘텐츠 - 지원현황 및 추천 일자리 */}
-          <div className="xl:col-span-2 space-y-6">
+          {/* 지원현황 및 추천 일자리 섹션들 */}
+          <div className="space-y-6">
             {/* 지원현황 섹션 */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50">
-                <div className="flex items-center justify-between">
+                          <div className="px-6 py-5 border-b border-gray-100">
+              <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Send className="w-4 h-4 text-green-600" />
-                </div>
+                <Send className="w-5 h-5 text-gray-600" />
                 지원현황
-                    <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                    <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
                       {filteredApplications.length}개
                     </span>
               </h3>
@@ -586,82 +573,62 @@ const JobseekerDashboard: React.FC = () => {
                     return (
                       <div
                           key={application.id}
-                          className="block p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:shadow-md transition-all duration-200 group bg-white"
+                          className="flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors group"
                         >
-                          <div className="flex items-start justify-between mb-3">
-                            <Link to={`/application-detail/${application.id}`} className="flex-1 min-w-0 cursor-pointer">
-                              <h4 className="text-base font-semibold text-gray-900 group-hover:text-green-600 transition-colors truncate mb-1">
+                          <Link to={`/application-detail/${application.id}`} className="flex-1 min-w-0 cursor-pointer">
+                            <div className="flex items-center gap-4 text-sm">
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleShareJob(jobPost);
+                                }}
+                                className="flex items-center justify-center w-6 h-6 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-full transition-colors"
+                                title="친구에게 공유하기"
+                              >
+                                {copiedJobId === jobPost.id ? (
+                                  <Check className="w-4 h-4 text-green-600" />
+                                ) : (
+                                  <Share2 className="w-4 h-4" />
+                                )}
+                              </button>
+                              <span className="font-medium text-gray-900 group-hover:text-green-600 transition-colors truncate min-w-0 flex-1">
                                 {jobPost.title}
-                              </h4>
-                              <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                                <Building className="w-4 h-4" />
+                              </span>
+                              <span className="flex items-center gap-1 text-gray-600">
+                                <Building className="w-3 h-3" />
                                 <span className="truncate">{jobPost.employerName}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                                <MapPin className="w-4 h-4" />
+                              </span>
+                              <span className="flex items-center gap-1 text-gray-500">
+                                <MapPin className="w-3 h-3" />
                                 <span>{jobPost.location}</span>
-                              </div>
+                              </span>
                               {jobPost.salary && (
-                                <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                                  <DollarSign className="w-4 h-4" />
+                                <span className="flex items-center gap-1 text-gray-500">
+                                  <DollarSign className="w-3 h-3" />
                                   <span>
                                     {jobPost.salary.min.toLocaleString()}원 ~ {jobPost.salary.max.toLocaleString()}원
                                   </span>
-                                </div>
+                                </span>
                               )}
-                            </Link>
-                            <div className="flex flex-col items-end gap-2 ml-4">
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(application.status)}`}>
-                                <span className="mr-1">{getStatusIcon(application.status)}</span>
-                                {getStatusText(application.status)}
-                              </span>
-                              <div className="text-xs text-gray-400 text-right">
-                                {application.appliedAt?.toDate?.()?.toLocaleDateString('ko-KR', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric'
-                                }) || '날짜 없음'}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* 하단 액션 영역 */}
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center gap-1 text-xs text-gray-500">
                                 <Clock className="w-3 h-3" />
                                 {jobPost.scheduleType === 'smart_matching' ? '스마트 매칭' : '일반 근무'}
                               </span>
-                              {jobPost.workTypes && jobPost.workTypes.length > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <Users className="w-3 h-3" />
-                                  {jobPost.workTypes.length}개 근무타입
-                                </span>
-                              )}
                             </div>
-                            
-                            {/* 공유하기 버튼 */}
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleShareJob(jobPost);
-                              }}
-                              className="flex items-center gap-1 px-3 py-1 text-xs text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="친구에게 공유하기"
-                            >
-                              {copiedJobId === jobPost.id ? (
-                                <>
-                                  <Check className="w-3 h-3 text-green-600" />
-                                  <span className="text-green-600">복사됨</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Share2 className="w-3 h-3" />
-                                  <span>공유</span>
-                                </>
-                              )}
-                            </button>
+                          </Link>
+                          <div className="flex items-center gap-3 ml-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(application.status)}`}>
+                              <span className="mr-1">{getStatusIcon(application.status)}</span>
+                              {getStatusText(application.status)}
+                            </span>
+                            <div className="text-xs text-gray-400">
+                              {application.appliedAt?.toDate?.()?.toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              }) || '날짜 없음'}
+                            </div>
                           </div>
                         </div>
                     );
@@ -673,20 +640,29 @@ const JobseekerDashboard: React.FC = () => {
 
             {/* 매칭 추천 일자리 섹션 */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="px-6 py-4 border-b border-gray-100 bg-purple-50 shadow-sm">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                    <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Sparkles className="w-4 h-4 text-blue-600" />
+                    <div className="w-10 h-10 bg-purple-500 rounded-xl flex items-center justify-center shadow-sm">
+                      <Sparkles className="w-5 h-5 text-white" />
                     </div>
                     매칭 추천 일자리
-                    <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                    <span className="text-sm font-medium text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-100">
                       {recommendedJobs.length}개
                     </span>
                 </h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Target className="w-4 h-4" />
-                    <span>선호도 기반 추천</span>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Target className="w-4 h-4" />
+                      <span>선호도 기반 추천</span>
+                    </div>
+                    <button
+                      onClick={() => setShowScheduleModal(true)}
+                      className="group relative flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all duration-300 text-sm font-medium shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                    >
+                      <Clock className="w-4 h-4" />
+                      선호 시간
+                    </button>
                   </div>
                 </div>
                 <div className="mt-2 text-xs text-gray-500">
@@ -704,119 +680,119 @@ const JobseekerDashboard: React.FC = () => {
                     <p className="text-sm text-gray-500 mb-4">이력서를 완성하거나 선호도를 설정해보세요</p>
                     <Link
                       to="/profile"
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      className="group relative inline-flex items-center px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-300 text-sm font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
                     >
-                      <User className="w-4 h-4 mr-2" />
-                      이력서 완성하기
+                      <User className="w-4 h-4 mr-2 relative z-10" />
+                      <span className="relative z-10">이력서 완성하기</span>
                     </Link>
                 </div>
               ) : (
                   <div className="grid gap-4">
-                  {recommendedJobs.map((jobPost) => (
+                  {recommendedJobs
+                    .slice(0, showAllRecommendedJobs ? recommendedJobs.length : 5)
+                    .sort((a, b) => (b.recommendationScore || 0) - (a.recommendationScore || 0))
+                    .map((jobPost, index) => (
                     <div
                       key={jobPost.id}
-                      className="block p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all duration-200 group bg-white"
+                      className="flex items-center justify-between p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors group"
                     >
-                      <div className="flex items-start justify-between mb-3">
-                        <Link to={`/job-post/${jobPost.id}`} className="flex-1 min-w-0 cursor-pointer">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="text-base font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
-                              {jobPost.title}
-                            </h4>
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                              {jobPost.recommendationScore}점
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                      <Link to={`/job-post/${jobPost.id}`} className="flex-1 min-w-0 cursor-pointer">
+                        <div className="flex items-center gap-6 text-sm overflow-hidden relative">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleShareJob(jobPost);
+                            }}
+                            className="flex items-center justify-center w-6 h-6 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-full transition-colors flex-shrink-0"
+                            title="친구에게 공유하기"
+                          >
+                            {copiedJobId === jobPost.id ? (
+                              <Check className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <Share2 className="w-4 h-4" />
+                            )}
+                          </button>
+                          <span className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors truncate max-w-52 flex-shrink-0">
+                            {jobPost.title}
+                          </span>
+                          <div className="w-8"></div>
+                          <span className="px-3 py-1 bg-purple-500 text-white text-xs font-bold rounded-full flex-shrink-0 shadow-sm">
+                            {jobPost.recommendationScore}점
+                          </span>
+                          <span className="flex items-center gap-2 text-gray-700 flex-shrink-0">
                             <Building className="w-4 h-4" />
-                            <span className="truncate">{jobPost.employerName}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                            <span className="truncate max-w-24 font-medium">{jobPost.employerName}</span>
+                          </span>
+                          <span className="flex items-center gap-2 text-gray-600 flex-shrink-0">
                             <MapPin className="w-4 h-4" />
-                            <span>{jobPost.location}</span>
-                          </div>
+                            <span className="truncate max-w-20 font-medium">{jobPost.location}</span>
+                          </span>
                           {jobPost.salary && (
-                            <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                            <span className="flex items-center gap-2 text-gray-600 flex-shrink-0">
                               <DollarSign className="w-4 h-4" />
-                              <span>
+                              <span className="truncate max-w-28 font-medium">
                                 {jobPost.salary.min.toLocaleString()}원 ~ {jobPost.salary.max.toLocaleString()}원
                               </span>
-                            </div>
+                            </span>
                           )}
+                          <span className="flex items-center gap-2 text-xs text-gray-500 flex-shrink-0">
+                            <Clock className="w-4 h-4" />
+                            <span className="truncate max-w-20 font-medium">
+                              {jobPost.scheduleType === 'smart_matching' ? '스마트 매칭' : '일반 근무'}
+                            </span>
+                          </span>
                           {/* 매칭 이유 표시 */}
                           {jobPost.reasons && jobPost.reasons.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {jobPost.reasons.map((reason, index) => (
-                                <span
-                                  key={index}
-                                  className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full"
-                                >
-                                  {reason}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </Link>
-                        <div className="flex flex-col items-end gap-2 ml-4">
-                          <div className="flex items-center gap-1">
-                            <Sparkles className="w-4 h-4 text-blue-500" />
-                            <span className="text-sm font-medium text-blue-600">추천</span>
-                          </div>
-                          <div className="text-xs text-gray-400 text-right">
-                            매칭도: {jobPost.recommendationScore}%
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* 하단 액션 영역 */}
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {jobPost.scheduleType === 'smart_matching' ? '스마트 매칭' : '일반 근무'}
-                          </span>
-                          {jobPost.workTypes && jobPost.workTypes.length > 0 && (
-                            <span className="flex items-center gap-1">
-                              <Users className="w-3 h-3" />
-                              {jobPost.workTypes.length}개 근무타입
+                            <span className="flex items-center gap-2 text-xs text-purple-600 flex-shrink-0">
+                              <Sparkles className="w-4 h-4" />
+                              <span className="truncate max-w-24 font-medium">{jobPost.reasons[0]}</span>
                             </span>
                           )}
                         </div>
-                        
-                        {/* 공유하기 버튼 */}
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleShareJob(jobPost);
-                          }}
-                          className="flex items-center gap-1 px-3 py-1 text-xs text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="친구에게 공유하기"
-                        >
-                          {copiedJobId === jobPost.id ? (
-                            <>
-                              <Check className="w-3 h-3 text-green-600" />
-                              <span className="text-green-600">복사됨</span>
-                            </>
-                          ) : (
-                            <>
-                              <Share2 className="w-3 h-3" />
-                              <span>공유</span>
-                            </>
-                          )}
-                        </button>
+                      </Link>
+                      <div className="flex items-center gap-3 ml-4">
                       </div>
                     </div>
                   ))}
-                  {recommendedJobs.length > 15 && (
+                  {recommendedJobs.length > 5 && (
                     <div className="text-center pt-4 border-t border-gray-100">
-                      <span className="text-sm text-gray-500">
-                        더 많은 일자리를 보려면 검색어를 변경해보세요
-                      </span>
+                      {!showAllRecommendedJobs ? (
+                        <button
+                          onClick={() => setShowAllRecommendedJobs(true)}
+                          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+                        >
+                          더보기 ({recommendedJobs.length - 5}개 더)
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setShowAllRecommendedJobs(false)}
+                          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium"
+                        >
+                          접기
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* 최근 활동 섹션 - 하단 가로 배치 */}
+        <div className="mt-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 bg-amber-50 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-sm">
+                  <Clock className="w-5 h-5 text-white" />
+                </div>
+                최근 활동
+              </h3>
+            </div>
+            <div className="p-6">
+              <ActivityTimeline activities={activities} maxItems={5} />
             </div>
           </div>
         </div>

@@ -17,6 +17,7 @@ const Profile: React.FC = () => {
   const [resumeEdit, setResumeEdit] = useState<Resume>(user?.resume || {});
   const [resumeMode, setResumeMode] = useState<'view' | 'edit'>(user?.resume ? 'view' : 'edit');
   const [resumeSaving, setResumeSaving] = useState(false);
+  const [scheduleCollapsed, setScheduleCollapsed] = useState(true);
   // 구인자용 회사 정보
   const [companyInfo, setCompanyInfo] = useState<any | null>(null);
 
@@ -416,17 +417,41 @@ const Profile: React.FC = () => {
                 {/* 시간지정일 때만 스케줄 그리드 표시 */}
                 {user?.resume?.preferredTimeType === 'specific' && user?.resume?.preferredTimeSlots && user.resume.preferredTimeSlots.length > 0 ? (
                   <div className="border-t border-gray-200 pt-4">
-                    <h5 className="text-sm font-medium text-gray-900 mb-3">선호 시간대</h5>
-                    <UnifiedScheduleGrid
-                      selectedTimeSlots={user.resume.preferredTimeSlots}
-                      mode="view"
-                      title="선호 근무시간"
-                      description="설정된 선호 근무시간"
-                      showStatistics={true}
-                      showActions={false}
-                      jobseekerView={true}
-                      readOnly={true}
-                    />
+                    <div className="flex items-center justify-between mb-3">
+                      <h5 className="text-sm font-medium text-gray-900">선호 시간대</h5>
+                      <button
+                        onClick={() => setScheduleCollapsed(!scheduleCollapsed)}
+                        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                      >
+                        {scheduleCollapsed ? (
+                          <>
+                            <span>펼치기</span>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </>
+                        ) : (
+                          <>
+                            <span>접기</span>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    {!scheduleCollapsed && (
+                      <UnifiedScheduleGrid
+                        selectedTimeSlots={user.resume.preferredTimeSlots}
+                        mode="view"
+                        title="선호 근무시간"
+                        description="설정된 선호 근무시간"
+                        showStatistics={true}
+                        showActions={false}
+                        jobseekerView={true}
+                        readOnly={true}
+                      />
+                    )}
                   </div>
                                  ) : user?.resume?.preferredTimeType === 'specific' ? (
                    <div className="border-t border-gray-200 pt-4">
