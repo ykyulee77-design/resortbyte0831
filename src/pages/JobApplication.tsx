@@ -172,6 +172,7 @@ const JobApplication: React.FC = () => {
         jobPostId: jobPost.id,
         jobseekerId: user.uid,
         jobseekerName: user.displayName,
+        employerId: jobPost.employerId, // 구인자 ID 추가
         status: 'pending',
         appliedAt: serverTimestamp(),
         coverLetter: application.coverLetter,

@@ -173,14 +173,14 @@ const Profile: React.FC = () => {
               ) : (
                 <>
                   <FileText className="w-8 h-8 text-purple-600" />
-                  이력서
+                  나의 프로필 (이력서)
                 </>
               )}
             </h1>
             <p className="text-gray-600">
               {user.role === 'employer' 
                 ? '회사 정보를 관리하고 업데이트하세요.' 
-                : '회사에 제출할 이력서를 작성하고 관리하세요.'
+                : '회사에 제출할 이력서를 작성하고 관리하세요. 지원 시 이 정보가 이력서로 사용됩니다.'
               }
             </p>
           </div>

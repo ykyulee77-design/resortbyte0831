@@ -223,6 +223,7 @@ const JobPostDetail: React.FC = () => {
         jobPostId: job.id,
         jobseekerId: user.uid,
         jobseekerName: user.displayName || '이름 없음',
+        employerId: job.employerId, // 구인자 ID 추가
         status: 'pending',
         appliedAt: serverTimestamp(),
         message: applyMessage,

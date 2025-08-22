@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Building, Home, ChevronRight, ChevronDown, Plus, FileText, Users, Eye, MapPin, DollarSign, Clock, CheckCircle, EyeOff, Globe } from 'lucide-react';
+import { Building, Home, ChevronRight, ChevronDown, Plus, FileText, Users, Eye, MapPin, DollarSign, Clock, CheckCircle, EyeOff, Globe, Camera, Upload, Trash2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, getDocs, query, where, doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import { workTypeService } from '../utils/scheduleMatchingService';
+import { uploadImage, deleteImage, compressImage } from '../utils/imageUpload';
 
 interface JobPost {
   id: string;
@@ -25,6 +26,9 @@ interface Application {
   jobseekerName: string;
   status: string;
   appliedAt: any;
+  phone?: string;
+  hourlyWage?: number;
+  email?: string;
 }
 
 // 총 근무시간 계산 함수
@@ -38,8 +42,8 @@ const calculateTotalHoursPerWeek = (schedules: any[]): number => {
 const CompanyDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isCompanySectionCollapsed, setIsCompanySectionCollapsed] = useState(false);
-  const [isAccommodationSectionCollapsed, setIsAccommodationSectionCollapsed] = useState(false);
+  const [isCompanySectionCollapsed, setIsCompanySectionCollapsed] = useState(true);
+  const [isAccommodationSectionCollapsed, setIsAccommodationSectionCollapsed] = useState(true);
   const [isCompanyEditing, setIsCompanyEditing] = useState(false);
   const [companyEditData, setCompanyEditData] = useState<any>({});
   const [isAccommodationEditing, setIsAccommodationEditing] = useState(false);
@@ -331,8 +335,13 @@ const CompanyDashboard: React.FC = () => {
   }, [user?.uid]);
 
   const handleCompanyEditStart = () => {
-    setCompanyEditData(companyInfo || {});
+    setCompanyEditData({
+      ...companyInfo,
+      images: companyInfo?.images || [],
+      imageDescriptions: companyInfo?.imageDescriptions || []
+    });
     setIsCompanyEditing(true);
+    setIsCompanySectionCollapsed(false); // 수정 시 자동으로 펼치기
   };
 
   const handleCompanyEditCancel = () => {
@@ -380,9 +389,44 @@ const CompanyDashboard: React.FC = () => {
     }));
   };
 
+  // 복리후생 추가 핸들러
+  const handleBenefitAdd = () => {
+    const currentBenefits = companyEditData.benefits || companyInfo?.benefits || [];
+    setCompanyEditData((prev: any) => ({
+      ...prev,
+      benefits: [...currentBenefits, '']
+    }));
+  };
+
+  // 복리후생 삭제 핸들러
+  const handleBenefitRemove = (index: number) => {
+    const currentBenefits = companyEditData.benefits || companyInfo?.benefits || [];
+    const updatedBenefits = currentBenefits.filter((_: any, i: number) => i !== index);
+    setCompanyEditData((prev: any) => ({
+      ...prev,
+      benefits: updatedBenefits
+    }));
+  };
+
+  // 복리후생 수정 핸들러
+  const handleBenefitChange = (index: number, value: string) => {
+    const currentBenefits = companyEditData.benefits || companyInfo?.benefits || [];
+    const updatedBenefits = [...currentBenefits];
+    updatedBenefits[index] = value;
+    setCompanyEditData((prev: any) => ({
+      ...prev,
+      benefits: updatedBenefits
+    }));
+  };
+
   const handleAccommodationEditStart = () => {
-    setAccommodationEditData(accommodationInfo || {});
+    setAccommodationEditData({
+      ...accommodationInfo,
+      images: accommodationInfo?.images || [],
+      imageDescriptions: accommodationInfo?.imageDescriptions || []
+    });
     setIsAccommodationEditing(true);
+    setIsAccommodationSectionCollapsed(false); // 수정 시 자동으로 펼치기
   };
 
   const handleAccommodationEditCancel = () => {
@@ -430,6 +474,299 @@ const CompanyDashboard: React.FC = () => {
     }));
   };
 
+  // 기숙사 이미지 설명 변경 핸들러
+  const handleAccommodationImageDescriptionChange = (index: number, description: string) => {
+    const updatedDescriptions = [...(accommodationEditData.imageDescriptions || [])];
+    updatedDescriptions[index] = description;
+    setAccommodationEditData((prev: any) => ({
+      ...prev,
+      imageDescriptions: updatedDescriptions
+    }));
+  };
+
+  // 기숙사 이미지 업로드 핸들러
+  const handleAccommodationImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !user?.uid) return;
+
+    try {
+      const compressedFiles = await Promise.all(
+        Array.from(files).map(file => compressImage(file))
+      );
+
+      const uploadResults = await Promise.all(
+        compressedFiles.map(file => uploadImage(file, {
+          folder: 'accommodation-images',
+          metadata: {
+            uploadedBy: user.uid,
+            uploadType: 'accommodation-image'
+          }
+        }))
+      );
+
+      const newImages = uploadResults
+        .filter(result => result.success)
+        .map(result => result.url!)
+        .filter(Boolean);
+      
+      const updatedImages = [...(accommodationEditData.images || []), ...newImages];
+      const updatedDescriptions = [...(accommodationEditData.imageDescriptions || []), ...new Array(newImages.length).fill('')];
+      
+      setAccommodationEditData((prev: any) => ({
+        ...prev,
+        images: updatedImages,
+        imageDescriptions: updatedDescriptions
+      }));
+
+      // 이미지 업로드 후 자동 저장
+      try {
+        const accommodationRef = doc(db, 'accommodationInfo', user.uid);
+        await setDoc(accommodationRef, {
+          ...accommodationEditData,
+          images: updatedImages,
+          imageDescriptions: updatedDescriptions,
+          employerId: user.uid,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        
+        // 로컬 상태 업데이트
+        setAccommodationInfo((prev: any) => prev ? {
+          ...prev,
+          images: updatedImages,
+          imageDescriptions: updatedDescriptions
+        } : { images: updatedImages, imageDescriptions: updatedDescriptions });
+        
+        console.log('기숙사 이미지 업로드 완료');
+      } catch (error) {
+        console.error('기숙사 이미지 저장 실패:', error);
+        alert('이미지 저장에 실패했습니다. 수동으로 저장 버튼을 눌러주세요.');
+      }
+    } catch (error) {
+      console.error('기숙사 이미지 업로드 실패:', error);
+      alert('이미지 업로드에 실패했습니다.');
+    } finally {
+      if (event.target) {
+        event.target.value = '';
+      }
+    }
+  };
+
+  // 기숙사 이미지 삭제 핸들러
+  const handleAccommodationImageDelete = async (imageUrl: string, index: number) => {
+    if (!window.confirm('이 이미지를 삭제하시겠습니까?')) return;
+
+    try {
+      // 이미지 삭제
+      const result = await deleteImage(imageUrl);
+      
+      if (result.success) {
+        const updatedImages = (accommodationEditData.images || []).filter((_: any, i: number) => i !== index);
+        const updatedDescriptions = (accommodationEditData.imageDescriptions || []).filter((_: any, i: number) => i !== index);
+        setAccommodationEditData((prev: any) => ({
+          ...prev,
+          images: updatedImages,
+          imageDescriptions: updatedDescriptions
+        }));
+
+        // 삭제 후 자동 저장
+        if (!user?.uid) return;
+        const accommodationRef = doc(db, 'accommodationInfo', user.uid);
+        await setDoc(accommodationRef, {
+          ...accommodationEditData,
+          images: updatedImages,
+          imageDescriptions: updatedDescriptions,
+          employerId: user?.uid,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        
+        // 로컬 상태 업데이트
+        setAccommodationInfo((prev: any) => prev ? {
+          ...prev,
+          images: updatedImages,
+          imageDescriptions: updatedDescriptions
+        } : { images: updatedImages, imageDescriptions: updatedDescriptions });
+        
+        console.log('기숙사 이미지 삭제 완료');
+      } else {
+        alert('이미지 삭제에 실패했습니다: ' + result.error);
+      }
+    } catch (error) {
+      console.error('기숙사 이미지 삭제 실패:', error);
+      alert('이미지 삭제에 실패했습니다.');
+    }
+  };
+
+  // 객실 타입 옵션 변경 핸들러
+  const handleRoomTypeOptionChange = (roomType: string, checked: boolean) => {
+    setAccommodationEditData((prev: any) => ({
+      ...prev,
+      roomTypeOptions: {
+        ...prev.roomTypeOptions,
+        [roomType]: checked
+      }
+    }));
+  };
+
+  // 객실 가격 변경 핸들러
+  const handleRoomPriceChange = (roomType: string, price: string) => {
+    setAccommodationEditData((prev: any) => ({
+      ...prev,
+      roomPrices: {
+        ...prev.roomPrices,
+        [roomType]: price
+      }
+    }));
+  };
+
+  // 요금 유형 변경 핸들러
+  const handlePaymentTypeChange = (paymentType: string) => {
+    setAccommodationEditData((prev: any) => ({
+      ...prev,
+      paymentType
+    }));
+  };
+
+  // 객실 시설 변경 핸들러
+  const handleRoomFacilityChange = (facility: string, checked: boolean) => {
+    setAccommodationEditData((prev: any) => ({
+      ...prev,
+      [facility]: checked
+    }));
+  };
+
+  // 부대시설 변경 핸들러
+  const handleFacilityOptionChange = (facility: string, checked: boolean) => {
+    setAccommodationEditData((prev: any) => ({
+      ...prev,
+      facilityOptions: {
+        ...prev.facilityOptions,
+        [facility]: checked
+      }
+    }));
+  };
+
+  // 회사 이미지 업로드 핸들러
+  const handleCompanyImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !user?.uid) return;
+
+    try {
+      const compressedFiles = await Promise.all(
+        Array.from(files).map(file => compressImage(file))
+      );
+
+      const uploadResults = await Promise.all(
+        compressedFiles.map(file => uploadImage(file, {
+          folder: 'company-images',
+          metadata: {
+            uploadedBy: user.uid,
+            uploadType: 'company-image'
+          }
+        }))
+      );
+
+      const newImages = uploadResults
+        .filter(result => result.success)
+        .map(result => result.url!)
+        .filter(Boolean);
+      
+      const updatedImages = [...(companyEditData.images || []), ...newImages];
+      const updatedDescriptions = [...(companyEditData.imageDescriptions || []), ...new Array(newImages.length).fill('')];
+      
+      setCompanyEditData((prev: any) => ({
+        ...prev,
+        images: updatedImages,
+        imageDescriptions: updatedDescriptions
+      }));
+
+      // 이미지 업로드 후 자동 저장
+      try {
+        const companyRef = doc(db, 'companyInfo', user.uid);
+        await setDoc(companyRef, {
+          ...companyEditData,
+          images: updatedImages,
+          imageDescriptions: updatedDescriptions,
+          employerId: user.uid,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        
+        // 로컬 상태 업데이트
+        setCompanyInfo((prev: any) => prev ? {
+          ...prev,
+          images: updatedImages,
+          imageDescriptions: updatedDescriptions
+        } : { images: updatedImages, imageDescriptions: updatedDescriptions });
+        
+        console.log('회사 이미지 업로드 완료');
+      } catch (error) {
+        console.error('회사 이미지 저장 실패:', error);
+        alert('이미지 저장에 실패했습니다. 수동으로 저장 버튼을 눌러주세요.');
+      }
+    } catch (error) {
+      console.error('회사 이미지 업로드 실패:', error);
+      alert('이미지 업로드에 실패했습니다.');
+    } finally {
+      if (event.target) {
+        event.target.value = '';
+      }
+    }
+  };
+
+  // 회사 이미지 삭제 핸들러
+  const handleCompanyImageDelete = async (imageUrl: string, index: number) => {
+    if (!window.confirm('이 이미지를 삭제하시겠습니까?')) return;
+
+    try {
+      // 이미지 삭제
+      const result = await deleteImage(imageUrl);
+      
+      if (result.success) {
+        const updatedImages = (companyEditData.images || []).filter((_: any, i: number) => i !== index);
+        const updatedDescriptions = (companyEditData.imageDescriptions || []).filter((_: any, i: number) => i !== index);
+        setCompanyEditData((prev: any) => ({
+          ...prev,
+          images: updatedImages,
+          imageDescriptions: updatedDescriptions
+        }));
+
+        // 삭제 후 자동 저장
+        if (!user?.uid) return;
+        const companyRef = doc(db, 'companyInfo', user.uid);
+        await setDoc(companyRef, {
+          ...companyEditData,
+          images: updatedImages,
+          imageDescriptions: updatedDescriptions,
+          employerId: user?.uid,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        
+        // 로컬 상태 업데이트
+        setCompanyInfo((prev: any) => prev ? {
+          ...prev,
+          images: updatedImages,
+          imageDescriptions: updatedDescriptions
+        } : { images: updatedImages, imageDescriptions: updatedDescriptions });
+        
+        console.log('회사 이미지 삭제 완료');
+      } else {
+        alert('이미지 삭제에 실패했습니다: ' + result.error);
+      }
+    } catch (error) {
+      console.error('회사 이미지 삭제 실패:', error);
+      alert('이미지 삭제에 실패했습니다.');
+    }
+  };
+
+  // 이미지 설명 변경 핸들러
+  const handleImageDescriptionChange = (index: number, description: string) => {
+    const updatedDescriptions = [...(companyEditData.imageDescriptions || [])];
+    updatedDescriptions[index] = description;
+    setCompanyEditData((prev: any) => ({
+      ...prev,
+      imageDescriptions: updatedDescriptions
+    }));
+  };
+
   // 특정 공고의 지원자 수 계산
   const getApplicationsForJob = (jobId: string) => {
     return applications.filter(app => app.jobPostId === jobId);
@@ -465,14 +802,14 @@ const CompanyDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 헤더 */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">회사 대시보드</h1>
-          <p className="mt-2 text-gray-600">회사 정보와 구인 현황을 관리하세요</p>
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-gray-900">회사 대시보드</h1>
+          <p className="mt-1 text-gray-600">회사 정보와 구인 현황을 관리하세요</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-4">
           {/* 1. 회사 정보 섹션 */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* 회사 기본 정보 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                               <div className="px-6 py-4 border-b border-blue-100 bg-blue-50 shadow-sm">
@@ -481,7 +818,13 @@ const CompanyDashboard: React.FC = () => {
                       <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shadow-sm">
                         <Building className="w-5 h-5 text-blue-600" />
                       </div>
-                      회사 정보
+                      회사
+                      <button
+                        onClick={() => setIsCompanySectionCollapsed(!isCompanySectionCollapsed)}
+                        className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        {isCompanySectionCollapsed ? '펼치기' : '접기'}
+                      </button>
                     </h3>
                     <div className="flex items-center gap-2">
                       {isCompanyEditing ? (
@@ -507,12 +850,6 @@ const CompanyDashboard: React.FC = () => {
                           수정
                         </button>
                       )}
-                      <button
-                        onClick={() => setIsCompanySectionCollapsed(!isCompanySectionCollapsed)}
-                        className="text-gray-500 hover:text-gray-700"
-                      >
-                        {isCompanySectionCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -662,6 +999,88 @@ const CompanyDashboard: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* 회사 이미지 */}
+                  <div className="bg-white rounded-lg border p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <Camera className="h-5 w-5 mr-2" />
+                        회사 이미지
+                      </h3>
+                      {isCompanyEditing && (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            onChange={handleCompanyImageUpload}
+                            className="hidden"
+                            id="company-image-upload"
+                          />
+                          <button
+                            onClick={() => document.getElementById('company-image-upload')?.click()}
+                            className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                          >
+                            <Upload className="h-4 w-4 mr-1" />
+                            이미지 추가
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {((isCompanyEditing ? companyEditData.images : companyInfo?.images) || []).length > 0 ? (
+                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        {(isCompanyEditing ? (companyEditData.images || []) : (companyInfo?.images || [])).map((image: string, index: number) => {
+                          const currentDescriptions = isCompanyEditing ? (companyEditData.imageDescriptions || []) : (companyInfo?.imageDescriptions || []);
+                          const description = currentDescriptions[index] || '';
+                          
+                          return (
+                            <div key={index} className="bg-gray-50 rounded-lg p-2">
+                              <div className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer mb-2">
+                                <img
+                                  src={image}
+                                  alt={`회사 이미지 ${index + 1}`}
+                                  className="w-full h-full object-cover hover:opacity-80 transition-opacity"
+                                  onClick={() => handleImagePreview(image, `회사 이미지 ${index + 1}`)}
+                                />
+                                {isCompanyEditing && (
+                                  <button
+                                    onClick={() => handleCompanyImageDelete(image, index)}
+                                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                              {isCompanyEditing ? (
+                                <input
+                                  type="text"
+                                  value={description}
+                                  onChange={(e) => handleImageDescriptionChange(index, e.target.value)}
+                                  placeholder="설명"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              ) : (
+                                description && (
+                                  <p className="text-xs text-gray-700 mt-1 px-2 py-1 bg-white rounded border">
+                                    {description}
+                                  </p>
+                                )
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 text-gray-500">
+                        <Camera className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                        <p>등록된 회사 이미지가 없습니다.</p>
+                        {isCompanyEditing && (
+                          <p className="text-sm mt-2">이미지를 추가해보세요.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {/* 담당자 목록 */}
                   {companyRegistrants.length > 0 && (
                     <div className="bg-white rounded-lg border p-4">
@@ -669,14 +1088,14 @@ const CompanyDashboard: React.FC = () => {
                         <Users className="h-4 w-4 mr-2" />
                         담당자 ({companyRegistrants.length}명)
                       </h3>
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                         {companyRegistrants.map((registrant, index) => (
                           <div 
                             key={registrant.id} 
-                            className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-all ${
+                            className={`p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-all ${
                               registrant.id === user?.uid 
-                                ? 'bg-blue-50 border-blue-200' 
-                                : 'bg-gray-50 border-gray-200'
+                                ? 'border-blue-200' 
+                                : 'border-gray-200'
                             }`}
                             onClick={() => {
                               // 담당자 상세 정보를 alert로 표시 (나중에 모달로 개선 가능)
@@ -697,8 +1116,8 @@ const CompanyDashboard: React.FC = () => {
                               alert(details);
                             }}
                           >
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                            <div className="text-center">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium mx-auto mb-2 ${
                                 registrant.id === user?.uid 
                                   ? 'bg-blue-500 text-white' 
                                   : 'bg-gray-300 text-gray-700'
@@ -706,23 +1125,21 @@ const CompanyDashboard: React.FC = () => {
                                 {index + 1}
                               </div>
                               <div>
-                                <p className="text-sm font-medium text-gray-900">
+                                <p className="text-sm font-medium text-gray-900 mb-1">
                                   {registrant.contactPerson || '담당자명 미등록'}
                                   {registrant.id === user?.uid && (
-                                    <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                    <span className="ml-1 text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded-full">
                                       나
                                     </span>
                                   )}
                                 </p>
                                 <div className="text-xs text-gray-500 space-y-0.5">
-                                  <p>{registrant.contactEmail || '이메일 미등록'}</p>
-                                  <p>{registrant.contactPhone || '연락처 미등록'}</p>
+                                  <p className="truncate">{registrant.contactEmail || '이메일 미등록'}</p>
+                                  <p className="truncate">{registrant.contactPhone || '연락처 미등록'}</p>
                                 </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <div className="text-xs text-gray-500">
-                                {registrant.createdAt ? new Date(registrant.createdAt.toDate()).toLocaleDateString() : '등록일 미상'}
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {registrant.createdAt ? new Date(registrant.createdAt.toDate()).toLocaleDateString() : '등록일 미상'}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -734,70 +1151,117 @@ const CompanyDashboard: React.FC = () => {
                     </div>
                   )}
                   
-                  {/* 회사 소개 & 이미지 */}
+                  {/* 회사 소개 */}
                   <div className="bg-white rounded-lg border p-4">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">회사 소개</h3>
-                    {companyInfo?.description ? (
-                      <p className="text-sm text-gray-800 leading-6 whitespace-pre-wrap mb-3">
-                        {companyInfo.description}
-                      </p>
+                    {isCompanyEditing ? (
+                      <textarea
+                        value={companyEditData.description || companyInfo?.description || ''}
+                        onChange={(e) => handleCompanyInputChange('description', e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="회사 소개를 입력하세요"
+                        rows={4}
+                      />
                     ) : (
-                      <div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                        <div className="flex items-center">
-                          <div className="w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center mr-2">
-                            <span className="text-orange-600 text-xs font-bold">!</span>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-orange-800">회사 소개가 등록되지 않았습니다</p>
-                            <p className="text-xs text-orange-600 mt-1">구직자들이 회사를 더 잘 이해할 수 있도록 소개를 작성해주세요</p>
+                      companyInfo?.description ? (
+                        <p className="text-sm text-gray-800 leading-6 whitespace-pre-wrap">
+                          {companyInfo.description}
+                        </p>
+                      ) : (
+                        <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                          <div className="flex items-center">
+                            <div className="w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center mr-2">
+                              <span className="text-orange-600 text-xs font-bold">!</span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-orange-800">회사 소개가 등록되지 않았습니다</p>
+                              <p className="text-xs text-orange-600 mt-1">구직자들이 회사를 더 잘 이해할 수 있도록 소개를 작성해주세요</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                    {companyInfo?.images && companyInfo.images.length > 0 && (
-                      <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-                        {companyInfo.images.map((image: string, index: number) => (
-                          <div key={index} className="aspect-square bg-gray-100 rounded overflow-hidden cursor-pointer group" onClick={() => handleImagePreview(image, `회사 이미지 ${index + 1}`)}>
-                            <img
-                              src={image}
-                              alt={`회사 이미지 ${index + 1}`}
-                              className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
-                            />
-                          </div>
-                        ))}
-                      </div>
+                      )
                     )}
                   </div>
                   
-                  {/* 복리후생 & 회사 문화 & 근무 환경 */}
+                  {/* 복리후생 & 회사 문화 */}
                   <div className="bg-white rounded-lg border p-4">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">복리후생</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="p-3">
                         <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">복리후생</h4>
-                        {companyInfo?.benefits && companyInfo.benefits.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {companyInfo.benefits.map((benefit: string, index: number) => (
-                              <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 font-medium">
-                                {benefit}
-                              </span>
-                            ))}
+                        {isCompanyEditing ? (
+                          <div>
+                            {(companyEditData.benefits || companyInfo?.benefits || []).length > 0 ? (
+                              <div className="space-y-2 mb-3">
+                                {(companyEditData.benefits || companyInfo?.benefits || []).map((benefit: string, index: number) => (
+                                  <div key={index} className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={benefit}
+                                      onChange={(e) => handleBenefitChange(index, e.target.value)}
+                                      className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent"
+                                      placeholder="복리후생 항목을 입력하세요"
+                                    />
+                                    <button
+                                      onClick={() => handleBenefitRemove(index)}
+                                      className="px-2 py-1 text-sm bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                                    >
+                                      삭제
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-center py-2 p-3 bg-orange-50 border border-orange-200 rounded-lg mb-3">
+                                <p className="text-sm text-orange-600 mb-1">등록된 복리후생 정보가 없습니다</p>
+                                <p className="text-xs text-orange-500">구직자들이 관심을 가질 수 있는 복리후생을 등록해보세요</p>
+                              </div>
+                            )}
+                            <button
+                              onClick={handleBenefitAdd}
+                              className="w-full px-3 py-2 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                            >
+                              + 복리후생 추가
+                            </button>
                           </div>
                         ) : (
-                          <div className="text-center py-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                            <p className="text-sm text-orange-600 mb-1">등록된 복리후생 정보가 없습니다</p>
-                            <p className="text-xs text-orange-500">구직자들이 관심을 가질 수 있는 복리후생을 등록해보세요</p>
-                          </div>
+                          (companyInfo?.benefits && companyInfo.benefits.length > 0) ? (
+                            <div className="flex flex-wrap gap-1">
+                              {companyInfo.benefits.map((benefit: string, index: number) => (
+                                <span key={index} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 font-medium">
+                                  {benefit}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                              <p className="text-sm text-orange-600 mb-1">등록된 복리후생 정보가 없습니다</p>
+                              <p className="text-xs text-orange-500">구직자들이 관심을 가질 수 있는 복리후생을 등록해보세요</p>
+                            </div>
+                          )
                         )}
                       </div>
-
                     </div>
-                    {companyInfo?.culture && (
-                      <div className="mt-3 p-3">
-                        <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">회사 문화</h4>
-                        <p className="text-sm font-medium text-gray-900">{companyInfo.culture}</p>
-                      </div>
-                    )}
+                    
+                    {/* 회사 문화 */}
+                    <div className="mt-3 p-3">
+                      <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">회사 문화</h4>
+                      {isCompanyEditing ? (
+                        <input
+                          type="text"
+                          value={companyEditData.culture || companyInfo?.culture || ''}
+                          onChange={(e) => handleCompanyInputChange('culture', e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="회사 문화를 입력하세요"
+                        />
+                      ) : (
+                        companyInfo?.culture ? (
+                          <p className="text-sm font-medium text-gray-900">{companyInfo.culture}</p>
+                        ) : (
+                          <p className="text-sm text-gray-500">등록된 회사 문화 정보가 없습니다.</p>
+                        )
+                      )}
+                    </div>
                   </div>
 
 
@@ -808,17 +1272,23 @@ const CompanyDashboard: React.FC = () => {
             {/* 2. 기숙사 상세 정보 */}
             {accommodationInfo ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-5 border-b border-blue-100 bg-blue-50 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                      <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <Home className="w-4 h-4 text-orange-600" />
-                      </div>
-                      기숙사 상세 정보
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleAccommodationVisibilityToggle}
+                                  <div className="px-6 py-5 border-b border-green-100 bg-green-50 shadow-sm">
+                    <div className="flex items-center justify-between">
+                                            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
+                        <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center">
+                          <Home className="w-4 h-4 text-green-600" />
+                        </div>
+                        기숙사
+                        <button
+                          onClick={() => setIsAccommodationSectionCollapsed(!isAccommodationSectionCollapsed)}
+                          className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                        >
+                          {isAccommodationSectionCollapsed ? '펼치기' : '접기'}
+                        </button>
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleAccommodationVisibilityToggle}
                         className={`text-xs px-3 py-1 rounded transition-colors flex items-center gap-1 ${
                           accommodationInfo.isPublic 
                             ? 'bg-green-100 text-green-700 hover:bg-green-200' 
@@ -861,30 +1331,24 @@ const CompanyDashboard: React.FC = () => {
                           수정
                         </button>
                       )}
-                      <button
-                        onClick={() => setIsAccommodationSectionCollapsed(!isAccommodationSectionCollapsed)}
-                        className="text-gray-500 hover:text-gray-700"
-                      >
-                        {isAccommodationSectionCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                      </button>
                     </div>
                   </div>
                   
                   {/* 공개/비공개 안내문 */}
-                  <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
+                  <div className="px-6 py-3 bg-green-50 border-b border-green-100">
                     <div className="flex items-start gap-2">
-                      <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-blue-600 text-xs">ℹ</span>
+                      <div className="w-4 h-4 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-green-600 text-xs">ℹ</span>
                       </div>
-                      <div className="text-xs text-blue-700">
-                        <p className="font-medium mb-1">기숙사 정보 공개 설정</p>
+                      <div className="text-xs text-green-700">
                         <p>기숙사 정보의 비공개를 원하시는 경우, 위의 "비공개" 버튼을 클릭하세요. 비공개로 설정하면 구직자들이 기숙사 목록에서 해당 정보를 볼 수 없습니다.</p>
                       </div>
                     </div>
                   </div>
-                </div>
-                
-                {!isAccommodationSectionCollapsed && (
+                  
+                  </div>
+                  
+                  {!isAccommodationSectionCollapsed && (
                   <div className="p-5 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                               <div className="bg-white rounded-lg border p-4">
@@ -948,258 +1412,464 @@ const CompanyDashboard: React.FC = () => {
                       </div>
                     </div>
                     
-                    {accommodationInfo?.images && accommodationInfo.images.length > 0 && (
-                      <div className="bg-white rounded-lg border p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">기숙사 이미지</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                          {accommodationInfo.images.map((image: string, index: number) => (
-                            <div key={index} className="cursor-pointer group" onClick={() => handleImagePreview(image, `기숙사 이미지 ${index + 1}`)}>
-                              <img 
-                                key={index} 
-                                src={image} 
-                                alt={`기숙사 이미지 ${index + 1}`}
-                                className="w-full h-24 object-cover rounded-lg group-hover:opacity-80 transition-opacity"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 기타 */}
-                    {(accommodationInfo.description || isAccommodationEditing) && (
-                      <div className="bg-white rounded-lg border p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">기타</h3>
-                        {isAccommodationEditing ? (
-                          <textarea
-                            value={accommodationEditData.description || ''}
-                            onChange={(e) => handleAccommodationInputChange('description', e.target.value)}
-                            className="w-full text-sm text-gray-800 border border-gray-300 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
-                            placeholder="기숙사에 대한 설명을 입력하세요"
-                            rows={3}
-                          />
-                        ) : (
-                          <p className="text-sm text-gray-800 whitespace-pre-wrap">{accommodationInfo.description}</p>
+                    {/* 기숙사 이미지 */}
+                    <div className="bg-white rounded-lg border p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold text-gray-900 flex items-center">
+                          <Camera className="h-5 w-5 mr-2" />
+                          기숙사 이미지
+                        </h3>
+                        {isAccommodationEditing && (
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              onChange={handleAccommodationImageUpload}
+                              className="hidden"
+                              id="accommodation-image-upload"
+                            />
+                            <button
+                              onClick={() => document.getElementById('accommodation-image-upload')?.click()}
+                              className="inline-flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                            >
+                              <Upload className="h-4 w-4 mr-1" />
+                              이미지 추가
+                            </button>
+                          </div>
                         )}
                       </div>
-                    )}
+                      
+                      {((isAccommodationEditing ? accommodationEditData.images : accommodationInfo?.images) || []).length > 0 ? (
+                        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                          {(isAccommodationEditing ? (accommodationEditData.images || []) : (accommodationInfo?.images || [])).map((image: string, index: number) => {
+                            const currentDescriptions = isAccommodationEditing ? (accommodationEditData.imageDescriptions || []) : (accommodationInfo?.imageDescriptions || []);
+                            const description = currentDescriptions[index] || '';
+                            
+                            return (
+                              <div key={index} className="bg-gray-50 rounded-lg p-2">
+                                <div className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer mb-2">
+                                  <img
+                                    src={image}
+                                    alt={`기숙사 이미지 ${index + 1}`}
+                                    className="w-full h-full object-cover hover:opacity-80 transition-opacity"
+                                    onClick={() => handleImagePreview(image, `기숙사 이미지 ${index + 1}`)}
+                                  />
+                                  {isAccommodationEditing && (
+                                    <button
+                                      onClick={() => handleAccommodationImageDelete(image, index)}
+                                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </div>
+                                {isAccommodationEditing ? (
+                                  <input
+                                    type="text"
+                                    value={description}
+                                    onChange={(e) => handleAccommodationImageDescriptionChange(index, e.target.value)}
+                                    placeholder="설명"
+                                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent"
+                                  />
+                                ) : (
+                                  description && (
+                                    <p className="text-xs text-gray-700 mt-1 px-2 py-1 bg-white rounded border">
+                                      {description}
+                                    </p>
+                                  )
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12 text-gray-500">
+                          <Camera className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p>등록된 기숙사 이미지가 없습니다.</p>
+                          {isAccommodationEditing && (
+                            <p className="text-sm mt-2">이미지를 추가해보세요.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+
 
                     {/* 객실 유형 */}
-                    {(accommodationInfo.roomTypeOptions || accommodationInfo.roomTypes) && (
-                      <div className="bg-white rounded-lg border p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">객실 Type</h3>
-                        {accommodationInfo.roomTypeOptions ? (
-                          // 새로운 구조: roomTypeOptions 사용
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-500">요금 유형</span>
-                              <span className="text-gray-900">
-                                {accommodationInfo.paymentType === 'free' ? '무료' : '유료'}
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {accommodationInfo.roomTypeOptions.singleRoom && (
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-600">1인실</span>
-                                  {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.singleRoom && (
-                                    <span className="text-gray-900">{accommodationInfo.roomPrices.singleRoom}천원</span>
-                                  )}
-                                </div>
-                              )}
-                              {accommodationInfo.roomTypeOptions.doubleRoom && (
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-600">2인실</span>
-                                  {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.doubleRoom && (
-                                    <span className="text-gray-900">{accommodationInfo.roomPrices.doubleRoom}천원</span>
-                                  )}
-                                </div>
-                              )}
-                              {accommodationInfo.roomTypeOptions.tripleRoom && (
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-600">3인실</span>
-                                  {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.tripleRoom && (
-                                    <span className="text-gray-900">{accommodationInfo.roomPrices.tripleRoom}천원</span>
-                                  )}
-                                </div>
-                              )}
-                              {accommodationInfo.roomTypeOptions.quadRoom && (
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-600">4인실</span>
-                                  {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.quadRoom && (
-                                    <span className="text-gray-900">{accommodationInfo.roomPrices.quadRoom}천원</span>
-                                  )}
-                                </div>
-                              )}
-                              {accommodationInfo.roomTypeOptions.otherRoom && (
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-600">
-                                    기타{accommodationInfo.otherRoomType && ` (${accommodationInfo.otherRoomType})`}
-                                  </span>
-                                  {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.otherRoom && (
-                                    <span className="text-gray-900">{accommodationInfo.roomPrices.otherRoom}천원</span>
-                                  )}
-                                </div>
-                              )}
+                    <div className="bg-white rounded-lg border p-4">
+                      <h3 className="font-semibold text-gray-900 mb-2">객실 Type</h3>
+                      {isAccommodationEditing ? (
+                        // 편집 모드
+                        <div className="space-y-4">
+                          {/* 요금 유형 선택 */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-500">요금 유형</span>
+                            <div className="flex space-x-2">
+                              <label className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name="paymentType"
+                                  value="free"
+                                  checked={(accommodationEditData.paymentType || accommodationInfo?.paymentType) === 'free'}
+                                  onChange={(e) => handlePaymentTypeChange(e.target.value)}
+                                  className="mr-1"
+                                />
+                                <span className="text-sm">무료</span>
+                              </label>
+                              <label className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name="paymentType"
+                                  value="paid"
+                                  checked={(accommodationEditData.paymentType || accommodationInfo?.paymentType) === 'paid'}
+                                  onChange={(e) => handlePaymentTypeChange(e.target.value)}
+                                  className="mr-1"
+                                />
+                                <span className="text-sm">유료</span>
+                              </label>
                             </div>
                           </div>
-                        ) : (
-                          // 기존 구조: roomTypes 사용 (하위 호환성)
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {accommodationInfo.roomTypes.map((room: any, idx: number) => (
-                              <div key={idx} className="border rounded-lg p-3">
-                                <h4 className="font-semibold text-gray-900 mb-1">{room.type}</h4>
-                                <div className="text-sm text-gray-700 space-y-0.5">
-                                  {room.description && <div className="text-gray-600">{room.description}</div>}
+
+                          {/* 객실 타입 선택 */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {[
+                              { key: 'singleRoom', label: '1인실' },
+                              { key: 'doubleRoom', label: '2인실' },
+                              { key: 'tripleRoom', label: '3인실' },
+                              { key: 'quadRoom', label: '4인실' },
+                              { key: 'otherRoom', label: '기타' }
+                            ].map((room) => (
+                              <div key={room.key} className="border rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <label className="flex items-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={(accommodationEditData.roomTypeOptions?.[room.key] || accommodationInfo?.roomTypeOptions?.[room.key]) || false}
+                                      onChange={(e) => handleRoomTypeOptionChange(room.key, e.target.checked)}
+                                      className="mr-2"
+                                    />
+                                    <span className="text-sm font-medium">{room.label}</span>
+                                  </label>
                                 </div>
+                                {(accommodationEditData.paymentType || accommodationInfo?.paymentType) === 'paid' && 
+                                 (accommodationEditData.roomTypeOptions?.[room.key] || accommodationInfo?.roomTypeOptions?.[room.key]) && (
+                                  <input
+                                    type="text"
+                                    placeholder="가격 (천원)"
+                                    value={accommodationEditData.roomPrices?.[room.key] || accommodationInfo?.roomPrices?.[room.key] || ''}
+                                    onChange={(e) => handleRoomPriceChange(room.key, e.target.value)}
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent"
+                                  />
+                                )}
                               </div>
                             ))}
                           </div>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      ) : (
+                        // 표시 모드
+                        (accommodationInfo?.roomTypeOptions || accommodationInfo?.roomTypes) ? (
+                          accommodationInfo.roomTypeOptions ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-500">요금 유형</span>
+                                <span className="text-gray-900">
+                                  {accommodationInfo.paymentType === 'free' ? '무료' : '유료'}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {accommodationInfo.roomTypeOptions.singleRoom && (
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-600">1인실</span>
+                                    {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.singleRoom && (
+                                      <span className="text-gray-900">{accommodationInfo.roomPrices.singleRoom}천원</span>
+                                    )}
+                                  </div>
+                                )}
+                                {accommodationInfo.roomTypeOptions.doubleRoom && (
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-600">2인실</span>
+                                    {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.doubleRoom && (
+                                      <span className="text-gray-900">{accommodationInfo.roomPrices.doubleRoom}천원</span>
+                                    )}
+                                  </div>
+                                )}
+                                {accommodationInfo.roomTypeOptions.tripleRoom && (
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-600">3인실</span>
+                                    {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.tripleRoom && (
+                                      <span className="text-gray-900">{accommodationInfo.roomPrices.tripleRoom}천원</span>
+                                    )}
+                                  </div>
+                                )}
+                                {accommodationInfo.roomTypeOptions.quadRoom && (
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-600">4인실</span>
+                                    {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.quadRoom && (
+                                      <span className="text-gray-900">{accommodationInfo.roomPrices.quadRoom}천원</span>
+                                    )}
+                                  </div>
+                                )}
+                                {accommodationInfo.roomTypeOptions.otherRoom && (
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-600">
+                                      기타{accommodationInfo.otherRoomType && ` (${accommodationInfo.otherRoomType})`}
+                                    </span>
+                                    {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.otherRoom && (
+                                      <span className="text-gray-900">{accommodationInfo.roomPrices.otherRoom}천원</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {accommodationInfo.roomTypes.map((room: any, idx: number) => (
+                                <div key={idx} className="border rounded-lg p-3">
+                                  <h4 className="font-semibold text-gray-900 mb-1">{room.type}</h4>
+                                  <div className="text-sm text-gray-700 space-y-0.5">
+                                    {room.description && <div className="text-gray-600">{room.description}</div>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        ) : (
+                          <div className="text-center py-4 text-gray-500">
+                            <p className="text-sm">등록된 객실 타입이 없습니다.</p>
+                          </div>
+                        )
+                      )}
+                    </div>
 
                     {/* 객실 시설 */}
-                    {(accommodationInfo.wifi || accommodationInfo.tv || accommodationInfo.refrigerator || 
-                      accommodationInfo.airConditioning || accommodationInfo.laundry || accommodationInfo.kitchen || 
-                      accommodationInfo.parkingAvailable || accommodationInfo.petAllowed || accommodationInfo.smokingAllowed || 
-                      accommodationInfo.otherFacilities) && (
-                      <div className="bg-white rounded-lg border p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">객실 시설</h3>
+                    <div className="bg-white rounded-lg border p-4">
+                      <h3 className="font-semibold text-gray-900 mb-2">객실 시설</h3>
+                      {isAccommodationEditing ? (
+                        // 편집 모드
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                          {accommodationInfo.wifi && (
-                            <div className="flex items-center text-green-600">
-                              <span>✓ 와이파이</span>
-                            </div>
-                          )}
-                          {accommodationInfo.tv && (
-                            <div className="flex items-center text-green-600">
-                              <span>✓ TV</span>
-                            </div>
-                          )}
-                          {accommodationInfo.refrigerator && (
-                            <div className="flex items-center text-green-600">
-                              <span>✓ 냉장고</span>
-                            </div>
-                          )}
-                          {accommodationInfo.airConditioning && (
-                            <div className="flex items-center text-green-600">
-                              <span>✓ 에어컨</span>
-                            </div>
-                          )}
-                          {accommodationInfo.laundry && (
-                            <div className="flex items-center text-green-600">
-                              <span>✓ 세탁기</span>
-                            </div>
-                          )}
-                          {accommodationInfo.kitchen && (
-                            <div className="flex items-center text-green-600">
-                              <span>✓ 주방</span>
-                            </div>
-                          )}
-                          {accommodationInfo.parkingAvailable && (
-                            <div className="flex items-center text-green-600">
-                              <span>✓ 주차 가능</span>
-                            </div>
-                          )}
-                          {accommodationInfo.petAllowed && (
-                            <div className="flex items-center text-green-600">
-                              <span>✓ 반려동물 허용</span>
-                            </div>
-                          )}
-                          {accommodationInfo.smokingAllowed && (
-                            <div className="flex items-center text-green-600">
-                              <span>✓ 흡연 허용</span>
-                            </div>
-                          )}
-                          {accommodationInfo.otherFacilities && (
-                            <div className="flex items-center text-green-600">
-                              <span>✓ 기타</span>
-                              {accommodationInfo.otherFacilitiesText && (
-                                <span className="text-gray-700 text-sm ml-1">
-                                  ({accommodationInfo.otherFacilitiesText})
-                                </span>
-                              )}
+                          {[
+                            { key: 'wifi', label: '와이파이' },
+                            { key: 'tv', label: 'TV' },
+                            { key: 'refrigerator', label: '냉장고' },
+                            { key: 'airConditioning', label: '에어컨' },
+                            { key: 'laundry', label: '세탁기' },
+                            { key: 'kitchen', label: '주방' },
+                            { key: 'parkingAvailable', label: '주차 가능' },
+                            { key: 'petAllowed', label: '반려동물 허용' },
+                            { key: 'smokingAllowed', label: '흡연 허용' },
+                            { key: 'otherFacilities', label: '기타' }
+                          ].map((facility) => (
+                            <label key={facility.key} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={(accommodationEditData[facility.key] || accommodationInfo?.[facility.key]) || false}
+                                onChange={(e) => handleRoomFacilityChange(facility.key, e.target.checked)}
+                                className="mr-2"
+                              />
+                              <span className="text-sm">{facility.label}</span>
+                            </label>
+                          ))}
+                          {(accommodationEditData.otherFacilities || accommodationInfo?.otherFacilities) && (
+                            <div className="col-span-full">
+                              <input
+                                type="text"
+                                placeholder="기타 시설 설명"
+                                value={accommodationEditData.otherFacilitiesText || accommodationInfo?.otherFacilitiesText || ''}
+                                onChange={(e) => handleAccommodationInputChange('otherFacilitiesText', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent"
+                              />
                             </div>
                           )}
                         </div>
-                      </div>
-                    )}
-
-                    {/* 부대 시설 */}
-                    {(accommodationInfo.facilityOptions || accommodationInfo.facilities) && (
-                      <div className="bg-white rounded-lg border p-4">
-                        <h3 className="font-semibold text-gray-900 mb-3">부대 시설</h3>
-                        {accommodationInfo.facilityOptions ? (
-                          // 새로운 구조: facilityOptions 사용
+                      ) : (
+                        // 표시 모드
+                        (accommodationInfo?.wifi || accommodationInfo?.tv || accommodationInfo?.refrigerator || 
+                         accommodationInfo?.airConditioning || accommodationInfo?.laundry || accommodationInfo?.kitchen || 
+                         accommodationInfo?.parkingAvailable || accommodationInfo?.petAllowed || accommodationInfo?.smokingAllowed || 
+                         accommodationInfo?.otherFacilities) ? (
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {accommodationInfo.facilityOptions.parking && (
-                              <div className="flex items-center text-green-600">
-                                <span>✓ 주차장</span>
-                              </div>
-                            )}
-                            {accommodationInfo.facilityOptions.laundry && (
-                              <div className="flex items-center text-green-600">
-                                <span>✓ 세탁실</span>
-                              </div>
-                            )}
-                            {accommodationInfo.facilityOptions.kitchen && (
-                              <div className="flex items-center text-green-600">
-                                <span>✓ 공용주방</span>
-                              </div>
-                            )}
-                            {accommodationInfo.facilityOptions.gym && (
-                              <div className="flex items-center text-green-600">
-                                <span>✓ 체육관</span>
-                              </div>
-                            )}
-                            {accommodationInfo.facilityOptions.studyRoom && (
-                              <div className="flex items-center text-green-600">
-                                <span>✓ 스터디룸</span>
-                              </div>
-                            )}
-                            {accommodationInfo.facilityOptions.lounge && (
-                              <div className="flex items-center text-green-600">
-                                <span>✓ 휴게실</span>
-                              </div>
-                            )}
-                            {accommodationInfo.facilityOptions.wifi && (
+                            {accommodationInfo.wifi && (
                               <div className="flex items-center text-green-600">
                                 <span>✓ 와이파이</span>
                               </div>
                             )}
-                            {accommodationInfo.facilityOptions.security && (
+                            {accommodationInfo.tv && (
                               <div className="flex items-center text-green-600">
-                                <span>✓ 보안시설</span>
+                                <span>✓ TV</span>
                               </div>
                             )}
-                            {accommodationInfo.facilityOptions.elevator && (
+                            {accommodationInfo.refrigerator && (
                               <div className="flex items-center text-green-600">
-                                <span>✓ 엘리베이터</span>
+                                <span>✓ 냉장고</span>
                               </div>
                             )}
-                            {accommodationInfo.facilityOptions.other && (
+                            {accommodationInfo.airConditioning && (
+                              <div className="flex items-center text-green-600">
+                                <span>✓ 에어컨</span>
+                              </div>
+                            )}
+                            {accommodationInfo.laundry && (
+                              <div className="flex items-center text-green-600">
+                                <span>✓ 세탁기</span>
+                              </div>
+                            )}
+                            {accommodationInfo.kitchen && (
+                              <div className="flex items-center text-green-600">
+                                <span>✓ 주방</span>
+                              </div>
+                            )}
+                            {accommodationInfo.parkingAvailable && (
+                              <div className="flex items-center text-green-600">
+                                <span>✓ 주차 가능</span>
+                              </div>
+                            )}
+                            {accommodationInfo.petAllowed && (
+                              <div className="flex items-center text-green-600">
+                                <span>✓ 반려동물 허용</span>
+                              </div>
+                            )}
+                            {accommodationInfo.smokingAllowed && (
+                              <div className="flex items-center text-green-600">
+                                <span>✓ 흡연 허용</span>
+                              </div>
+                            )}
+                            {accommodationInfo.otherFacilities && (
                               <div className="flex items-center text-green-600">
                                 <span>✓ 기타</span>
-                                {accommodationInfo.otherFacilityText && (
+                                {accommodationInfo.otherFacilitiesText && (
                                   <span className="text-gray-700 text-sm ml-1">
-                                    ({accommodationInfo.otherFacilityText})
+                                    ({accommodationInfo.otherFacilitiesText})
                                   </span>
                                 )}
                               </div>
                             )}
                           </div>
                         ) : (
-                          // 기존 구조: facilities 사용 (하위 호환성)
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {accommodationInfo.facilities.map((f: string, i: number) => (
-                              <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-800">
-                                {f}
-                              </span>
-                            ))}
+                          <div className="text-center py-4 text-gray-500">
+                            <p className="text-sm">등록된 객실 시설이 없습니다.</p>
                           </div>
-                        )}
-                      </div>
-                    )}
+                        )
+                      )}
+                    </div>
+
+                    {/* 부대 시설 */}
+                    <div className="bg-white rounded-lg border p-4">
+                      <h3 className="font-semibold text-gray-900 mb-3">부대 시설</h3>
+                      {isAccommodationEditing ? (
+                        // 편집 모드
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {[
+                            { key: 'parking', label: '주차장' },
+                            { key: 'laundry', label: '세탁실' },
+                            { key: 'kitchen', label: '공용주방' },
+                            { key: 'gym', label: '체육관' },
+                            { key: 'studyRoom', label: '스터디룸' },
+                            { key: 'lounge', label: '휴게실' },
+                            { key: 'wifi', label: '와이파이' },
+                            { key: 'security', label: '보안시설' },
+                            { key: 'elevator', label: '엘리베이터' },
+                            { key: 'other', label: '기타' }
+                          ].map((facility) => (
+                            <label key={facility.key} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={(accommodationEditData.facilityOptions?.[facility.key] || accommodationInfo?.facilityOptions?.[facility.key]) || false}
+                                onChange={(e) => handleFacilityOptionChange(facility.key, e.target.checked)}
+                                className="mr-2"
+                              />
+                              <span className="text-sm">{facility.label}</span>
+                            </label>
+                          ))}
+                          {(accommodationEditData.facilityOptions?.other || accommodationInfo?.facilityOptions?.other) && (
+                            <div className="col-span-full">
+                              <input
+                                type="text"
+                                placeholder="기타 부대시설 설명"
+                                value={accommodationEditData.otherFacilityText || accommodationInfo?.otherFacilityText || ''}
+                                onChange={(e) => handleAccommodationInputChange('otherFacilityText', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        // 표시 모드
+                        (accommodationInfo?.facilityOptions || accommodationInfo?.facilities) ? (
+                          accommodationInfo.facilityOptions ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                              {accommodationInfo.facilityOptions.parking && (
+                                <div className="flex items-center text-green-600">
+                                  <span>✓ 주차장</span>
+                                </div>
+                              )}
+                              {accommodationInfo.facilityOptions.laundry && (
+                                <div className="flex items-center text-green-600">
+                                  <span>✓ 세탁실</span>
+                                </div>
+                              )}
+                              {accommodationInfo.facilityOptions.kitchen && (
+                                <div className="flex items-center text-green-600">
+                                  <span>✓ 공용주방</span>
+                                </div>
+                              )}
+                              {accommodationInfo.facilityOptions.gym && (
+                                <div className="flex items-center text-green-600">
+                                  <span>✓ 체육관</span>
+                                </div>
+                              )}
+                              {accommodationInfo.facilityOptions.studyRoom && (
+                                <div className="flex items-center text-green-600">
+                                  <span>✓ 스터디룸</span>
+                                </div>
+                              )}
+                              {accommodationInfo.facilityOptions.lounge && (
+                                <div className="flex items-center text-green-600">
+                                  <span>✓ 휴게실</span>
+                                </div>
+                              )}
+                              {accommodationInfo.facilityOptions.wifi && (
+                                <div className="flex items-center text-green-600">
+                                  <span>✓ 와이파이</span>
+                                </div>
+                              )}
+                              {accommodationInfo.facilityOptions.security && (
+                                <div className="flex items-center text-green-600">
+                                  <span>✓ 보안시설</span>
+                                </div>
+                              )}
+                              {accommodationInfo.facilityOptions.elevator && (
+                                <div className="flex items-center text-green-600">
+                                  <span>✓ 엘리베이터</span>
+                                </div>
+                              )}
+                              {accommodationInfo.facilityOptions.other && (
+                                <div className="flex items-center text-green-600">
+                                  <span>✓ 기타</span>
+                                  {accommodationInfo.otherFacilityText && (
+                                    <span className="text-gray-700 text-sm ml-1">
+                                      ({accommodationInfo.otherFacilityText})
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              {accommodationInfo.facilities.map((f: string, i: number) => (
+                                <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-gray-100 text-gray-800">
+                                  {f}
+                                </span>
+                              ))}
+                            </div>
+                          )
+                        ) : (
+                          <div className="text-center py-4 text-gray-500">
+                            <p className="text-sm">등록된 부대시설이 없습니다.</p>
+                          </div>
+                        )
+                      )}
+                    </div>
 
                     {/* 비용 정보 */}
                     {(accommodationInfo.deposit || accommodationInfo.roomTypeOptions || accommodationInfo.mealCostType || accommodationInfo.utilitiesCostType) && (
@@ -1300,38 +1970,79 @@ const CompanyDashboard: React.FC = () => {
                       </div>
                     )}
 
-                    {/* 규칙 */}
-                    {accommodationInfo.rules && accommodationInfo.rules.length > 0 && (
-                      <div className="bg-white rounded-lg border p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">기숙사 규칙</h3>
-                        <ul className="list-disc list-inside text-sm text-gray-800 space-y-1">
-                          {accommodationInfo.rules.map((rule: string, i: number) => (
-                            <li key={i}>{rule}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    {/* 기타 */}
+                    <div className="bg-white rounded-lg border p-4">
+                      <h3 className="font-semibold text-gray-900 mb-2">기타</h3>
+                      {isAccommodationEditing ? (
+                        <textarea
+                          value={accommodationEditData.description || accommodationInfo?.description || ''}
+                          onChange={(e) => handleAccommodationInputChange('description', e.target.value)}
+                          className="w-full text-sm text-gray-800 border border-gray-300 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
+                          placeholder="기숙사에 대한 설명을 입력하세요"
+                          rows={3}
+                        />
+                      ) : (
+                        accommodationInfo?.description ? (
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap">{accommodationInfo.description}</p>
+                        ) : (
+                          <div className="text-center py-4 text-gray-500">
+                            <p className="text-sm">등록된 기타 설명이 없습니다.</p>
+                          </div>
+                        )
+                      )}
+                    </div>
 
                     {/* 연락처 */}
-                    {(accommodationInfo.contactPerson || accommodationInfo.contactPhone) && (
-                      <div className="bg-white rounded-lg border p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">연락처</h3>
-                        <div className="space-y-1 text-sm">
-                          {accommodationInfo.contactPerson && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">담당자</span>
-                              <span className="text-gray-900">{accommodationInfo.contactPerson}</span>
-                            </div>
-                          )}
-                          {accommodationInfo.contactPhone && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">연락처</span>
-                              <span className="text-gray-900">{accommodationInfo.contactPhone}</span>
-                            </div>
-                          )}
+                    <div className="bg-white rounded-lg border p-4">
+                      <h3 className="font-semibold text-gray-900 mb-2">연락처</h3>
+                      {isAccommodationEditing ? (
+                        // 편집 모드
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
+                            <input
+                              type="text"
+                              value={accommodationEditData.contactPerson || accommodationInfo?.contactPerson || ''}
+                              onChange={(e) => handleAccommodationInputChange('contactPerson', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent"
+                              placeholder="담당자명을 입력하세요"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">연락처</label>
+                            <input
+                              type="text"
+                              value={accommodationEditData.contactPhone || accommodationInfo?.contactPhone || ''}
+                              onChange={(e) => handleAccommodationInputChange('contactPhone', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent"
+                              placeholder="연락처를 입력하세요"
+                            />
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        // 표시 모드
+                        (accommodationInfo?.contactPerson || accommodationInfo?.contactPhone) ? (
+                          <div className="space-y-1 text-sm">
+                            {accommodationInfo.contactPerson && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500">담당자</span>
+                                <span className="text-gray-900">{accommodationInfo.contactPerson}</span>
+                              </div>
+                            )}
+                            {accommodationInfo.contactPhone && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500">연락처</span>
+                                <span className="text-gray-900">{accommodationInfo.contactPhone}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-4 text-gray-500">
+                            <p className="text-sm">등록된 연락처가 없습니다.</p>
+                          </div>
+                        )
+                      )}
+                    </div>
 
                     {/* 관련 링크 */}
                     {accommodationInfo.externalLinks && accommodationInfo.externalLinks.length > 0 && (
@@ -1360,16 +2071,16 @@ const CompanyDashboard: React.FC = () => {
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-5 border-b border-blue-100 bg-blue-50 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                      <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center">
-                        <Home className="w-4 h-4 text-orange-600" />
-                      </div>
-                      기숙사 상세 정보
-                    </h3>
+                          ) : (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-5 border-b border-green-100 bg-green-50 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
+                        <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center">
+                          <Home className="w-4 h-4 text-orange-600" />
+                        </div>
+                        기숙사
+                      </h3>
                     <div className="flex items-center gap-2">
                       {isAccommodationEditing ? (
                         <>
@@ -1527,22 +2238,15 @@ const CompanyDashboard: React.FC = () => {
           {/* 4. 구인공고 */}
           <div id="job-posts" className="mt-8 lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-blue-100 bg-blue-50 shadow-sm">
+              <div className="px-6 py-4 border-b border-purple-100 bg-purple-50 shadow-sm">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shadow-sm">
-                      <FileText className="w-5 h-5 text-blue-600" />
+                    <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center shadow-sm">
+                      <FileText className="w-5 h-5 text-purple-600" />
                     </div>
                     구인공고
                   </h3>
                   <div className="flex items-center gap-2">
-                    <Link
-                      to="/applications"
-                      className="inline-flex items-center px-5 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium border border-gray-300"
-                    >
-                      <Users className="w-4 h-4 mr-2" />
-                      <span>지원자 관리</span>
-                    </Link>
                     <Link
                       to="/job-post/new"
                       className="inline-flex items-center px-5 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-sm font-semibold border border-gray-300"
@@ -1558,8 +2262,8 @@ const CompanyDashboard: React.FC = () => {
                 {/* 공고 목록 */}
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
-                      <FileText className="w-4 h-4 text-blue-600" />
+                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center shadow-sm">
+                      <FileText className="w-4 h-4 text-purple-600" />
                     </div>
                     공고 목록
                   </h4>
@@ -1693,15 +2397,22 @@ const CompanyDashboard: React.FC = () => {
                 {/* 지원자 관리 */}
         <div className="mt-8 lg:col-span-2">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-blue-100 bg-blue-50 shadow-sm">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 shadow-sm">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shadow-sm">
-                    <Users className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center shadow-sm">
+                    <Users className="w-5 h-5 text-gray-600" />
                   </div>
                   지원자 관리
                 </h3>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="inline-flex items-center px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium border border-blue-300"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    <span>새로고침</span>
+                  </button>
                   <Link
                     to="/applications"
                     className="inline-flex items-center px-5 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium border border-gray-300"
@@ -1738,9 +2449,14 @@ const CompanyDashboard: React.FC = () => {
 
               {/* 최신 지원 리스트 */}
               <div>
-                <h4 className="text-md font-semibold text-gray-800 mb-3">최근 지원자</h4>
+                <h4 className="text-md font-semibold text-gray-800 mb-3">
+                  최근 지원자 ({applications.length}명)
+                </h4>
                 {applications.length === 0 ? (
-                  <div className="text-center py-6 bg-gray-50 rounded-lg text-gray-600">아직 지원자가 없습니다.</div>
+                  <div className="text-center py-6 bg-gray-50 rounded-lg text-gray-600">
+                    <p>아직 지원자가 없습니다.</p>
+                    <p className="text-sm text-gray-500 mt-1">공고를 등록하면 지원자들이 나타날 것입니다.</p>
+                  </div>
                 ) : (
                   <div className="space-y-1.5">
                     {[...applications]
@@ -1751,12 +2467,29 @@ const CompanyDashboard: React.FC = () => {
                       })
                       .slice(0, 5)
                       .map((app) => (
-                        <div key={app.id} className="group flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+                        <div 
+                          key={app.id} 
+                          className="group flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => navigate(`/applications?jobId=${app.jobPostId}`)}
+                        >
                           <div className="flex items-center gap-4 min-w-0 flex-1">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
                                 <h5 className="font-medium text-gray-900 flex-shrink-0 truncate">{app.jobseekerName || '지원자'}</h5>
                                 <span className="text-sm text-gray-500 truncate">{getJobTitleById(app.jobPostId)}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs text-gray-400">{app.phone || '연락처 없음'}</span>
+                                {app.hourlyWage && (
+                                  <span className="text-xs text-blue-600 font-medium">
+                                    희망시급: {app.hourlyWage.toLocaleString()}원
+                                  </span>
+                                )}
+                                {app.email && (
+                                  <span className="text-xs text-gray-500">
+                                    {app.email}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
@@ -1765,17 +2498,25 @@ const CompanyDashboard: React.FC = () => {
                                 app.status === 'pending' ? 'bg-amber-100 text-amber-800' :
                                 app.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
                               }`}>
-                                {app.status || '상태 없음'}
+                                {app.status === 'accepted' ? '채용됨' :
+                                 app.status === 'pending' ? '검토중' :
+                                 app.status === 'rejected' ? '거절됨' : '상태 없음'}
                               </span>
                               <span className="text-gray-500 whitespace-nowrap">{formatAppliedDate(app.appliedAt)}</span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 ml-4">
+                          <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
                             <Link
                               to={`/applications?jobId=${app.jobPostId}`}
+                              className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
+                            >
+                              상세보기
+                            </Link>
+                            <Link
+                              to={`/applications`}
                               className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition-colors"
                             >
-                              관리
+                              전체보기
                             </Link>
                           </div>
                         </div>
