@@ -7,11 +7,11 @@ interface VersionInfoProps {
 }
 
 const VersionInfo: React.FC<VersionInfoProps> = ({ 
-  className = "", 
+  className = '', 
   showTime = true, 
-  showDate = true 
+  showDate = true, 
 }) => {
-  const version = "0.1.0";
+  const version = '0.1.0';
   const buildTime = new Date();
   
   const formatTime = (date: Date) => {

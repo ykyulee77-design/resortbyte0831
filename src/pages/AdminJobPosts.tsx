@@ -40,7 +40,7 @@ const AdminJobPosts: React.FC = () => {
         salary: doc.data().salary,
         isActive: doc.data().isActive,
         createdAt: doc.data().createdAt?.toDate() || new Date(),
-        applications: doc.data().applications || []
+        applications: doc.data().applications || [],
       }));
       
       setJobPosts(fetchedJobPosts);
@@ -86,7 +86,7 @@ const AdminJobPosts: React.FC = () => {
     try {
       await updateDoc(doc(db, 'jobPosts', jobId), { isActive: !currentStatus });
       setJobPosts(prev => 
-        prev.map(job => job.id === jobId ? { ...job, isActive: !currentStatus } : job)
+        prev.map(job => job.id === jobId ? { ...job, isActive: !currentStatus } : job),
       );
     } catch (error) {
       console.error('공고 상태 변경 실패:', error);

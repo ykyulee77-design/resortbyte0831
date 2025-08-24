@@ -12,13 +12,13 @@ interface ImageOptimizationOptions {
  */
 export const optimizeImage = async (
   file: File,
-  options: ImageOptimizationOptions = {}
+  options: ImageOptimizationOptions = {},
 ): Promise<File> => {
   const {
     maxWidth = 1920,
     maxHeight = 1080,
     quality = 0.8,
-    maxSizeMB = 1
+    maxSizeMB = 1,
   } = options;
 
   return new Promise((resolve, reject) => {
@@ -63,7 +63,7 @@ export const optimizeImage = async (
                   }
                 },
                 file.type,
-                0.6 // 더 낮은 품질
+                0.6, // 더 낮은 품질
               );
             } else {
               const optimizedFile = new File([blob], file.name, {
@@ -77,7 +77,7 @@ export const optimizeImage = async (
           }
         },
         file.type,
-        quality
+        quality,
       );
     };
 
@@ -104,7 +104,7 @@ export const getFileSizeMB = (file: File): number => {
 /**
  * 파일 크기가 권장 크기보다 큰지 확인합니다.
  */
-export const isFileTooLarge = (file: File, maxSizeMB: number = 1): boolean => {
+export const isFileTooLarge = (file: File, maxSizeMB = 1): boolean => {
   return getFileSizeMB(file) > maxSizeMB;
 };
 
@@ -125,7 +125,7 @@ export const isImageFile = (file: File): boolean => {
 export const generateSafeFileName = (
   userId: string, 
   originalFileName: string, 
-  index: number = 0
+  index = 0,
 ): string => {
   const timestamp = Date.now();
   const fileExtension = originalFileName.split('.').pop()?.toLowerCase() || 'jpg';
@@ -159,7 +159,7 @@ export const extractFileMetadata = (fileName: string) => {
       userId: parts[1],
       timestamp: parseInt(parts[2]),
       index: parseInt(parts[3].split('.')[0]),
-      extension: parts[3].split('.')[1] || 'jpg'
+      extension: parts[3].split('.')[1] || 'jpg',
     };
   }
   return null;

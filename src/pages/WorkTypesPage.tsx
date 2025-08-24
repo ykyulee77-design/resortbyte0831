@@ -79,7 +79,7 @@ const WorkTypesPage: React.FC = () => {
         
         const jobPosts: JobPost[] = filteredJobPosts.map(doc => ({
           id: doc.id,
-          ...doc.data()
+          ...doc.data(),
         } as JobPost));
         
         jobPostsData[workType.id] = jobPosts;
@@ -130,7 +130,7 @@ const WorkTypesPage: React.FC = () => {
   const activeWorkTypes = filteredWorkTypes.filter(wt => wt.isActive).length;
   const totalWorkTypes = filteredWorkTypes.length;
 
-    // 스케줄 시간 계산 함수 (메모이제이션)
+  // 스케줄 시간 계산 함수 (메모이제이션)
   const calculateScheduleTime = React.useMemo(() => {
     return (schedules: any[]) => {
       if (!schedules || schedules.length === 0) return { totalHours: 0, avgHoursPerDay: 0 };
@@ -175,26 +175,26 @@ const WorkTypesPage: React.FC = () => {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-                         <button
-               onClick={() => window.history.back()}
-               className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-             >
-               <ArrowLeft className="h-5 w-5" />
-             </button>
-                         <div>
-               <h1 className="text-3xl font-bold text-gray-900">근무 Type 상세</h1>
-               <p className="text-gray-600 mt-1">
+            <button
+              onClick={() => window.history.back()}
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">근무 Type 상세</h1>
+              <p className="text-gray-600 mt-1">
                  근무 유형을 생성하고 관리하여 스마트 매칭을 최적화하세요
-               </p>
-             </div>
+              </p>
+            </div>
           </div>
-                     <button
-             onClick={() => setShowCreateModal(true)}
-             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-           >
-             <Plus className="h-4 w-4 mr-2" />
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4 mr-2" />
              새 근무 Type
-           </button>
+          </button>
         </div>
       </div>
 
@@ -296,15 +296,15 @@ const WorkTypesPage: React.FC = () => {
                 : '새로운 근무 Type을 생성하여 스마트 매칭을 시작하세요'
               }
             </p>
-                         {!searchTerm && filterActive === 'all' && (
-               <button
-                 onClick={() => setShowCreateModal(true)}
-                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-               >
-                 <Plus className="h-4 w-4 mr-2" />
+            {!searchTerm && filterActive === 'all' && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-4 w-4 mr-2" />
                  첫 번째 근무 Type 생성
-               </button>
-             )}
+              </button>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
@@ -319,53 +319,53 @@ const WorkTypesPage: React.FC = () => {
                     <div className={`w-4 h-4 rounded-full ${
                       workType.isActive ? 'bg-green-500' : 'bg-red-500'
                     }`}></div>
-                                         <div>
-                       <h3 className="text-lg font-medium text-gray-900">
-                         {workType.name} 
-                         <span className="text-xs text-gray-500 ml-2">(ID: {workType.id})</span>
-                       </h3>
-                       {workType.description && (
-                         <p className="text-sm text-gray-600 mt-1">{workType.description}</p>
-                       )}
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">
+                        {workType.name} 
+                        <span className="text-xs text-gray-500 ml-2">(ID: {workType.id})</span>
+                      </h3>
+                      {workType.description && (
+                        <p className="text-sm text-gray-600 mt-1">{workType.description}</p>
+                      )}
                        
-                                               {/* 연결된 구인공고 표시 */}
-                        {workTypeJobPosts[workType.id] && workTypeJobPosts[workType.id].length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            {workTypeJobPosts[workType.id].slice(0, 2).map((jobPost) => (
-                              <div key={jobPost.id} className="text-xs text-blue-600 font-medium">
-                                {jobPost.title}
-                              </div>
-                            ))}
-                            {workTypeJobPosts[workType.id].length > 2 && (
-                              <div className="text-xs text-blue-500">
+                      {/* 연결된 구인공고 표시 */}
+                      {workTypeJobPosts[workType.id] && workTypeJobPosts[workType.id].length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {workTypeJobPosts[workType.id].slice(0, 2).map((jobPost) => (
+                            <div key={jobPost.id} className="text-xs text-blue-600 font-medium">
+                              {jobPost.title}
+                            </div>
+                          ))}
+                          {workTypeJobPosts[workType.id].length > 2 && (
+                            <div className="text-xs text-blue-500">
                                 외 {workTypeJobPosts[workType.id].length - 2}개 더...
-                              </div>
-                            )}
-                          </div>
-                        )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                        
 
                        
-                       <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                         {(() => {
-                           const { totalHours, avgHoursPerDay } = calculateScheduleTime(workType.schedules);
-                           return (
-                             <>
-                               <span>총 {totalHours}시간</span>
-                               <span>일평균 {avgHoursPerDay}시간</span>
-                               <span>스케줄: {workType.schedules?.length || 0}개</span>
-                               {workType.schedules && workType.schedules.length > 0 && (
-                                 <span className="text-blue-600">
-                                   {workType.schedules.slice(0, 3).map(s => `${s.day}(${s.start}-${s.end})`).join(', ')}
-                                   {workType.schedules.length > 3 && '...'}
-                                 </span>
-                               )}
-                             </>
-                           );
-                         })()}
-                         <span>생성일: {workType.createdAt?.toDate?.() ? workType.createdAt.toDate().toLocaleDateString() : '날짜 정보 없음'}</span>
-                       </div>
-                     </div>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                        {(() => {
+                          const { totalHours, avgHoursPerDay } = calculateScheduleTime(workType.schedules || []);
+                          return (
+                            <>
+                              <span>총 {totalHours}시간</span>
+                              <span>일평균 {avgHoursPerDay}시간</span>
+                              <span>스케줄: {workType.schedules?.length || 0}개</span>
+                              {workType.schedules && workType.schedules.length > 0 && (
+                                <span className="text-blue-600">
+                                  {workType.schedules.slice(0, 3).map(s => `${s.day}(${s.start}-${s.end})`).join(', ')}
+                                  {workType.schedules.length > 3 && '...'}
+                                </span>
+                              )}
+                            </>
+                          );
+                        })()}
+                        <span>생성일: {workType.createdAt?.toDate?.() ? workType.createdAt.toDate().toLocaleDateString() : '날짜 정보 없음'}</span>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -428,7 +428,7 @@ const WorkTypesPage: React.FC = () => {
           schedules: [],
           isActive: true,
           createdAt: new Date() as any,
-          updatedAt: new Date() as any
+          updatedAt: new Date() as any,
         } : null}
         isOpen={showCreateModal}
         onClose={() => {

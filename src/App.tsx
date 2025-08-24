@@ -37,6 +37,7 @@ import AccommodationList from './pages/AccommodationList';
 import WorkTypesPage from './pages/WorkTypesPage';
 import JobPostForm from './pages/JobPostForm';
 import GatePage from './pages/GatePage';
+import MutualEvaluationPage from './pages/MutualEvaluationPage';
 
 
 // 레이아웃 컴포넌트
@@ -63,7 +64,7 @@ const ProfileEntry: React.FC = () => {
 };
 
 // 에러 페이지 컴포넌트
-const ErrorPage: React.FC<{ message?: string }> = ({ message = "페이지를 찾을 수 없습니다." }) => (
+const ErrorPage: React.FC<{ message?: string }> = ({ message = '페이지를 찾을 수 없습니다.' }) => (
   <div className="flex items-center justify-center min-h-screen">
     <div className="text-center">
       <h1 className="text-2xl font-bold text-gray-800 mb-4">오류가 발생했습니다</h1>
@@ -86,7 +87,7 @@ const ProtectedRoute: React.FC<{
 }> = ({ 
   children, 
   allowedRoles,
-  fallback = <ErrorPage message="접근 권한이 없습니다." />
+  fallback = <ErrorPage message="접근 권한이 없습니다." />,
 }) => {
   const { user, loading } = useAuth();
 
@@ -130,14 +131,14 @@ const DashboardRedirect: React.FC = () => {
   if (!user) return <Navigate to="/login" replace />;
   
   switch (user.role) {
-    case 'jobseeker':
-      return <Navigate to="/jobseeker-dashboard" replace />;
-    case 'employer':
-      return <Navigate to="/employer-dashboard" replace />;
-    case 'admin':
-      return <Navigate to="/admin-dashboard" replace />;
-    default:
-      return <Navigate to="/login" replace />;
+  case 'jobseeker':
+    return <Navigate to="/jobseeker-dashboard" replace />;
+  case 'employer':
+    return <Navigate to="/employer-dashboard" replace />;
+  case 'admin':
+    return <Navigate to="/admin-dashboard" replace />;
+  default:
+    return <Navigate to="/login" replace />;
   }
 };
 
@@ -164,6 +165,11 @@ function App() {
             
             {/* 구인공고 관련 라우트 */}
             <Route path="/jobs" element={<Navigate to="/" replace />} />
+            <Route path="/job-list" element={
+              <HomeLayout>
+                <JobList />
+              </HomeLayout>
+            } />
             <Route path="/job/:id" element={
               <HomeLayout>
                 <JobPostDetail />
@@ -384,7 +390,14 @@ function App() {
               </ProtectedRoute>
             } />
 
-
+            {/* 상호 평가 시스템 페이지 */}
+            <Route path="/mutual-evaluation" element={
+              <ProtectedRoute>
+                <Layout>
+                  <MutualEvaluationPage />
+                </Layout>
+              </ProtectedRoute>
+            } />
 
             {/* 404 페이지 */}
             <Route path="*" element={<ErrorPage />} />

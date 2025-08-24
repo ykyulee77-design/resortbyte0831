@@ -27,13 +27,6 @@ const SignUp: React.FC = () => {
     industry: '',
     companySize: '',
     contactPhone: '',
-    // 구직자 이력서 정보
-    phone: '',
-    birth: '',
-    jobType: '',
-    career: '',
-    intro: '',
-    certs: '', // 쉼표로 구분된 문자열
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -48,12 +41,12 @@ const SignUp: React.FC = () => {
   const ADMIN_REGISTRATION_CODE = 'RESORT_ADMIN_2024';
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -112,18 +105,11 @@ const SignUp: React.FC = () => {
         businessNumber: formData.businessNumber,
         industry: formData.industry,
         companySize: formData.companySize,
-        contactPhone: formData.contactPhone
+        contactPhone: formData.contactPhone,
       } : undefined;
 
-      // 구직자 이력서 정보 준비
-      const resume = formData.role === 'jobseeker' ? {
-        phone: formData.phone,
-        birth: formData.birth,
-        jobType: formData.jobType,
-        career: formData.career,
-        intro: formData.intro,
-        certs: formData.certs.split(',').map(s => s.trim()).filter(Boolean)
-      } : undefined;
+      // 구직자는 기본 정보만으로 회원가입 (이력서는 별도 페이지에서 작성)
+      const resume = formData.role === 'jobseeker' ? {} : undefined;
 
       await signUp(formData.email, formData.password, formData.displayName, formData.role, employerInfo, resume);
       navigate(redirectTo);
@@ -309,7 +295,7 @@ const SignUp: React.FC = () => {
                         setFormData(prev => ({
                           ...prev,
                           companyAddress: address.address,
-                          companyRegion: address.region || ''
+                          companyRegion: address.region || '',
                         }));
                       }}
                       value={formData.companyAddress}
@@ -430,36 +416,7 @@ const SignUp: React.FC = () => {
                 </div>
               )}
 
-              {/* 구직자 이력서 정보 */}
-              {formData.role === 'jobseeker' && (
-                <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h3 className="text-sm font-medium text-blue-900 mb-3">📝 간단 이력서 정보</h3>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">연락처</label>
-                    <input name="phone" value={formData.phone} onChange={handleInputChange} className="mt-1 block w-full border rounded px-2 py-1" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">생년월일</label>
-                    <input name="birth" value={formData.birth} onChange={handleInputChange} className="mt-1 block w-full border rounded px-2 py-1" placeholder="예: 1990-01-01" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">희망직무</label>
-                    <input name="jobType" value={formData.jobType} onChange={handleInputChange} className="mt-1 block w-full border rounded px-2 py-1" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">경력</label>
-                    <input name="career" value={formData.career} onChange={handleInputChange} className="mt-1 block w-full border rounded px-2 py-1" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">자기소개</label>
-                    <textarea name="intro" value={formData.intro} onChange={handleInputChange} className="mt-1 block w-full border rounded px-2 py-1" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">자격증/특기 (쉼표로 구분)</label>
-                    <input name="certs" value={formData.certs} onChange={handleInputChange} className="mt-1 block w-full border rounded px-2 py-1" />
-                  </div>
-                </div>
-              )}
+
 
               {formData.role === 'admin' && (
                 <div>

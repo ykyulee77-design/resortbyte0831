@@ -5,6 +5,7 @@ import { Application, JobPost } from '../types';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Link } from 'react-router-dom';
+import { formatDate } from '../utils/dateUtils';
 
 const MyApplications: React.FC = () => {
   const { user } = useAuth();
@@ -22,7 +23,7 @@ const MyApplications: React.FC = () => {
         const applicationsQuery = query(
           collection(db, 'applications'),
           where('jobseekerId', '==', user.uid),
-          orderBy('appliedAt', 'desc')
+          orderBy('appliedAt', 'desc'),
         );
         const applicationsSnap = await getDocs(applicationsQuery);
         const fetchedApplications: Application[] = applicationsSnap.docs.map(doc => {
@@ -56,7 +57,7 @@ const MyApplications: React.FC = () => {
             employerName: data.employerName,
             location: data.location,
             salary: data.salary,
-            selectedWorkTypeIds: data.selectedWorkTypeIds || []
+            selectedWorkTypeIds: data.selectedWorkTypeIds || [],
           };
         });
         setApplications(fetchedApplications);
@@ -66,7 +67,7 @@ const MyApplications: React.FC = () => {
         if (jobPostIds.length > 0) {
           const jobPostsQuery = query(
             collection(db, 'jobPosts'),
-            where('__name__', 'in', jobPostIds.slice(0, 10)) // Firestore in 쿼리 제한(10개)
+            where('__name__', 'in', jobPostIds.slice(0, 10)), // Firestore in 쿼리 제한(10개)
           );
           const jobPostsSnap = await getDocs(jobPostsQuery);
           const fetchedJobPosts: JobPost[] = jobPostsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as JobPost[];
@@ -88,47 +89,47 @@ const MyApplications: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending':
-        return 'bg-gray-100 text-gray-800';
-      case 'reviewing':
-        return 'bg-blue-100 text-blue-800';
-      case 'interview_scheduled':
-        return 'bg-purple-100 text-purple-800';
-      case 'interview_completed':
-        return 'bg-indigo-100 text-indigo-800';
-      case 'offer_sent':
-        return 'bg-orange-100 text-orange-800';
-      case 'accepted':
-        return 'bg-green-100 text-green-800';
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
-      case 'withdrawn':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-yellow-100 text-yellow-800';
+    case 'pending':
+      return 'bg-gray-100 text-gray-800';
+    case 'reviewing':
+      return 'bg-blue-100 text-blue-800';
+    case 'interview_scheduled':
+      return 'bg-purple-100 text-purple-800';
+    case 'interview_completed':
+      return 'bg-indigo-100 text-indigo-800';
+    case 'offer_sent':
+      return 'bg-orange-100 text-orange-800';
+    case 'accepted':
+      return 'bg-green-100 text-green-800';
+    case 'rejected':
+      return 'bg-red-100 text-red-800';
+    case 'withdrawn':
+      return 'bg-gray-100 text-gray-800';
+    default:
+      return 'bg-yellow-100 text-yellow-800';
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'pending':
-        return '지원완료';
-      case 'reviewing':
-        return '검토중';
-      case 'interview_scheduled':
-        return '면접예정';
-      case 'interview_completed':
-        return '면접완료';
-      case 'offer_sent':
-        return '채용제안';
-      case 'accepted':
-        return '최종채용';
-      case 'rejected':
-        return '거절됨';
-      case 'withdrawn':
-        return '취소됨';
-      default:
-        return '검토 중';
+    case 'pending':
+      return '지원완료';
+    case 'reviewing':
+      return '검토중';
+    case 'interview_scheduled':
+      return '면접예정';
+    case 'interview_completed':
+      return '면접완료';
+    case 'offer_sent':
+      return '채용제안';
+    case 'accepted':
+      return '최종채용';
+    case 'rejected':
+      return '거절됨';
+    case 'withdrawn':
+      return '취소됨';
+    default:
+      return '검토 중';
     }
   };
 
@@ -165,33 +166,33 @@ const MyApplications: React.FC = () => {
           </div>
         </div>
 
-                 <div className="bg-white rounded-lg shadow p-6">
-           <div className="flex items-center">
-             <div className="p-2 bg-blue-100 rounded-lg">
-               <Clock className="h-6 w-6 text-blue-600" />
-             </div>
-             <div className="ml-4">
-               <p className="text-sm font-medium text-gray-600">검토중</p>
-               <p className="text-2xl font-bold text-gray-900">
-                 {applications.filter(app => app.status === 'reviewing').length}
-               </p>
-             </div>
-           </div>
-         </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Clock className="h-6 w-6 text-blue-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">검토중</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {applications.filter(app => app.status === 'reviewing').length}
+              </p>
+            </div>
+          </div>
+        </div>
 
-                 <div className="bg-white rounded-lg shadow p-6">
-           <div className="flex items-center">
-             <div className="p-2 bg-green-100 rounded-lg">
-               <CheckCircle className="h-6 w-6 text-green-600" />
-             </div>
-             <div className="ml-4">
-               <p className="text-sm font-medium text-gray-600">최종채용</p>
-               <p className="text-2xl font-bold text-gray-900">
-                 {applications.filter(app => app.status === 'accepted').length}
-               </p>
-             </div>
-           </div>
-         </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <CheckCircle className="h-6 w-6 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">최종채용</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {applications.filter(app => app.status === 'accepted').length}
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
@@ -217,15 +218,15 @@ const MyApplications: React.FC = () => {
             onChange={(e) => setSelectedStatus(e.target.value)}
             className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-resort-500 focus:border-resort-500"
           >
-                                    <option value="all">전체</option>
-                        <option value="pending">지원완료</option>
-                        <option value="reviewing">검토중</option>
-                        <option value="interview_scheduled">면접예정</option>
-                        <option value="interview_completed">면접완료</option>
-                        <option value="offer_sent">채용제안</option>
-                        <option value="accepted">최종채용</option>
-                        <option value="rejected">거절됨</option>
-                        <option value="withdrawn">취소됨</option>
+            <option value="all">전체</option>
+            <option value="pending">지원완료</option>
+            <option value="reviewing">검토중</option>
+            <option value="interview_scheduled">면접예정</option>
+            <option value="interview_completed">면접완료</option>
+            <option value="offer_sent">채용제안</option>
+            <option value="accepted">최종채용</option>
+            <option value="rejected">거절됨</option>
+            <option value="withdrawn">취소됨</option>
           </select>
         </div>
       </div>
@@ -272,7 +273,7 @@ const MyApplications: React.FC = () => {
                       )}
                       
                       <div className="flex items-center text-sm text-gray-500">
-                        <span>지원일: {application.appliedAt.toLocaleDateString('ko-KR')}</span>
+                        <span>지원일: {formatDate(application.appliedAt, 'ko-KR')}</span>
                       </div>
                     </div>
                     

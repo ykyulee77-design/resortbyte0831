@@ -9,7 +9,7 @@ interface ImageDetailModalProps {
 const ImageDetailModal: React.FC<ImageDetailModalProps> = ({
   image,
   isOpen,
-  onClose
+  onClose,
 }) => {
   if (!isOpen || !image) return null;
 

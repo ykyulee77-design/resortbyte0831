@@ -9,7 +9,7 @@ import { Resume } from '../types';
 import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
 
 const Profile: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUserData } = useAuth();
   const navigate = useNavigate();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -36,7 +36,7 @@ const Profile: React.FC = () => {
     '중국어',
     '일본어',
     '베트남어',
-    '기타'
+    '기타',
   ];
 
   const computerSkillOptions = [
@@ -45,7 +45,7 @@ const Profile: React.FC = () => {
     '포토샵/그래픽 디자인',
     '회계 프로그램',
     'POS 시스템',
-    '기타'
+    '기타',
   ];
 
   useEffect(() => {
@@ -90,7 +90,7 @@ const Profile: React.FC = () => {
       const confirmDelete = window.confirm(
         '정말로 계정을 삭제하시겠습니까?\n\n' +
         '이 작업은 되돌릴 수 없으며, 모든 데이터가 영구적으로 삭제됩니다.\n' +
-        '삭제를 진행하려면 "확인"을 클릭하세요.'
+        '삭제를 진행하려면 "확인"을 클릭하세요.',
       );
       
       if (!confirmDelete) {
@@ -135,10 +135,17 @@ const Profile: React.FC = () => {
     setResumeSaving(true);
     try {
       await updateDoc(doc(db, 'users', user.uid), { resume: resumeEdit });
+      
+      // 저장 성공 후 사용자 정보 업데이트
+      await updateUserData();
+      
       setResumeMode('view');
-      window.location.reload(); // 새로고침으로 최신 정보 반영
+      alert('이력서가 성공적으로 저장되었습니다!');
+      // 저장 후 대시보드로 이동
+      navigate('/dashboard');
     } catch (e) {
-      alert('이력서 저장 실패');
+      console.error('이력서 저장 실패:', e);
+      alert('이력서 저장에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setResumeSaving(false);
     }
@@ -275,7 +282,7 @@ const Profile: React.FC = () => {
                     className="flex items-center gap-2 px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
                   >
                     <Edit className="w-4 h-4" />
-                    수정
+                    등록 및 수정
                   </button>
                 ) : (
                   <>
@@ -303,636 +310,734 @@ const Profile: React.FC = () => {
             </div>
           </div>
         
-        <div className="p-6">
-          {/* 기본 정보 - 모든 사용자에게 표시 */}
-          <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <User className="w-5 h-5 text-blue-600" />
+          <div className="p-6">
+            {/* 기본 정보 - 모든 사용자에게 표시 */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <User className="w-5 h-5 text-blue-600" />
               기본 정보
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">이름</label>
-                <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.displayName}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
-                <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.email}</p>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">이름</label>
+                  <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.displayName}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
+                  <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{user.email}</p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* 이력서 정보 - 구직자에게만 표시 */}
-          {user.role === 'jobseeker' && resumeMode === 'view' && user.resume ? (
-            <div className="space-y-6">
-              {/* 연락처 정보 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-green-600" />
+            {/* 이력서 정보 - 구직자에게만 표시 */}
+            {user.role === 'jobseeker' && resumeMode === 'view' && user.resume ? (
+              <div className="space-y-6">
+                {/* 연락처 정보 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-green-600" />
                   연락처 정보
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
-                    <p className="text-sm text-gray-900">{user?.resume?.phone || '미입력'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">생년월일</label>
-                    <p className="text-sm text-gray-900">{user?.resume?.birth || '미입력'}</p>
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
+                      <p className="text-sm text-gray-900">{user?.resume?.phone || '미입력'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">생년월일</label>
+                      <p className="text-sm text-gray-900">{user?.resume?.birth || '미입력'}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* 직무 정보 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-blue-600" />
+                {/* 직무 정보 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-blue-600" />
                   직무 정보
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">희망 직무</label>
-                    <p className="text-sm text-gray-900">{user?.resume?.jobType || '미입력'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">경력</label>
-                    <p className="text-sm text-gray-900">{user?.resume?.career || '미입력'}</p>
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">희망 직무</label>
+                      <p className="text-sm text-gray-900">
+                        {user?.resume?.jobType ? 
+                          (Array.isArray(user.resume.jobType) ? 
+                            user.resume.jobType.join(', ') : 
+                            user.resume.jobType
+                          ) : 
+                          '미입력'
+                        }
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">경력</label>
+                      <p className="text-sm text-gray-900">{user?.resume?.career || '미입력'}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* 학력 및 자격 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-purple-600" />
+                {/* 학력 및 자격 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-purple-600" />
                   학력 및 자격
-                </h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">최종 출신학교</label>
-                    <p className="text-sm text-gray-900">{user?.resume?.education || '미입력'}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">자격증/특기</label>
-                    <p className="text-sm text-gray-900">
-                      {user?.resume?.certs && user?.resume?.certs.length > 0 
-                        ? user?.resume?.certs.join(', ') 
-                        : '미입력'
-                      }
-                    </p>
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">최종 출신학교</label>
+                      <p className="text-sm text-gray-900">{user?.resume?.education || '미입력'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">자격증/특기</label>
+                      <p className="text-sm text-gray-900">
+                        {user?.resume?.certs && user?.resume?.certs.length > 0 
+                          ? user?.resume?.certs.join(', ') 
+                          : '미입력'
+                        }
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* 근무 선호도 - 스케줄 그리드 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-indigo-600" />
+                {/* 근무 선호도 - 스케줄 그리드 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-indigo-600" />
                   선호 근무시간
-                </h4>
+                  </h4>
                 
-                {/* 선호근무시간 타입 표시 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">선호근무시간 타입</label>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      user?.resume?.preferredTimeType === 'general' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : user?.resume?.preferredTimeType === 'specific'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                                             {user?.resume?.preferredTimeType === 'general' ? '일반' :
-                        user?.resume?.preferredTimeType === 'specific' ? '선호시간 있음' : '미설정'}
-                    </span>
-                    {user?.resume?.preferredTimeType === 'general' && (
-                      <span className="text-sm text-gray-500">시간대에 상관없이 근무 가능</span>
-                    )}
-                                         {user?.resume?.preferredTimeType === 'specific' && (
-                       <span className="text-sm text-gray-500">선호하는 시간대가 있음</span>
-                     )}
-                  </div>
-                </div>
-
-                {/* 시간지정일 때만 스케줄 그리드 표시 */}
-                {user?.resume?.preferredTimeType === 'specific' && user?.resume?.preferredTimeSlots && user.resume.preferredTimeSlots.length > 0 ? (
-                  <div className="border-t border-gray-200 pt-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h5 className="text-sm font-medium text-gray-900">선호 시간대</h5>
-                      <button
-                        onClick={() => setScheduleCollapsed(!scheduleCollapsed)}
-                        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                      >
-                        {scheduleCollapsed ? (
-                          <>
-                            <span>펼치기</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </>
-                        ) : (
-                          <>
-                            <span>접기</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                            </svg>
-                          </>
-                        )}
-                      </button>
+                  {/* 선호근무시간 타입 표시 */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">선호근무시간 타입</label>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        user?.resume?.preferredTimeType === 'general' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : user?.resume?.preferredTimeType === 'specific'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {user?.resume?.preferredTimeType === 'general' ? '일반' :
+                          user?.resume?.preferredTimeType === 'specific' ? '선호시간 있음' : '미설정'}
+                      </span>
+                      {user?.resume?.preferredTimeType === 'general' && (
+                        <span className="text-sm text-gray-500">시간대에 상관없이 근무 가능</span>
+                      )}
+                      {user?.resume?.preferredTimeType === 'specific' && (
+                        <span className="text-sm text-gray-500">선호하는 시간대가 있음</span>
+                      )}
                     </div>
-                    {!scheduleCollapsed && (
-                      <UnifiedScheduleGrid
-                        selectedTimeSlots={user.resume.preferredTimeSlots}
-                        mode="view"
-                        title="선호 근무시간"
-                        description="설정된 선호 근무시간"
-                        showStatistics={true}
-                        showActions={false}
-                        jobseekerView={true}
-                        readOnly={true}
-                      />
-                    )}
                   </div>
-                                 ) : user?.resume?.preferredTimeType === 'specific' ? (
-                   <div className="border-t border-gray-200 pt-4">
-                     <div className="text-center py-6">
-                       <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                         <Clock className="w-6 h-6 text-purple-500" />
-                       </div>
-                       <p className="text-purple-600 text-sm font-medium">선호하는 시간대가 있음</p>
-                       <p className="text-purple-500 text-xs mt-1">선호 시간대를 설정해보세요</p>
-                     </div>
-                   </div>
-                ) : user?.resume?.preferredTimeType === 'general' ? (
-                  <div className="border-t border-gray-200 pt-4">
-                    <div className="text-center py-6">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Clock className="w-6 h-6 text-blue-500" />
+
+                  {/* 시간지정일 때만 스케줄 그리드 표시 */}
+                  {user?.resume?.preferredTimeType === 'specific' && user?.resume?.preferredTimeSlots && user.resume.preferredTimeSlots.length > 0 ? (
+                    <div className="border-t border-gray-200 pt-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h5 className="text-sm font-medium text-gray-900">선호 시간대</h5>
+                        <button
+                          onClick={() => setScheduleCollapsed(!scheduleCollapsed)}
+                          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                        >
+                          {scheduleCollapsed ? (
+                            <>
+                              <span>펼치기</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </>
+                          ) : (
+                            <>
+                              <span>접기</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </>
+                          )}
+                        </button>
                       </div>
-                      <p className="text-blue-600 text-sm font-medium">시간대에 상관없이 근무 가능</p>
-                      <p className="text-blue-500 text-xs mt-1">모든 시간대의 일자리에 지원할 수 있습니다</p>
+                      {!scheduleCollapsed && (
+                        <UnifiedScheduleGrid
+                          selectedTimeSlots={user.resume.preferredTimeSlots}
+                          mode="view"
+                          title="선호 근무시간"
+                          description="설정된 선호 근무시간"
+                          showStatistics={true}
+                          showActions={false}
+                          jobseekerView={true}
+                          readOnly={true}
+                        />
+                      )}
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Clock className="w-8 h-8 text-gray-400" />
+                  ) : user?.resume?.preferredTimeType === 'specific' ? (
+                    <div className="border-t border-gray-200 pt-4">
+                      <div className="text-center py-6">
+                        <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <Clock className="w-6 h-6 text-purple-500" />
+                        </div>
+                        <p className="text-purple-600 text-sm font-medium">선호하는 시간대가 있음</p>
+                        <p className="text-purple-500 text-xs mt-1">선호 시간대를 설정해보세요</p>
+                      </div>
                     </div>
-                    <p className="text-gray-500">선호 근무시간이 설정되지 않았습니다</p>
-                    <p className="text-sm text-gray-400 mt-1">편집 모드에서 선호하는 시간을 설정해보세요</p>
-                  </div>
-                )}
-              </div>
+                  ) : user?.resume?.preferredTimeType === 'general' ? (
+                    <div className="border-t border-gray-200 pt-4">
+                      <div className="text-center py-6">
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <Clock className="w-6 h-6 text-blue-500" />
+                        </div>
+                        <p className="text-blue-600 text-sm font-medium">시간대에 상관없이 근무 가능</p>
+                        <p className="text-blue-500 text-xs mt-1">모든 시간대의 일자리에 지원할 수 있습니다</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Clock className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <p className="text-gray-500">선호 근무시간이 설정되지 않았습니다</p>
+                      <p className="text-sm text-gray-400 mt-1">편집 모드에서 선호하는 시간을 설정해보세요</p>
+                    </div>
+                  )}
+                </div>
 
-              {/* 급여 및 기타 선호도 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-yellow-600" />
+                {/* 급여 및 기타 선호도 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-yellow-600" />
                   급여 및 기타 선호도
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">희망 시급</label>
-                    <p className="text-sm text-gray-900">
-                      {user?.resume?.hourlyWage 
-                        ? `${user?.resume?.hourlyWage?.toLocaleString?.()}원/시간` 
-                        : '미입력'
-                      }
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">입사 가능일</label>
-                    <p className="text-sm text-gray-900">{user?.resume?.availableStartDate || '미입력'}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">기타 선호사항</label>
-                    <div className="space-y-1">
-                      {user?.resume?.travelWilling && <p className="text-sm text-gray-900">• 출장 가능</p>}
-                      {user?.resume?.dormitoryWilling && <p className="text-sm text-gray-900">• 기숙사 이용 희망</p>}
-                      {user?.resume?.drivingLicense && <p className="text-sm text-gray-900">• 운전면허 보유</p>}
-                      {!user?.resume?.travelWilling && !user?.resume?.dormitoryWilling && !user?.resume?.drivingLicense && 
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">희망 시급</label>
+                      <p className="text-sm text-gray-900">
+                        {user?.resume?.hourlyWage 
+                          ? `${user?.resume?.hourlyWage?.toLocaleString?.()}원/시간` 
+                          : '미입력'
+                        }
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">입사 가능일</label>
+                      <p className="text-sm text-gray-900">{user?.resume?.availableStartDate || '미입력'}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">기타 선호사항</label>
+                      <div className="space-y-1">
+                        {user?.resume?.travelWilling && <p className="text-sm text-gray-900">• 출장 가능</p>}
+                        {user?.resume?.dormitoryWilling && <p className="text-sm text-gray-900">• 기숙사 이용 희망</p>}
+                        {user?.resume?.drivingLicense && <p className="text-sm text-gray-900">• 운전면허 보유</p>}
+                        {!user?.resume?.travelWilling && !user?.resume?.dormitoryWilling && !user?.resume?.drivingLicense && 
                         <p className="text-sm text-gray-500">미입력</p>
-                      }
+                        }
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* 경험 및 스킬 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-green-600" />
+                {/* 경험 및 스킬 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-green-600" />
                   경험 및 스킬
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">관련 경험</label>
-                    <div className="space-y-1">
-                      {user?.resume?.customerServiceExp && <p className="text-sm text-gray-900">• 고객 응대 경험</p>}
-                      {user?.resume?.restaurantExp && <p className="text-sm text-gray-900">• 음식점/호텔 경험</p>}
-                      {!user?.resume?.customerServiceExp && !user?.resume?.restaurantExp && 
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">관련 경험</label>
+                      <div className="space-y-1">
+                        {user?.resume?.customerServiceExp && <p className="text-sm text-gray-900">• 고객 응대 경험</p>}
+                        {user?.resume?.restaurantExp && <p className="text-sm text-gray-900">• 음식점/호텔 경험</p>}
+                        {!user?.resume?.customerServiceExp && !user?.resume?.restaurantExp && 
                         <p className="text-sm text-gray-500">미입력</p>
-                      }
+                        }
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">언어 능력</label>
+                      <div className="space-y-1">
+                        {user?.resume?.languages && user.resume.languages.length > 0 ? 
+                          user.resume.languages.map(lang => (
+                            <p key={lang} className="text-sm text-gray-900">• {lang}</p>
+                          ))
+                          : <p className="text-sm text-gray-500">미입력</p>
+                        }
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">언어 능력</label>
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">컴퓨터 활용 능력</label>
                     <div className="space-y-1">
-                      {user?.resume?.languages && user.resume.languages.length > 0 ? 
-                        user.resume.languages.map(lang => (
-                          <p key={lang} className="text-sm text-gray-900">• {lang}</p>
+                      {user?.resume?.computerSkills && user.resume.computerSkills.length > 0 ? 
+                        user.resume.computerSkills.map(skill => (
+                          <p key={skill} className="text-sm text-gray-900">• {skill}</p>
                         ))
                         : <p className="text-sm text-gray-500">미입력</p>
                       }
                     </div>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">컴퓨터 활용 능력</label>
-                  <div className="space-y-1">
-                    {user?.resume?.computerSkills && user.resume.computerSkills.length > 0 ? 
-                      user.resume.computerSkills.map(skill => (
-                        <p key={skill} className="text-sm text-gray-900">• {skill}</p>
-                      ))
-                      : <p className="text-sm text-gray-500">미입력</p>
-                    }
-                  </div>
-                </div>
-              </div>
 
-              {/* 자기소개 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Award className="w-4 h-4 text-orange-600" />
+                {/* 자기소개 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Award className="w-4 h-4 text-orange-600" />
                   자기소개
-                </h4>
-                <div>
-                  <p className="text-sm text-gray-900 whitespace-pre-wrap">
-                    {user?.resume?.intro || '자기소개를 입력해주세요.'}
-                  </p>
+                  </h4>
+                  <div>
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                      {user?.resume?.intro || '자기소개를 입력해주세요.'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : user.role === 'jobseeker' ? (
-            <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleResumeSave(); }}>
-              {/* 연락처 정보 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-green-600" />
+            ) : user.role === 'jobseeker' ? (
+              <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleResumeSave(); }}>
+                {/* 연락처 정보 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-green-600" />
                   연락처 정보
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={resumeEdit.phone || ''}
-                      onChange={handleResumeChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="010-1234-5678"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">생년월일</label>
-                    <input
-                      type="text"
-                      name="birth"
-                      value={resumeEdit.birth || ''}
-                      onChange={handleResumeChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="1990-01-01"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 직무 정보 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-blue-600" />
-                  직무 정보
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">희망 직무</label>
-                    <input
-                      type="text"
-                      name="jobType"
-                      value={resumeEdit.jobType || ''}
-                      onChange={handleResumeChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="예: 리조트 서비스, 호텔 관리, 음식점 서비스 등"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      추천: 리조트 서비스, 호텔 관리, 음식점 서비스, 청소/정리, 안내/접수, 운전/배송 등
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">경력</label>
-                    <input
-                      type="text"
-                      name="career"
-                      value={resumeEdit.career || ''}
-                      onChange={handleResumeChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="예: 신입, 2년, 호텔업 3년 경험 등"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      추천: 신입, 1년 미만, 1-3년, 3-5년, 5년 이상 등
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* 학력 및 자격 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-purple-600" />
-                  학력 및 자격
-                </h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">최종 출신학교</label>
-                    <input
-                      type="text"
-                      name="education"
-                      value={resumeEdit.education || ''}
-                      onChange={handleResumeChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="예: 서울대학교 경영학과 졸업, 고등학교 졸업 등"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      추천: 고등학교 졸업, 대학교 졸업, 대학원 졸업 등
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">자격증/특기</label>
-                    <input
-                      type="text"
-                      name="certs"
-                      value={resumeEdit.certs?.join(', ') || ''}
-                      onChange={(e) => {
-                        const certs = e.target.value.split(',').map(cert => cert.trim()).filter(cert => cert);
-                        setResumeEdit(prev => ({ ...prev, certs }));
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="자격증1, 자격증2, 특기1 (쉼표로 구분)"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 근무 선호도 - 스케줄 그리드 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-indigo-600" />
-                  선호 근무시간 설정
-                </h4>
-                <p className="text-sm text-gray-600 mb-4">
-                  선호하는 근무시간을 설정하면 맞춤 일자리를 추천받을 수 있습니다.
-                </p>
-                
-                {/* 선호근무시간 타입 선택 */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">선호근무시간 타입</label>
+                  </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-indigo-300 transition-colors">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
                       <input
-                        type="radio"
-                        name="preferredTimeType"
-                        value="general"
-                        checked={resumeEdit.preferredTimeType === 'general'}
-                        onChange={(e) => {
-                          setResumeEdit(prev => ({ 
-                            ...prev, 
-                            preferredTimeType: e.target.value as 'general' | 'specific',
-                            preferredTimeSlots: e.target.value === 'general' ? [] : prev.preferredTimeSlots
-                          }));
-                        }}
-                        className="mr-3 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <div>
-                        <div className="font-medium text-gray-900">일반</div>
-                        <div className="text-sm text-gray-500">시간대에 상관없이 근무 가능</div>
-                      </div>
-                    </label>
-                    
-                    <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-indigo-300 transition-colors">
-                      <input
-                        type="radio"
-                        name="preferredTimeType"
-                        value="specific"
-                        checked={resumeEdit.preferredTimeType === 'specific'}
-                        onChange={(e) => {
-                          setResumeEdit(prev => ({ 
-                            ...prev, 
-                            preferredTimeType: e.target.value as 'general' | 'specific'
-                          }));
-                        }}
-                        className="mr-3 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <div>
-                        <div className="font-medium text-gray-900">선호시간 있음</div>
-                        <div className="text-sm text-gray-500">선호하는 시간대가 있음</div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* 시간지정 선택 시에만 스케줄 그리드 표시 */}
-                {resumeEdit.preferredTimeType === 'specific' && (
-                  <div className="border-t border-gray-200 pt-6">
-                    <h5 className="text-sm font-medium text-gray-900 mb-3">선호 시간대 설정</h5>
-                    <UnifiedScheduleGrid
-                      selectedTimeSlots={resumeEdit.preferredTimeSlots || []}
-                      onChange={(timeSlots) => {
-                        setResumeEdit(prev => ({ ...prev, preferredTimeSlots: timeSlots }));
-                      }}
-                      mode="edit"
-                      title="선호 근무시간"
-                      description="선호하는 근무시간을 클릭하여 설정하세요"
-                      showStatistics={true}
-                      showActions={false}
-                      jobseekerView={true}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* 급여 및 기타 선호도 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-yellow-600" />
-                  급여 및 기타 선호도
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">희망 시급</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        name="hourlyWage"
-                        value={resumeEdit.hourlyWage || ''}
+                        type="tel"
+                        name="phone"
+                        value={resumeEdit.phone || ''}
                         onChange={handleResumeChange}
-                        min="10000"
-                        step="1000"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                        placeholder="10000"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        placeholder="010-1234-5678"
                       />
-                      <span className="text-sm text-gray-500 whitespace-nowrap">원/시간</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">최소 10,000원부터 1,000원 단위로 입력 가능</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">입사 가능일</label>
-                    <input
-                      type="text"
-                      name="availableStartDate"
-                      value={resumeEdit.availableStartDate || ''}
-                      onChange={handleResumeChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="즉시 가능, 2024-02-01 등"
-                    />
-                  </div>
-                  <div className="md:col-span-2 space-y-3">
-                    <label className="block text-sm font-medium text-gray-700">기타 선호사항</label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          name="travelWilling"
-                          checked={resumeEdit.travelWilling || false}
-                          onChange={(e) => setResumeEdit(prev => ({ ...prev, travelWilling: e.target.checked }))}
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="text-sm text-gray-700">출장 가능</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          name="dormitoryWilling"
-                          checked={resumeEdit.dormitoryWilling || false}
-                          onChange={(e) => setResumeEdit(prev => ({ ...prev, dormitoryWilling: e.target.checked }))}
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="text-sm text-gray-700">기숙사 이용 희망</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          name="drivingLicense"
-                          checked={resumeEdit.drivingLicense || false}
-                          onChange={(e) => setResumeEdit(prev => ({ ...prev, drivingLicense: e.target.checked }))}
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="text-sm text-gray-700">운전면허 보유</span>
-                      </label>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">생년월일</label>
+                      <input
+                        type="text"
+                        name="birth"
+                        value={resumeEdit.birth || ''}
+                        onChange={handleResumeChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        placeholder="1990-01-01"
+                      />
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* 경험 및 스킬 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-green-600" />
-                  경험 및 스킬
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <label className="block text-sm font-medium text-gray-700">관련 경험</label>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2">
+                {/* 직무 정보 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-blue-600" />
+                  직무 정보
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">희망 직무</label>
+                      <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-3">
+                        {[
+                          '서빙', '주방', '청소', '관리', '안내', '레크리에이션', '프론트', 
+                          '하우스키핑', '보안', '운전', '정원관리', '수영장관리', '골프장관리', '스키장관리', '기타',
+                        ].map((job) => {
+                          const currentJobTypes = Array.isArray(resumeEdit.jobType) ? resumeEdit.jobType : 
+                            (resumeEdit.jobType ? [resumeEdit.jobType] : []);
+                          const isSelected = currentJobTypes.includes(job);
+                        
+                          return (
+                            <label key={job} className="flex items-center space-x-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setResumeEdit(prev => ({
+                                      ...prev,
+                                      jobType: [...currentJobTypes, job],
+                                    }));
+                                  } else {
+                                    setResumeEdit(prev => ({
+                                      ...prev,
+                                      jobType: currentJobTypes.filter(j => j !== job),
+                                    }));
+                                  }
+                                }}
+                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                              />
+                              <span className="text-sm text-gray-700">{job}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                      여러 직무를 선택할 수 있습니다
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">경력</label>
+                      <input
+                        type="text"
+                        name="career"
+                        value={resumeEdit.career || ''}
+                        onChange={handleResumeChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        placeholder="예: 신입, 2년, 호텔업 3년 경험 등"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                      추천: 신입, 1년 미만, 1-3년, 3-5년, 5년 이상 등
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 학력 및 자격 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-purple-600" />
+                  학력 및 자격
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">최종 출신학교</label>
+                      <input
+                        type="text"
+                        name="education"
+                        value={resumeEdit.education || ''}
+                        onChange={handleResumeChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        placeholder="예: 서울대학교 경영학과 졸업, 고등학교 졸업 등"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                      추천: 고등학교 졸업, 대학교 졸업, 대학원 졸업 등
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">자격증/특기</label>
+                      <div className="space-y-2">
+                        {/* 자격증 입력 필드 */}
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            id="newCert"
+                            placeholder="자격증 또는 특기를 입력하세요"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const input = e.target as HTMLInputElement;
+                                const value = input.value.trim();
+                                if (value) {
+                                  const currentCerts = resumeEdit.certs || [];
+                                  if (!currentCerts.includes(value)) {
+                                    setResumeEdit(prev => ({ 
+                                      ...prev, 
+                                      certs: [...currentCerts, value], 
+                                    }));
+                                    input.value = '';
+                                  }
+                                }
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const input = document.getElementById('newCert') as HTMLInputElement;
+                              const value = input.value.trim();
+                              if (value) {
+                                const currentCerts = resumeEdit.certs || [];
+                                if (!currentCerts.includes(value)) {
+                                  setResumeEdit(prev => ({ 
+                                    ...prev, 
+                                    certs: [...currentCerts, value], 
+                                  }));
+                                  input.value = '';
+                                }
+                              }
+                            }}
+                            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                          >
+                          추가
+                          </button>
+                        </div>
+                      
+                        {/* 자격증 목록 */}
+                        {resumeEdit.certs && resumeEdit.certs.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-sm text-gray-600">등록된 자격증/특기:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {resumeEdit.certs.map((cert, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm"
+                                >
+                                  <span>{cert}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newCerts = resumeEdit.certs?.filter((_, i) => i !== index) || [];
+                                      setResumeEdit(prev => ({ ...prev, certs: newCerts }));
+                                    }}
+                                    className="text-purple-600 hover:text-purple-800 transition-colors"
+                                  >
+                                  ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 근무 선호도 - 스케줄 그리드 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-indigo-600" />
+                  선호 근무시간 설정
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                  선호하는 근무시간을 설정하면 맞춤 일자리를 추천받을 수 있습니다.
+                  </p>
+                
+                  {/* 선호근무시간 타입 선택 */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">선호근무시간 타입</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-indigo-300 transition-colors">
                         <input
-                          type="checkbox"
-                          name="customerServiceExp"
-                          checked={resumeEdit.customerServiceExp || false}
-                          onChange={(e) => setResumeEdit(prev => ({ ...prev, customerServiceExp: e.target.checked }))}
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          type="radio"
+                          name="preferredTimeType"
+                          value="general"
+                          checked={resumeEdit.preferredTimeType === 'general'}
+                          onChange={(e) => {
+                            setResumeEdit(prev => ({ 
+                              ...prev, 
+                              preferredTimeType: e.target.value as 'general' | 'specific',
+                              preferredTimeSlots: e.target.value === 'general' ? [] : prev.preferredTimeSlots,
+                            }));
+                          }}
+                          className="mr-3 text-indigo-600 focus:ring-indigo-500"
                         />
-                        <span className="text-sm text-gray-700">고객 응대 경험</span>
+                        <div>
+                          <div className="font-medium text-gray-900">일반</div>
+                          <div className="text-sm text-gray-500">시간대에 상관없이 근무 가능</div>
+                        </div>
                       </label>
-                      <label className="flex items-center gap-2">
+                    
+                      <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-indigo-300 transition-colors">
                         <input
-                          type="checkbox"
-                          name="restaurantExp"
-                          checked={resumeEdit.restaurantExp || false}
-                          onChange={(e) => setResumeEdit(prev => ({ ...prev, restaurantExp: e.target.checked }))}
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          type="radio"
+                          name="preferredTimeType"
+                          value="specific"
+                          checked={resumeEdit.preferredTimeType === 'specific'}
+                          onChange={(e) => {
+                            setResumeEdit(prev => ({ 
+                              ...prev, 
+                              preferredTimeType: e.target.value as 'general' | 'specific',
+                            }));
+                          }}
+                          className="mr-3 text-indigo-600 focus:ring-indigo-500"
                         />
-                        <span className="text-sm text-gray-700">음식점/호텔 경험</span>
+                        <div>
+                          <div className="font-medium text-gray-900">선호시간 있음</div>
+                          <div className="text-sm text-gray-500">선호하는 시간대가 있음</div>
+                        </div>
                       </label>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">언어 능력</label>
-                    <div className="space-y-2 max-h-32 overflow-y-auto">
-                      {languageOptions.map(lang => (
-                        <label key={lang} className="flex items-center gap-2">
+
+                  {/* 시간지정 선택 시에만 스케줄 그리드 표시 */}
+                  {resumeEdit.preferredTimeType === 'specific' && (
+                    <div className="border-t border-gray-200 pt-6">
+                      <h5 className="text-sm font-medium text-gray-900 mb-3">선호 시간대 설정</h5>
+                      <UnifiedScheduleGrid
+                        selectedTimeSlots={resumeEdit.preferredTimeSlots || []}
+                        onChange={(timeSlots) => {
+                          setResumeEdit(prev => ({ ...prev, preferredTimeSlots: timeSlots }));
+                        }}
+                        mode="edit"
+                        title="선호 근무시간"
+                        description="선호하는 근무시간을 클릭하여 설정하세요"
+                        showStatistics={true}
+                        showActions={false}
+                        jobseekerView={true}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 급여 및 기타 선호도 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-yellow-600" />
+                  급여 및 기타 선호도
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">희망 시급</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          name="hourlyWage"
+                          value={resumeEdit.hourlyWage || ''}
+                          onChange={handleResumeChange}
+                          min="10000"
+                          step="1000"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          placeholder="10000"
+                        />
+                        <span className="text-sm text-gray-500 whitespace-nowrap">원/시간</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">최소 10,000원부터 1,000원 단위로 입력 가능</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">입사 가능일</label>
+                      <input
+                        type="text"
+                        name="availableStartDate"
+                        value={resumeEdit.availableStartDate || ''}
+                        onChange={handleResumeChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        placeholder="즉시 가능, 2024-02-01 등"
+                      />
+                    </div>
+                    <div className="md:col-span-2 space-y-3">
+                      <label className="block text-sm font-medium text-gray-700">기타 선호사항</label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <label className="flex items-center gap-2">
                           <input
                             type="checkbox"
-                            checked={resumeEdit.languages?.includes(lang) || false}
+                            name="travelWilling"
+                            checked={resumeEdit.travelWilling || false}
+                            onChange={(e) => setResumeEdit(prev => ({ ...prev, travelWilling: e.target.checked }))}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className="text-sm text-gray-700">출장 가능</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            name="dormitoryWilling"
+                            checked={resumeEdit.dormitoryWilling || false}
+                            onChange={(e) => setResumeEdit(prev => ({ ...prev, dormitoryWilling: e.target.checked }))}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className="text-sm text-gray-700">기숙사 이용 희망</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            name="drivingLicense"
+                            checked={resumeEdit.drivingLicense || false}
+                            onChange={(e) => setResumeEdit(prev => ({ ...prev, drivingLicense: e.target.checked }))}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className="text-sm text-gray-700">운전면허 보유</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 경험 및 스킬 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-green-600" />
+                  경험 및 스킬
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <label className="block text-sm font-medium text-gray-700">관련 경험</label>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            name="customerServiceExp"
+                            checked={resumeEdit.customerServiceExp || false}
+                            onChange={(e) => setResumeEdit(prev => ({ ...prev, customerServiceExp: e.target.checked }))}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className="text-sm text-gray-700">고객 응대 경험</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            name="restaurantExp"
+                            checked={resumeEdit.restaurantExp || false}
+                            onChange={(e) => setResumeEdit(prev => ({ ...prev, restaurantExp: e.target.checked }))}
+                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className="text-sm text-gray-700">음식점/호텔 경험</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">언어 능력</label>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {languageOptions.map(lang => (
+                          <label key={lang} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={resumeEdit.languages?.includes(lang) || false}
+                              onChange={(e) => {
+                                const currentLangs = resumeEdit.languages || [];
+                                const newLangs = e.target.checked
+                                  ? [...currentLangs, lang]
+                                  : currentLangs.filter(l => l !== lang);
+                                setResumeEdit(prev => ({ ...prev, languages: newLangs }));
+                              }}
+                              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">{lang}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">컴퓨터 활용 능력</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {computerSkillOptions.map(skill => (
+                        <label key={skill} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={resumeEdit.computerSkills?.includes(skill) || false}
                             onChange={(e) => {
-                              const currentLangs = resumeEdit.languages || [];
-                              const newLangs = e.target.checked
-                                ? [...currentLangs, lang]
-                                : currentLangs.filter(l => l !== lang);
-                              setResumeEdit(prev => ({ ...prev, languages: newLangs }));
+                              const currentSkills = resumeEdit.computerSkills || [];
+                              const newSkills = e.target.checked
+                                ? [...currentSkills, skill]
+                                : currentSkills.filter(s => s !== skill);
+                              setResumeEdit(prev => ({ ...prev, computerSkills: newSkills }));
                             }}
                             className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                           />
-                          <span className="text-sm text-gray-700">{lang}</span>
+                          <span className="text-sm text-gray-700">{skill}</span>
                         </label>
                       ))}
                     </div>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">컴퓨터 활용 능력</label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {computerSkillOptions.map(skill => (
-                      <label key={skill} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={resumeEdit.computerSkills?.includes(skill) || false}
-                          onChange={(e) => {
-                            const currentSkills = resumeEdit.computerSkills || [];
-                            const newSkills = e.target.checked
-                              ? [...currentSkills, skill]
-                              : currentSkills.filter(s => s !== skill);
-                            setResumeEdit(prev => ({ ...prev, computerSkills: newSkills }));
-                          }}
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="text-sm text-gray-700">{skill}</span>
-                      </label>
-                    ))}
+
+                {/* 자기소개 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Award className="w-4 h-4 text-orange-600" />
+                  자기소개
+                  </h4>
+                  <div>
+                    <textarea
+                      name="intro"
+                      value={resumeEdit.intro || ''}
+                      onChange={handleResumeChange}
+                      rows={6}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      placeholder="자신의 강점, 경험, 지원 동기 등을 자유롭게 작성해주세요."
+                    />
                   </div>
                 </div>
-              </div>
-
-              {/* 자기소개 */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <Award className="w-4 h-4 text-orange-600" />
-                  자기소개
-                </h4>
-                <div>
-                  <textarea
-                    name="intro"
-                    value={resumeEdit.intro || ''}
-                    onChange={handleResumeChange}
-                    rows={6}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    placeholder="자신의 강점, 경험, 지원 동기 등을 자유롭게 작성해주세요."
-                  />
-                </div>
-              </div>
-            </form>
-          ) : null}
+              </form>
+            ) : null}
+          </div>
         </div>
-      </div>
       )}
 
       {/* 계정 관리 섹션 */}

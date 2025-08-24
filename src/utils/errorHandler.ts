@@ -67,7 +67,7 @@ export const createUserFriendlyError = (error: any): AppError => {
 // 비동기 작업을 위한 에러 처리 래퍼
 export const withErrorHandling = async <T>(
   operation: () => Promise<T>,
-  context?: string
+  context?: string,
 ): Promise<T> => {
   try {
     return await operation();

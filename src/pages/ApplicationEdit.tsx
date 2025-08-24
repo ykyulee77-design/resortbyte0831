@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Application, JobPost } from '../types';
+import { toISOString } from '../utils/dateUtils';
 
 const ApplicationEdit: React.FC = () => {
   const { applicationId } = useParams<{ applicationId: string }>();
@@ -50,7 +51,7 @@ const ApplicationEdit: React.FC = () => {
         setSkills(applicationData.skills || []);
         setHourlyWage(applicationData.hourlyWage || 0);
         setAvailableStartDate(applicationData.availableStartDate ? 
-          applicationData.availableStartDate.toISOString().split('T')[0] : '');
+          toISOString(applicationData.availableStartDate).split('T')[0] : '');
         setMessage(applicationData.message || '');
       } catch (error) {
         console.error('지원서 정보를 가져오는 중 오류 발생:', error);
@@ -81,21 +82,21 @@ const ApplicationEdit: React.FC = () => {
     setSaving(true);
 
     try {
-             const updateData: Partial<Application> = {
-         coverLetter,
-         experience,
-         education,
-         skills,
-         hourlyWage: hourlyWage || undefined,
-         availableStartDate: availableStartDate ? new Date(availableStartDate) : undefined,
-         message,
-         updatedAt: new Date(),
-       };
+      const updateData: Partial<Application> = {
+        coverLetter,
+        experience,
+        education,
+        skills,
+        hourlyWage: hourlyWage || undefined,
+        availableStartDate: availableStartDate ? new Date(availableStartDate) : undefined,
+        message,
+        updatedAt: new Date() as any,
+      };
 
       await updateDoc(doc(db, 'applications', application.id), updateData);
 
       alert('지원서가 성공적으로 수정되었습니다.');
-              navigate('/jobseeker');
+      navigate('/jobseeker');
     } catch (error) {
       console.error('지원서 수정 중 오류 발생:', error);
       alert('지원서 수정 중 오류가 발생했습니다.');

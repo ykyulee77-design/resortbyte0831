@@ -9,7 +9,7 @@ import {
   query, 
   where, 
   orderBy,
-  serverTimestamp 
+  serverTimestamp, 
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { WorkType, WorkerAvailability, TimeSlot, MatchingResult } from '../types';
@@ -22,7 +22,7 @@ export const workTypeService = {
     const docRef = await addDoc(collection(db, 'workTypes'), {
       ...workType,
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
     });
     
     // 생성된 문서를 바로 가져와서 반환
@@ -31,7 +31,7 @@ export const workTypeService = {
     if (docSnap.exists()) {
       return {
         id: docSnap.id,
-        ...docSnap.data()
+        ...docSnap.data(),
       } as WorkType;
     }
     
@@ -40,7 +40,7 @@ export const workTypeService = {
       id: docRef.id,
       ...workType,
       createdAt: new Date() as any,
-      updatedAt: new Date() as any
+      updatedAt: new Date() as any,
     } as WorkType;
   },
 
@@ -49,7 +49,7 @@ export const workTypeService = {
     const docRef = doc(db, 'workTypes', id);
     await updateDoc(docRef, {
       ...updates,
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
     });
   },
 
@@ -67,7 +67,7 @@ export const workTypeService = {
       // 복합 인덱스가 빌드 중일 때를 대비해 단순 쿼리 사용
       const q = query(
         collection(db, 'workTypes'),
-        where('employerId', '==', employerId)
+        where('employerId', '==', employerId),
       );
       
       const querySnapshot = await getDocs(q);
@@ -78,7 +78,7 @@ export const workTypeService = {
         console.log('문서 데이터:', { id: doc.id, employerId: data.employerId, name: data.name });
         return {
           id: doc.id,
-          ...data
+          ...data,
         };
       }) as WorkType[];
       
@@ -89,9 +89,9 @@ export const workTypeService = {
         .filter(wt => wt.isActive !== false) // isActive가 true이거나 undefined인 경우
         .sort((a, b) => {
           const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 
-                       (a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0);
+            (a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0);
           const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 
-                       (b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0);
+            (b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0);
           return bTime - aTime; // 최신순
         });
       
@@ -111,12 +111,12 @@ export const workTypeService = {
     if (docSnap.exists()) {
       return {
         id: docSnap.id,
-        ...docSnap.data()
+        ...docSnap.data(),
       } as WorkType;
     }
     
     return null;
-  }
+  },
 };
 
 // WorkerAvailability 관련 서비스
@@ -124,12 +124,12 @@ export const workerAvailabilityService = {
   // 가용 시간 저장 (기존 데이터 삭제 후 새로 저장)
   async saveWorkerAvailabilities(
     workerId: string, 
-    availabilities: Omit<WorkerAvailability, 'id' | 'createdAt'>[]
+    availabilities: Omit<WorkerAvailability, 'id' | 'createdAt'>[],
   ): Promise<void> {
     // 기존 가용 시간 삭제
     const existingQuery = query(
       collection(db, 'workerAvailabilities'),
-      where('workerId', '==', workerId)
+      where('workerId', '==', workerId),
     );
     const existingDocs = await getDocs(existingQuery);
     
@@ -137,7 +137,7 @@ export const workerAvailabilityService = {
     for (const availability of availabilities) {
       await addDoc(collection(db, 'workerAvailabilities'), {
         ...availability,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
       });
     }
   },
@@ -148,13 +148,13 @@ export const workerAvailabilityService = {
       collection(db, 'workerAvailabilities'),
       where('workerId', '==', workerId),
       orderBy('day'),
-      orderBy('hour')
+      orderBy('hour'),
     );
     
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     })) as WorkerAvailability[];
   },
 
@@ -162,29 +162,34 @@ export const workerAvailabilityService = {
   async deleteWorkerAvailabilities(workerId: string): Promise<void> {
     const q = query(
       collection(db, 'workerAvailabilities'),
-      where('workerId', '==', workerId)
+      where('workerId', '==', workerId),
     );
     const querySnapshot = await getDocs(q);
     
     for (const doc of querySnapshot.docs) {
       await deleteDoc(doc.ref);
     }
-  }
+  },
 };
 
 // 매칭 관련 서비스
 export const matchingService = {
   // 구직자와 일자리 매칭 계산
   async calculateMatchingResults(
-    workerId: string,
-    jobPosts: any[]
+    workerId: string, 
+    jobPosts: any[],
   ): Promise<MatchingResult[]> {
-    // 구직자의 가용 시간 조회
-    const availabilities = await workerAvailabilityService.getWorkerAvailabilities(workerId);
+    // 작업자의 가용 시간 조회
+    const availabilitiesQuery = query(
+      collection(db, 'workerAvailabilities'),
+      where('workerId', '==', workerId),
+    );
     
-    if (availabilities.length === 0) {
-      return [];
-    }
+    const availabilitiesSnapshot = await getDocs(availabilitiesQuery);
+    const availabilities = availabilitiesSnapshot.docs.map(doc => ({
+      ...doc.data(),
+      id: doc.id,
+    })) as WorkerAvailability[];
 
     const results: MatchingResult[] = [];
 
@@ -196,7 +201,7 @@ export const matchingService = {
           
           if (matchScore > 0) {
             const totalHours = workType.schedules.reduce((sum: number, slot: TimeSlot) => 
-              sum + (slot.end - slot.start), 0
+              sum + ((slot.end || 0) - (slot.start || 0)), 0,
             );
             
             results.push({
@@ -208,47 +213,46 @@ export const matchingService = {
                 priority1Matches: availabilities.filter(wa => wa.priority === 1).length,
                 priority2Matches: availabilities.filter(wa => wa.priority === 2).length,
                 totalPossibleMatches: totalHours,
-                overlapHours: matchScore
+                overlapHours: matchScore,
               },
               company: {
-                id: jobPost.employerId,
                 name: jobPost.employerName,
-                location: jobPost.location
+                location: jobPost.location,
               },
-              schedulePreview: workType.schedules
-            });
+              schedulePreview: workType.schedules,
+            } as MatchingResult);
           }
         }
       }
     }
 
     // 매칭 점수 순으로 정렬
-    return results.sort((a, b) => b.matchScore - a.matchScore);
+    return results.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
   },
 
   // 추천 일자리 조회
   async getRecommendedJobs(
     workerId: string,
-    limit: number = 10
+    limit = 10,
   ): Promise<MatchingResult[]> {
     // 활성화된 공고 조회
     const jobPostsQuery = query(
       collection(db, 'jobPosts'),
       where('isActive', '==', true),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
     );
     
     const jobPostsSnapshot = await getDocs(jobPostsQuery);
     const jobPosts = jobPostsSnapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     }));
 
     // 매칭 결과 계산
     const matchingResults = await this.calculateMatchingResults(workerId, jobPosts);
     
     return matchingResults.slice(0, limit);
-  }
+  },
 };
 
 // 유틸리티 함수들
@@ -256,17 +260,19 @@ export const scheduleUtils = {
   // TimeSlot을 WorkerAvailability로 변환
   convertTimeSlotsToAvailabilities(
     timeSlots: TimeSlot[], 
-    workerId: string
+    workerId: string,
   ): Omit<WorkerAvailability, 'id' | 'createdAt'>[] {
     const availabilities: Omit<WorkerAvailability, 'id' | 'createdAt'>[] = [];
     
     timeSlots.forEach(slot => {
-      for (let hour = slot.start; hour < slot.end; hour++) {
+      const start = slot.start || 0;
+      const end = slot.end || 0;
+      for (let hour = start; hour < end; hour++) {
         availabilities.push({
           workerId,
           day: slot.day,
           hour,
-          priority: slot.priority || 1
+          priority: slot.priority || 1,
         });
       }
     });
@@ -276,7 +282,7 @@ export const scheduleUtils = {
 
   // WorkerAvailability를 TimeSlot으로 변환
   convertAvailabilitiesToTimeSlots(
-    availabilities: WorkerAvailability[]
+    availabilities: WorkerAvailability[],
   ): TimeSlot[] {
     const timeSlots: TimeSlot[] = [];
     const availabilityMap = new Map<string, number[]>(); // day-hour -> priorities
@@ -292,15 +298,18 @@ export const scheduleUtils = {
 
     // 연속된 시간대를 TimeSlot으로 변환
     availabilityMap.forEach((priorities, key) => {
-      const [day, hour] = key.split('-').map(Number);
+      const [dayStr, hourStr] = key.split('-');
+      const hour = parseInt(hourStr);
       const maxPriority = Math.max(...priorities);
       
-             timeSlots.push({
-         day,
-         start: hour,
-         end: hour + 1,
-         priority: maxPriority as 1 | 2
-       });
+      timeSlots.push({
+        day: dayStr as 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday',
+        startTime: `${hour.toString().padStart(2, '0')}:00`,
+        endTime: `${(hour + 1).toString().padStart(2, '0')}:00`,
+        start: hour,
+        end: hour + 1,
+        priority: maxPriority as 1 | 2,
+      });
     });
 
     return timeSlots;
@@ -309,7 +318,7 @@ export const scheduleUtils = {
   // 스케줄 포맷팅
   formatSchedule(schedules: TimeSlot[]): string {
     const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-    const dayGroups = new Map<number, TimeSlot[]>();
+    const dayGroups = new Map<string | number, TimeSlot[]>();
 
     // 요일별로 그룹화
     schedules.forEach(schedule => {
@@ -322,17 +331,27 @@ export const scheduleUtils = {
     // 각 요일의 시간대를 정렬하고 병합
     const formattedParts: string[] = [];
     dayGroups.forEach((slots, day) => {
-      const sortedSlots = slots.sort((a, b) => a.start - b.start);
+      const sortedSlots = slots.sort((a, b) => (a.start || 0) - (b.start || 0));
       const mergedSlots = this.mergeConsecutiveSlots(sortedSlots);
       
       const timeStrings = mergedSlots.map(slot => 
-        `${slot.start.toString().padStart(2, '0')}:00-${slot.end.toString().padStart(2, '0')}:00`
+        `${(slot.start || 0).toString().padStart(2, '0')}:00-${(slot.end || 0).toString().padStart(2, '0')}:00`,
       );
       
-      formattedParts.push(`${dayNames[day]} ${timeStrings.join(', ')}`);
+      const dayIndex = typeof day === 'number' ? day : this.getDayIndex(day as string);
+      formattedParts.push(`${dayNames[dayIndex]} ${timeStrings.join(', ')}`);
     });
 
     return formattedParts.join(', ');
+  },
+
+  // 요일 문자열을 인덱스로 변환
+  getDayIndex(day: string): number {
+    const dayMap: { [key: string]: number } = {
+      'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+      'thursday': 4, 'friday': 5, 'saturday': 6,
+    };
+    return dayMap[day] || 0;
   },
 
   // 연속된 시간대 병합
@@ -343,9 +362,12 @@ export const scheduleUtils = {
     let current = { ...slots[0] };
 
     for (let i = 1; i < slots.length; i++) {
-      if (slots[i].start === current.end) {
+      const currentEnd = current.end || 0;
+      const nextStart = slots[i].start || 0;
+      
+      if (nextStart === currentEnd) {
         // 연속된 시간대인 경우 병합
-        current.end = slots[i].end;
+        current.end = slots[i].end || 0;
       } else {
         // 연속되지 않은 경우 현재 슬롯을 저장하고 새로운 슬롯 시작
         merged.push(current);
@@ -355,5 +377,5 @@ export const scheduleUtils = {
 
     merged.push(current);
     return merged;
-  }
+  },
 };

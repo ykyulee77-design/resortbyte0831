@@ -5,9 +5,9 @@ import {
   signOut, 
   onAuthStateChanged,
   User as FirebaseUser,
-  updateProfile
+  updateProfile,
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { Resume } from '../types';
 
@@ -52,7 +52,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName: string, role: string, employerInfo?: EmployerInfo, resume?: Resume) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  setUser: React.Dispatch<React.SetStateAction<User | null>>; // 추가
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  updateUserData: () => Promise<void>; // 사용자 데이터 새로고침 함수 추가
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -79,7 +80,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Firestore에서 사용자 정보 가져오기
         try {
           const userDoc = await import('firebase/firestore').then(({ getDoc }) => 
-            getDoc(doc(db, 'users', firebaseUser.uid))
+            getDoc(doc(db, 'users', firebaseUser.uid)),
           );
           
           if (userDoc.exists()) {
@@ -101,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               businessNumber: userData.businessNumber,
               industry: userData.industry,
               companySize: userData.companySize,
-              contactPhone: userData.contactPhone
+              contactPhone: userData.contactPhone,
             });
           } else {
             // Firestore에 사용자 정보가 없으면 기본값으로 설정
@@ -110,7 +111,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               email: firebaseUser.email || '',
               displayName: firebaseUser.displayName || '',
               role: 'jobseeker',
-              resume: undefined
+              resume: undefined,
             });
           }
         } catch (error) {
@@ -119,7 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             uid: firebaseUser.uid,
             email: firebaseUser.email || '',
             displayName: firebaseUser.displayName || '',
-            role: 'jobseeker'
+            role: 'jobseeker',
           });
         }
       } else {
@@ -138,7 +139,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Firebase Auth 프로필 업데이트
       await updateProfile(firebaseUser, {
-        displayName: displayName
+        displayName: displayName,
       });
 
       // Firestore에 사용자 정보 저장
@@ -147,7 +148,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         displayName: displayName,
         role: role,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       };
 
       // 구인자인 경우 직장 정보 추가
@@ -178,13 +179,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           contactPerson: employerInfo.contactPerson,
           contactPhone: employerInfo.contactPhone,
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
         });
       }
 
-      // 구직자인 경우 이력서 정보 추가
-      if (role === 'jobseeker' && resume) {
-        userData.resume = resume;
+      // 구직자인 경우 이력서 정보 추가 (빈 이력서로 초기화)
+      if (role === 'jobseeker') {
+        userData.resume = resume || {};
       }
 
       await setDoc(doc(db, 'users', firebaseUser.uid), userData);
@@ -207,7 +208,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         businessNumber: employerInfo?.businessNumber,
         industry: employerInfo?.industry,
         companySize: employerInfo?.companySize,
-        contactPhone: employerInfo?.contactPhone
+        contactPhone: employerInfo?.contactPhone,
       });
     } catch (error: any) {
       console.error('회원가입 실패:', error);
@@ -236,13 +237,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const updateUserData = async () => {
+    if (!user?.uid) return;
+    
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUser({
+          uid: user.uid,
+          email: userData.email || user.email,
+          displayName: userData.displayName || user.displayName,
+          role: userData.role || user.role,
+          workplaceName: userData.workplaceName,
+          workplaceLocation: userData.workplaceLocation,
+          contactPerson: userData.contactPerson,
+          resume: userData.resume || user.resume,
+          // 구인자 추가 정보
+          companyName: userData.companyName,
+          companyAddress: userData.companyAddress,
+          companyPhone: userData.companyPhone,
+          companyWebsite: userData.companyWebsite,
+          businessNumber: userData.businessNumber,
+          industry: userData.industry,
+          companySize: userData.companySize,
+          contactPhone: userData.contactPhone,
+        });
+      }
+    } catch (error) {
+      console.error('사용자 데이터 업데이트 실패:', error);
+    }
+  };
+
   const value = {
     user,
     loading,
     signUp,
     signIn,
     logout,
-    setUser // 추가
+    setUser,
+    updateUserData,
   };
 
   return (

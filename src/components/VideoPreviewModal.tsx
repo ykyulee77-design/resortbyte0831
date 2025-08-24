@@ -12,7 +12,7 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
   isOpen,
   onClose,
   videoUrl,
-  videoName
+  videoName,
 }) => {
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [isMuted, setIsMuted] = React.useState(false);
@@ -169,23 +169,23 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
                 </div>
               )}
 
-                                            {/* 동영상 플레이어 */}
-                <video
-                  ref={videoRef}
-                  src={videoUrl}
-                  className="w-full h-auto max-h-[70vh] object-contain"
-                  onLoadStart={() => setVideoLoaded(false)}
-                  onLoadedData={handleVideoLoad}
-                  onError={handleVideoError}
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                  onEnded={() => setIsPlaying(false)}
-                  onVolumeChange={(e) => {
-                    const target = e.target as HTMLVideoElement;
-                    setVolume(target.volume);
-                    setIsMuted(target.muted);
-                  }}
-                />
+              {/* 동영상 플레이어 */}
+              <video
+                ref={videoRef}
+                src={videoUrl}
+                className="w-full h-auto max-h-[70vh] object-contain"
+                onLoadStart={() => setVideoLoaded(false)}
+                onLoadedData={handleVideoLoad}
+                onError={handleVideoError}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onEnded={() => setIsPlaying(false)}
+                onVolumeChange={(e) => {
+                  const target = e.target as HTMLVideoElement;
+                  setVolume(target.volume);
+                  setIsMuted(target.muted);
+                }}
+              />
 
               {/* 컨트롤 바 */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4">
@@ -240,14 +240,14 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
           )}
         </div>
 
-                                   {/* 동영상 제목 */}
-          {videoName && (
-            <div className="mt-4 text-center">
-              <h3 className="text-white text-lg font-medium">
-                {videoName}
-              </h3>
-            </div>
-          )}
+        {/* 동영상 제목 */}
+        {videoName && (
+          <div className="mt-4 text-center">
+            <h3 className="text-white text-lg font-medium">
+              {videoName}
+            </h3>
+          </div>
+        )}
       </div>
     </div>
   );

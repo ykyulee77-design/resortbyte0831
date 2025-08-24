@@ -18,13 +18,13 @@ const WorkTypeEditModal: React.FC<WorkTypeEditModalProps> = ({
   isOpen, 
   onClose,
   onUpdate,
-  isCreateMode = false
+  isCreateMode = false,
 }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     hourlyWage: 0,
-    isActive: true
+    isActive: true,
   });
   const [schedules, setSchedules] = useState<TimeSlot[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -36,7 +36,7 @@ const WorkTypeEditModal: React.FC<WorkTypeEditModalProps> = ({
         name: workType.name,
         description: workType.description || '',
         hourlyWage: workType.hourlyWage || 0,
-        isActive: workType.isActive
+        isActive: workType.isActive,
       });
       setSchedules(workType.schedules || []);
       setErrors({});
@@ -50,13 +50,13 @@ const WorkTypeEditModal: React.FC<WorkTypeEditModalProps> = ({
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : 
-              type === 'number' ? Number(value) : value
+        type === 'number' ? Number(value) : value,
     }));
 
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
-        [name]: ''
+        [name]: '',
       }));
     }
   };
@@ -81,36 +81,36 @@ const WorkTypeEditModal: React.FC<WorkTypeEditModalProps> = ({
 
     setIsSaving(true);
     try {
-              if (isCreateMode) {
-          const newWorkType = await workTypeService.createWorkType({
-            employerId: workType.employerId,
-            name: formData.name.trim(),
-            description: formData.description.trim(),
-            hourlyWage: formData.hourlyWage,
-            schedules: schedules,
-            isActive: formData.isActive
-          });
+      if (isCreateMode) {
+        const newWorkType = await workTypeService.createWorkType({
+          employerId: workType.employerId,
+          name: formData.name.trim(),
+          description: formData.description.trim(),
+          hourlyWage: formData.hourlyWage,
+          schedules: schedules,
+          isActive: formData.isActive,
+        });
           
-          if (onUpdate) {
-            onUpdate(newWorkType);
-          }
-        } else {
-          const updatedWorkType: WorkType = {
-            ...workType,
-            name: formData.name.trim(),
-            description: formData.description.trim(),
-            hourlyWage: formData.hourlyWage,
-            isActive: formData.isActive,
-            schedules: schedules,
-            updatedAt: Timestamp.now()
-          };
-
-          await workTypeService.updateWorkType(workType.id, updatedWorkType);
-          
-          if (onUpdate) {
-            onUpdate(updatedWorkType);
-          }
+        if (onUpdate) {
+          onUpdate(newWorkType);
         }
+      } else {
+        const updatedWorkType: WorkType = {
+          ...workType,
+          name: formData.name.trim(),
+          description: formData.description.trim(),
+          hourlyWage: formData.hourlyWage,
+          isActive: formData.isActive,
+          schedules: schedules,
+          updatedAt: Timestamp.now(),
+        };
+
+        await workTypeService.updateWorkType(workType.id, updatedWorkType);
+          
+        if (onUpdate) {
+          onUpdate(updatedWorkType);
+        }
+      }
       
       onClose();
     } catch (error) {
@@ -127,12 +127,14 @@ const WorkTypeEditModal: React.FC<WorkTypeEditModalProps> = ({
   const stats = {
     totalHours: schedules.reduce((total, slot) => {
       // 24시간을 넘어가는 경우 처리 (예: 23:00-01:00)
-      let hours = slot.end - slot.start;
+      const start = slot.start || 0;
+      const end = slot.end || 0;
+      let hours = end - start;
       if (hours <= 0) hours += 24;
       return total + hours;
     }, 0),
     avgHoursPerDay: schedules.length > 0 ? Math.round(schedules.length / 7 * 10) / 10 : 0,
-    totalTimeSlots: schedules.length
+    totalTimeSlots: schedules.length,
   };
 
   return (

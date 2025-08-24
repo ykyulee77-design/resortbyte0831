@@ -5,6 +5,7 @@ import { Application, JobPost } from '../types';
 import { collection, getDocs, query, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Link } from 'react-router-dom';
+import { formatDate, createDateFromTimestamp } from '../utils/dateUtils';
 import PositiveReviewModal from '../components/PositiveReviewModal';
 import CrewProfileCard from '../components/CrewProfileCard';
 
@@ -28,7 +29,7 @@ const HiredCandidates: React.FC = () => {
         // 1. 본인(구인자)의 공고 목록 가져오기
         const jobPostsQuery = query(
           collection(db, 'jobPosts'),
-          where('employerId', '==', user.uid)
+          where('employerId', '==', user.uid),
         );
         const jobPostsSnap = await getDocs(jobPostsQuery);
         const fetchedJobPosts: JobPost[] = jobPostsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as JobPost[];
@@ -45,7 +46,7 @@ const HiredCandidates: React.FC = () => {
         const applicationsQuery = query(
           collection(db, 'applications'),
           where('jobPostId', 'in', jobPostIds.slice(0, 10)), // Firestore in 쿼리 제한(10개)
-          where('status', '==', 'accepted')
+          where('status', '==', 'accepted'),
         );
         const applicationsSnap = await getDocs(applicationsQuery);
         const fetchedApplications: Application[] = applicationsSnap.docs.map(doc => {
@@ -74,58 +75,58 @@ const HiredCandidates: React.FC = () => {
             availableStartDate: data.availableStartDate ? (data.availableStartDate.toDate ? data.availableStartDate.toDate() : new Date(data.availableStartDate)) : undefined,
             skills: data.skills || [],
             hourlyWage: data.hourlyWage || 0,
-                         message: data.message || '',
-             jobTitle: data.jobTitle,
-             employerName: data.employerName,
-             location: data.location,
-             salary: data.salary,
-             selectedWorkTypeIds: data.selectedWorkTypeIds || [],
-             phone: data.phone || '',
-             email: data.email || ''
+            message: data.message || '',
+            jobTitle: data.jobTitle,
+            employerName: data.employerName,
+            location: data.location,
+            salary: data.salary,
+            selectedWorkTypeIds: data.selectedWorkTypeIds || [],
+            phone: data.phone || '',
+            email: data.email || '',
           };
         });
-                 setApplications(fetchedApplications);
+        setApplications(fetchedApplications);
 
-         // 지원자들의 사용자 정보 가져오기 (이메일 등)
-         const uniqueJobseekerIds = Array.from(new Set(fetchedApplications.map(app => app.jobseekerId)));
-         const userDataMap: {[key: string]: any} = {};
+        // 지원자들의 사용자 정보 가져오기 (이메일 등)
+        const uniqueJobseekerIds = Array.from(new Set(fetchedApplications.map(app => app.jobseekerId)));
+        const userDataMap: {[key: string]: any} = {};
          
-         for (const jobseekerId of uniqueJobseekerIds) {
-           try {
-             const userDoc = await getDoc(doc(db, 'users', jobseekerId));
-             if (userDoc.exists()) {
-               userDataMap[jobseekerId] = userDoc.data();
-             }
-           } catch (error) {
-             console.error(`사용자 정보 가져오기 실패 (${jobseekerId}):`, error);
-           }
-         }
+        for (const jobseekerId of uniqueJobseekerIds) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', jobseekerId));
+            if (userDoc.exists()) {
+              userDataMap[jobseekerId] = userDoc.data();
+            }
+          } catch (error) {
+            console.error(`사용자 정보 가져오기 실패 (${jobseekerId}):`, error);
+          }
+        }
          
-         setUserData(userDataMap);
+        setUserData(userDataMap);
 
-         // 이미 평가를 작성한 구직자들 확인
-         const reviewedSet = new Set<string>();
-         for (const application of fetchedApplications) {
-           const reviewQuery = query(
-             collection(db, 'positiveReviews'),
-             where('employerId', '==', user?.uid),
-             where('jobseekerId', '==', application.jobseekerId),
-             where('jobPostId', '==', application.jobPostId)
-           );
-           const reviewSnapshot = await getDocs(reviewQuery);
-           if (!reviewSnapshot.empty) {
-             reviewedSet.add(`${application.jobseekerId}-${application.jobPostId}`);
-           }
-         }
-         setReviewedJobseekers(reviewedSet);
-       } catch (error) {
-         console.error('최종 채용자 데이터 불러오기 실패:', error);
-       } finally {
-         setLoading(false);
-       }
-     };
-     fetchData();
-   }, [user]);
+        // 이미 평가를 작성한 구직자들 확인
+        const reviewedSet = new Set<string>();
+        for (const application of fetchedApplications) {
+          const reviewQuery = query(
+            collection(db, 'positiveReviews'),
+            where('employerId', '==', user?.uid),
+            where('jobseekerId', '==', application.jobseekerId),
+            where('jobPostId', '==', application.jobPostId),
+          );
+          const reviewSnapshot = await getDocs(reviewQuery);
+          if (!reviewSnapshot.empty) {
+            reviewedSet.add(`${application.jobseekerId}-${application.jobPostId}`);
+          }
+        }
+        setReviewedJobseekers(reviewedSet);
+      } catch (error) {
+        console.error('최종 채용자 데이터 불러오기 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [user]);
 
   const filteredApplications = applications.filter(app => {
     return selectedJobId === 'all' || app.jobPostId === selectedJobId;
@@ -204,7 +205,8 @@ const HiredCandidates: React.FC = () => {
               <p className="text-2xl font-bold text-gray-900">
                 {applications.filter(app => {
                   const thisMonth = new Date();
-                  const appliedMonth = new Date(app.appliedAt);
+                  const appliedMonth = createDateFromTimestamp(app.appliedAt);
+                  if (!appliedMonth) return false;
                   return thisMonth.getMonth() === appliedMonth.getMonth() && 
                          thisMonth.getFullYear() === appliedMonth.getFullYear();
                 }).length}
@@ -279,37 +281,37 @@ const HiredCandidates: React.FC = () => {
                         </div>
                       </div>
                       
-                                             {/* 지원 정보 */}
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
-                         <div className="flex items-center">
-                           <Calendar className="h-4 w-4 mr-2" />
-                           <span>지원일: {application.appliedAt.toLocaleDateString('ko-KR')}</span>
-                         </div>
-                                                   {application.hourlyWage && application.hourlyWage > 0 && (
-                            <div className="flex items-center">
-                              <DollarSign className="h-4 w-4 mr-2" />
-                              <span>희망시급: {application.hourlyWage.toLocaleString()}원/시간</span>
-                            </div>
-                          )}
-                         {application.availableStartDate && (
-                           <div className="flex items-center">
-                             <Calendar className="h-4 w-4 mr-2" />
-                             <span>희망시작일: {application.availableStartDate.toLocaleDateString('ko-KR')}</span>
-                           </div>
-                         )}
-                                                   {(application.phone || userData[application.jobseekerId]?.resume?.phone) && (
-                            <div className="flex items-center">
-                              <Phone className="h-4 w-4 mr-2" />
-                              <span>연락처: {application.phone || userData[application.jobseekerId]?.resume?.phone}</span>
-                            </div>
-                          )}
-                          {(application.email || userData[application.jobseekerId]?.email) && (
-                            <div className="flex items-center">
-                              <Mail className="h-4 w-4 mr-2" />
-                              <span>이메일: {application.email || userData[application.jobseekerId]?.email}</span>
-                            </div>
-                          )}
-                       </div>
+                      {/* 지원 정보 */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          <span>지원일: {formatDate(application.appliedAt, 'ko-KR')}</span>
+                        </div>
+                        {application.hourlyWage && application.hourlyWage > 0 && (
+                          <div className="flex items-center">
+                            <DollarSign className="h-4 w-4 mr-2" />
+                            <span>희망시급: {application.hourlyWage.toLocaleString()}원/시간</span>
+                          </div>
+                        )}
+                        {application.availableStartDate && (
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            <span>희망시작일: {formatDate(application.availableStartDate, 'ko-KR')}</span>
+                          </div>
+                        )}
+                        {(application.phone || userData[application.jobseekerId]?.resume?.phone) && (
+                          <div className="flex items-center">
+                            <Phone className="h-4 w-4 mr-2" />
+                            <span>연락처: {application.phone || userData[application.jobseekerId]?.resume?.phone}</span>
+                          </div>
+                        )}
+                        {(application.email || userData[application.jobseekerId]?.email) && (
+                          <div className="flex items-center">
+                            <Mail className="h-4 w-4 mr-2" />
+                            <span>이메일: {application.email || userData[application.jobseekerId]?.email}</span>
+                          </div>
+                        )}
+                      </div>
                       
                       {/* 지원 동기 */}
                       {application.coverLetter && (
@@ -326,7 +328,7 @@ const HiredCandidates: React.FC = () => {
                             setSelectedCrew({
                               id: application.jobseekerId,
                               name: application.jobseekerName,
-                              jobPostId: application.jobPostId
+                              jobPostId: application.jobPostId,
                             });
                             setShowCrewProfile(true);
                           }}
@@ -341,7 +343,7 @@ const HiredCandidates: React.FC = () => {
                             setSelectedCrew({
                               id: application.jobseekerId,
                               name: application.jobseekerName,
-                              jobPostId: application.jobPostId
+                              jobPostId: application.jobPostId,
                             });
                             setShowReviewModal(true);
                           }}
@@ -367,28 +369,28 @@ const HiredCandidates: React.FC = () => {
         )}
       </div>
 
-                  {/* 긍정적 평가 모달 */}
-            {selectedCrew && (
-              <PositiveReviewModal
-                isOpen={showReviewModal}
-                onClose={() => {
-                  setShowReviewModal(false);
-                  setSelectedCrew(null);
-                }}
-                jobseekerId={selectedCrew.id}
-                jobseekerName={selectedCrew.name}
-                jobPostId={selectedCrew.jobPostId}
-                employerId={user?.uid || ''}
-                onReviewComplete={() => {
-                  setShowReviewModal(false);
-                  setShowCrewProfile(true);
-                  // 평가 완료 후 상태 업데이트
-                  if (selectedCrew) {
-                    setReviewedJobseekers(prev => new Set(Array.from(prev).concat(`${selectedCrew.id}-${selectedCrew.jobPostId}`)));
-                  }
-                }}
-              />
-            )}
+      {/* 긍정적 평가 모달 */}
+      {selectedCrew && (
+        <PositiveReviewModal
+          isOpen={showReviewModal}
+          onClose={() => {
+            setShowReviewModal(false);
+            setSelectedCrew(null);
+          }}
+          jobseekerId={selectedCrew.id}
+          jobseekerName={selectedCrew.name}
+          jobPostId={selectedCrew.jobPostId}
+          employerId={user?.uid || ''}
+          onReviewComplete={() => {
+            setShowReviewModal(false);
+            setShowCrewProfile(true);
+            // 평가 완료 후 상태 업데이트
+            if (selectedCrew) {
+              setReviewedJobseekers(prev => new Set(Array.from(prev).concat(`${selectedCrew.id}-${selectedCrew.jobPostId}`)));
+            }
+          }}
+        />
+      )}
 
       {/* 크루 프로필 모달 */}
       {selectedCrew && showCrewProfile && (

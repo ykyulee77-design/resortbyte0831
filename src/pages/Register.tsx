@@ -21,7 +21,7 @@ const Register: React.FC = () => {
     industry: '',
     companySize: '',
     contactPerson: '',
-    contactPhone: ''
+    contactPhone: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -36,7 +36,7 @@ const Register: React.FC = () => {
     if (userType === 'employer') {
       setFormData(prev => ({
         ...prev,
-        userType: 'employer'
+        userType: 'employer',
       }));
     }
   }, [searchParams]);
@@ -48,7 +48,7 @@ const Register: React.FC = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -109,7 +109,7 @@ const Register: React.FC = () => {
           businessNumber: formData.businessNumber,
           industry: formData.industry,
           companySize: formData.companySize,
-          contactPhone: formData.contactPhone
+          contactPhone: formData.contactPhone,
         };
         await signUp(formData.email, formData.password, formData.displayName, formData.userType, employerInfo);
       } else {

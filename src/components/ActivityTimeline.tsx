@@ -1,15 +1,17 @@
 import React from 'react';
-import { Clock, Send, CheckCircle, XCircle, Eye, FileText, MapPin } from 'lucide-react';
+import { Clock, Send, CheckCircle, XCircle, Eye, FileText, MapPin, Share2, Star } from 'lucide-react';
 
 interface ActivityItem {
   id: string;
-  type: 'application' | 'status_change' | 'profile_update' | 'schedule_update';
+  type: 'application' | 'status_change' | 'profile_update' | 'schedule_update' | 'job_share' | 'favorite_added';
   title: string;
   description: string;
   timestamp: Date;
   status?: string;
   jobTitle?: string;
   companyName?: string;
+  shareMethod?: string;
+  sharedWith?: string;
 }
 
 interface ActivityTimelineProps {
@@ -20,31 +22,39 @@ interface ActivityTimelineProps {
 const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ activities, maxItems = 5 }) => {
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'application':
-        return <Send className="w-4 h-4 text-blue-600" />;
-      case 'status_change':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'profile_update':
-        return <FileText className="w-4 h-4 text-purple-600" />;
-      case 'schedule_update':
-        return <Clock className="w-4 h-4 text-orange-600" />;
-      default:
-        return <Eye className="w-4 h-4 text-gray-600" />;
+    case 'application':
+      return <Send className="w-4 h-4 text-blue-600" />;
+    case 'status_change':
+      return <CheckCircle className="w-4 h-4 text-green-600" />;
+    case 'profile_update':
+      return <FileText className="w-4 h-4 text-purple-600" />;
+    case 'schedule_update':
+      return <Clock className="w-4 h-4 text-orange-600" />;
+    case 'job_share':
+      return <Share2 className="w-4 h-4 text-indigo-600" />;
+    case 'favorite_added':
+      return <Star className="w-4 h-4 text-yellow-600" />;
+    default:
+      return <Eye className="w-4 h-4 text-gray-600" />;
     }
   };
 
   const getActivityColor = (type: string) => {
     switch (type) {
-      case 'application':
-        return 'bg-blue-100 border-blue-200';
-      case 'status_change':
-        return 'bg-green-100 border-green-200';
-      case 'profile_update':
-        return 'bg-purple-100 border-purple-200';
-      case 'schedule_update':
-        return 'bg-orange-100 border-orange-200';
-      default:
-        return 'bg-gray-100 border-gray-200';
+    case 'application':
+      return 'bg-blue-100 border-blue-200';
+    case 'status_change':
+      return 'bg-green-100 border-green-200';
+    case 'profile_update':
+      return 'bg-purple-100 border-purple-200';
+    case 'schedule_update':
+      return 'bg-orange-100 border-orange-200';
+    case 'job_share':
+      return 'bg-indigo-100 border-indigo-200';
+    case 'favorite_added':
+      return 'bg-yellow-100 border-yellow-200';
+    default:
+      return 'bg-gray-100 border-gray-200';
     }
   };
 
@@ -63,7 +73,7 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ activities, maxItem
     
     return date.toLocaleDateString('ko-KR', {
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     });
   };
 
@@ -137,13 +147,25 @@ const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ activities, maxItem
                 <div className="mt-2">
                   <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                     activity.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                    activity.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                    activity.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
+                      activity.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        activity.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
                   }`}>
                     {activity.status === 'accepted' ? '채용 확정' :
-                     activity.status === 'rejected' ? '불합격' :
-                     activity.status === 'pending' ? '검토 중' : activity.status}
+                      activity.status === 'rejected' ? '불합격' :
+                        activity.status === 'pending' ? '검토 중' : activity.status}
+                  </span>
+                </div>
+              )}
+              
+              {activity.shareMethod && (
+                <div className="mt-2">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                    {activity.shareMethod === 'kakao' ? '카카오톡' :
+                      activity.shareMethod === 'facebook' ? '페이스북' :
+                        activity.shareMethod === 'link' ? '링크 복사' :
+                          activity.shareMethod === 'message' ? '메시지' : activity.shareMethod}
+                    {activity.sharedWith && ` - ${activity.sharedWith}`}
                   </span>
                 </div>
               )}

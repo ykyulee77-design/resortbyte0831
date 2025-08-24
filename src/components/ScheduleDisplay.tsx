@@ -12,7 +12,7 @@ const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({
   schedules, 
   compact = false,
   maxVisible = 3,
-  showDetail = false
+  showDetail = false,
 }) => {
   const [showAll, setShowAll] = useState(false);
   const days = ['일', '월', '화', '수', '목', '금', '토'];
@@ -21,14 +21,14 @@ const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({
   // 시간대가 선택되었는지 확인
   const isTimeSlotSelected = (day: number, hour: number): boolean => {
     return schedules.some(slot => 
-      slot.day === day && slot.start <= hour && slot.end > hour
+      slot.day === day && (slot.start || 0) <= hour && (slot.end || 0) > hour,
     );
   };
 
   // 시간대의 우선순위 확인
   const getTimeSlotPriority = (day: number, hour: number): number => {
     const slot = schedules.find(s => 
-      s.day === day && s.start <= hour && s.end > hour
+      s.day === day && (s.start || 0) <= hour && (s.end || 0) > hour,
     );
     return slot?.priority || 0;
   };
@@ -42,7 +42,7 @@ const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({
     return {
       totalHours,
       priority1Hours,
-      priority2Hours
+      priority2Hours,
     };
   };
 
@@ -62,7 +62,7 @@ const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({
 
   // 스케줄을 요일별로 그룹화
   const groupSchedulesByDay = (schedules: TimeSlot[]) => {
-    const grouped: { [key: number]: TimeSlot[] } = {};
+    const grouped: { [key: string | number]: TimeSlot[] } = {};
     schedules.forEach(slot => {
       if (!grouped[slot.day]) {
         grouped[slot.day] = [];
@@ -118,11 +118,11 @@ const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({
                     className={`
                       p-1 border-r border-gray-200 last:border-r-0
                       ${hasSelection 
-                        ? priority === 1 
-                          ? 'bg-blue-500' 
-                          : 'bg-blue-300'
-                        : 'bg-white'
-                      }
+                    ? priority === 1 
+                      ? 'bg-blue-500' 
+                      : 'bg-blue-300'
+                    : 'bg-white'
+                  }
                     `}
                   >
                     <div className="w-full h-4 flex items-center justify-center">
@@ -192,11 +192,11 @@ const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({
                   className={`
                     p-1 border-r border-gray-200 last:border-r-0
                     ${isSelected 
-                      ? priority === 1 
-                        ? 'bg-blue-500' 
-                        : 'bg-blue-300'
-                      : 'bg-white'
-                    }
+                  ? priority === 1 
+                    ? 'bg-blue-500' 
+                    : 'bg-blue-300'
+                  : 'bg-white'
+                }
                   `}
                 >
                   <div className="w-full h-6 flex items-center justify-center">

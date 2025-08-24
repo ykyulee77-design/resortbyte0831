@@ -14,14 +14,14 @@ export interface MatchingScoreResult {
 
 export const calculateMatchingScore = (
   workerAvailabilities: TimeSlot[],
-  jobRequirements: TimeSlot[]
+  jobRequirements: TimeSlot[],
 ): MatchingScoreResult => {
   if (workerAvailabilities.length === 0 || jobRequirements.length === 0) {
     return {
       score: 0,
       matchedSlots: 0,
       totalSlots: jobRequirements.length,
-      details: []
+      details: [],
     };
   }
 
@@ -41,7 +41,11 @@ export const calculateMatchingScore = (
       // 근무자가 해당 시간대에 가능한지 확인
       const hasMatchingSlot = workerSlots.some(workerSlot => {
         // 시간대가 겹치는지 확인
-        const timeOverlap = !(workerSlot.end <= jobSlot.start || workerSlot.start >= jobSlot.end);
+        const workerStart = workerSlot.start || 0;
+        const workerEnd = workerSlot.end || 0;
+        const jobStart = jobSlot.start || 0;
+        const jobEnd = jobSlot.end || 0;
+        const timeOverlap = !(workerEnd <= jobStart || workerStart >= jobEnd);
         
         return timeOverlap;
       });
@@ -57,7 +61,7 @@ export const calculateMatchingScore = (
       day,
       matched: dayMatched,
       total: jobSlots.length,
-      percentage: dayPercentage
+      percentage: dayPercentage,
     });
   }
 
@@ -67,8 +71,24 @@ export const calculateMatchingScore = (
     score: Math.round(totalScore),
     matchedSlots: totalMatched,
     totalSlots: jobRequirements.length,
-    details
+    details,
   };
+};
+
+export const calculateTimeOverlap = (
+  workerSlot: TimeSlot,
+  jobSlot: TimeSlot,
+): boolean => {
+  if (workerSlot.day === jobSlot.day) {
+    const workerStart = workerSlot.start || 0;
+    const workerEnd = workerSlot.end || 0;
+    const jobStart = jobSlot.start || 0;
+    const jobEnd = jobSlot.end || 0;
+    
+    const timeOverlap = !(workerEnd <= jobStart || workerStart >= jobEnd);
+    return timeOverlap;
+  }
+  return false;
 };
 
 export const getMatchingScoreColor = (score: number): string => {

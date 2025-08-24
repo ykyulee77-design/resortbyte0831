@@ -13,31 +13,31 @@ export const addSampleJobPosts = async () => {
       salary: {
         min: 18000,
         max: 22000,
-        type: 'hourly'
+        type: 'hourly',
       },
       requirements: [
         '고등학교 졸업 이상',
         '컴퓨터 활용 능력 우수자',
         '고객 응대 경험 우대',
-        '제주도 거주자 우대'
+        '제주도 거주자 우대',
       ],
       benefits: [
         '4대보험',
         '퇴직연금',
         '식대 지원',
         '교통비 지원',
-        '연차휴가'
+        '연차휴가',
       ],
       workSchedule: {
         days: ['월', '화', '수', '목', '금', '토', '일'],
-        hours: '09:00-18:00'
+        hours: '09:00-18:00',
       },
       startDate: Timestamp.fromDate(new Date('2024-01-15')),
       endDate: Timestamp.fromDate(new Date('2024-12-31')),
       isActive: true,
       createdAt: Timestamp.fromDate(new Date()),
       updatedAt: Timestamp.fromDate(new Date()),
-      applications: []
+      applications: [],
     },
     {
       employerId: 'sample-employer-2',
@@ -48,13 +48,13 @@ export const addSampleJobPosts = async () => {
       salary: {
         min: 20000,
         max: 25000,
-        type: 'hourly'
+        type: 'hourly',
       },
       requirements: [
         '고등학교 졸업 이상',
         '시설 정비 경험 우대',
         '면허 소지자 우대',
-        '부산 지역 거주자'
+        '부산 지역 거주자',
       ],
       benefits: [
         '4대보험',
@@ -62,18 +62,18 @@ export const addSampleJobPosts = async () => {
         '식대 지원',
         '교통비 지원',
         '연차휴가',
-        '야근 수당'
+        '야근 수당',
       ],
       workSchedule: {
         days: ['월', '화', '수', '목', '금'],
-        hours: '08:00-17:00'
+        hours: '08:00-17:00',
       },
       startDate: Timestamp.fromDate(new Date('2024-02-01')),
       endDate: Timestamp.fromDate(new Date('2024-12-31')),
       isActive: true,
       createdAt: Timestamp.fromDate(new Date()),
       updatedAt: Timestamp.fromDate(new Date()),
-      applications: []
+      applications: [],
     },
     {
       employerId: 'sample-employer-3',
@@ -84,13 +84,13 @@ export const addSampleJobPosts = async () => {
       salary: {
         min: 22000,
         max: 28000,
-        type: 'hourly'
+        type: 'hourly',
       },
       requirements: [
         '고등학교 졸업 이상',
         '스키 경험 우대',
         '응급처치 자격증 우대',
-        '강원도 거주자 우대'
+        '강원도 거주자 우대',
       ],
       benefits: [
         '4대보험',
@@ -98,18 +98,18 @@ export const addSampleJobPosts = async () => {
         '식대 지원',
         '숙박 지원',
         '스키 패스 제공',
-        '연차휴가'
+        '연차휴가',
       ],
       workSchedule: {
         days: ['월', '화', '수', '목', '금', '토', '일'],
-        hours: '08:00-17:00'
+        hours: '08:00-17:00',
       },
       startDate: Timestamp.fromDate(new Date('2024-01-01')),
       endDate: Timestamp.fromDate(new Date('2024-03-31')),
       isActive: true,
       createdAt: Timestamp.fromDate(new Date()),
       updatedAt: Timestamp.fromDate(new Date()),
-      applications: []
+      applications: [],
     },
     {
       employerId: 'sample-employer-4',
@@ -120,13 +120,13 @@ export const addSampleJobPosts = async () => {
       salary: {
         min: 16000,
         max: 20000,
-        type: 'hourly'
+        type: 'hourly',
       },
       requirements: [
         '고등학교 졸업 이상',
         '컴퓨터 활용 능력',
         '외국어 능력 우대',
-        '경주 지역 거주자'
+        '경주 지역 거주자',
       ],
       benefits: [
         '4대보험',
@@ -134,19 +134,19 @@ export const addSampleJobPosts = async () => {
         '식대 지원',
         '교통비 지원',
         '문화 프로그램 참여 혜택',
-        '연차휴가'
+        '연차휴가',
       ],
       workSchedule: {
         days: ['월', '화', '수', '목', '금', '토'],
-        hours: '09:00-18:00'
+        hours: '09:00-18:00',
       },
       startDate: Timestamp.fromDate(new Date('2024-01-20')),
       endDate: Timestamp.fromDate(new Date('2024-12-31')),
       isActive: true,
       createdAt: Timestamp.fromDate(new Date()),
       updatedAt: Timestamp.fromDate(new Date()),
-      applications: []
-    }
+      applications: [],
+    },
   ];
 
   try {

@@ -25,7 +25,7 @@ const AdminStats: React.FC = () => {
     employers: 0,
     admins: 0,
     recentJobPosts: 0,
-    recentApplications: 0
+    recentApplications: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -40,7 +40,7 @@ const AdminStats: React.FC = () => {
       const users = usersSnapshot.docs.map(doc => ({
         uid: doc.id,
         role: doc.data().role,
-        createdAt: doc.data().createdAt?.toDate() || new Date()
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
       }));
 
       // 공고 통계
@@ -50,7 +50,7 @@ const AdminStats: React.FC = () => {
         id: doc.id,
         isActive: doc.data().isActive,
         createdAt: doc.data().createdAt?.toDate() || new Date(),
-        applications: doc.data().applications || []
+        applications: doc.data().applications || [],
       }));
 
       // 지원 통계
@@ -58,7 +58,7 @@ const AdminStats: React.FC = () => {
       const applicationsSnapshot = await getDocs(applicationsQuery);
       const applications = applicationsSnapshot.docs.map(doc => ({
         id: doc.id,
-        appliedAt: doc.data().appliedAt?.toDate() || new Date()
+        appliedAt: doc.data().appliedAt?.toDate() || new Date(),
       }));
 
       // 최근 7일 계산
@@ -75,7 +75,7 @@ const AdminStats: React.FC = () => {
         employers: users.filter(user => user.role === 'employer').length,
         admins: users.filter(user => user.role === 'admin').length,
         recentJobPosts: jobPosts.filter(job => job.createdAt >= sevenDaysAgo).length,
-        recentApplications: applications.filter(app => app.appliedAt >= sevenDaysAgo).length
+        recentApplications: applications.filter(app => app.appliedAt >= sevenDaysAgo).length,
       };
 
       setStats(newStats);

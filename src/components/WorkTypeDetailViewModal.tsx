@@ -23,7 +23,7 @@ const WorkTypeDetailViewModal: React.FC<WorkTypeDetailViewModalProps> = ({
   onUpdate,
   onCreate,
   linkedJobPosts = [],
-  isCreateMode = false
+  isCreateMode = false,
 }) => {
   const [showScheduleDetail, setShowScheduleDetail] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -32,7 +32,7 @@ const WorkTypeDetailViewModal: React.FC<WorkTypeDetailViewModalProps> = ({
     name: '',
     description: '',
     hourlyWage: 0,
-    isActive: true
+    isActive: true,
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -43,7 +43,7 @@ const WorkTypeDetailViewModal: React.FC<WorkTypeDetailViewModalProps> = ({
       name: workType?.name || '',
       description: workType?.description || '',
       hourlyWage: workType?.hourlyWage || 0,
-      isActive: workType?.isActive || true
+      isActive: workType?.isActive || true,
     });
     setIsEditing(true);
   };
@@ -57,7 +57,7 @@ const WorkTypeDetailViewModal: React.FC<WorkTypeDetailViewModalProps> = ({
         name: '',
         description: '',
         hourlyWage: 0,
-        isActive: true
+        isActive: true,
       });
     }
   }, [isCreateMode, isOpen]);
@@ -75,7 +75,7 @@ const WorkTypeDetailViewModal: React.FC<WorkTypeDetailViewModalProps> = ({
         name: '',
         description: '',
         hourlyWage: 0,
-        isActive: true
+        isActive: true,
       });
     }
   };
@@ -112,7 +112,7 @@ const WorkTypeDetailViewModal: React.FC<WorkTypeDetailViewModalProps> = ({
           description: editedFormData.description.trim(),
           hourlyWage: editedFormData.hourlyWage,
           isActive: editedFormData.isActive,
-          schedules: editedSchedules
+          schedules: editedSchedules,
         };
 
         const createdWorkType = await workTypeService.createWorkType(newWorkType);
@@ -135,7 +135,7 @@ const WorkTypeDetailViewModal: React.FC<WorkTypeDetailViewModalProps> = ({
           hourlyWage: editedFormData.hourlyWage,
           isActive: editedFormData.isActive,
           schedules: editedSchedules,
-          updatedAt: Timestamp.now()
+          updatedAt: Timestamp.now(),
         };
         
         await workTypeService.updateWorkType(workType.id, updatedWorkType);
@@ -164,22 +164,24 @@ const WorkTypeDetailViewModal: React.FC<WorkTypeDetailViewModalProps> = ({
     if (!workType) return { totalHours: 0, avgHoursPerDay: 0, totalTimeSlots: 0 };
     
     const schedules = isEditing ? editedSchedules : workType.schedules;
-    if (schedules.length === 0) return { totalHours: 0, avgHoursPerDay: 0, totalTimeSlots: 0 };
+    if (!schedules || schedules.length === 0) return { totalHours: 0, avgHoursPerDay: 0, totalTimeSlots: 0 };
 
     const totalHours = schedules.reduce((total, slot) => {
       // 24시간을 넘어가는 경우 처리 (예: 23:00-01:00)
-      let hours = slot.end - slot.start;
+      const start = slot.start || 0;
+      const end = slot.end || 0;
+      let hours = end - start;
       if (hours <= 0) hours += 24;
       return total + hours;
     }, 0);
 
-    const uniqueDays = new Set(schedules.map(slot => slot.day)).size;
+    const uniqueDays = new Set(schedules?.map(slot => slot.day) || []).size;
     const avgHoursPerDay = uniqueDays > 0 ? totalHours / uniqueDays : 0;
 
     return {
       totalHours: Math.round(totalHours * 10) / 10,
       avgHoursPerDay: Math.round(avgHoursPerDay * 10) / 10,
-      totalTimeSlots: schedules.length
+      totalTimeSlots: schedules?.length || 0,
     };
   }, [workType, isEditing, editedSchedules]);
 
@@ -418,7 +420,7 @@ const WorkTypeDetailViewModal: React.FC<WorkTypeDetailViewModalProps> = ({
               />
             ) : (
               <ScheduleDisplay 
-                schedules={workType.schedules} 
+                schedules={workType.schedules || []} 
                 showDetail={showScheduleDetail}
               />
             )}

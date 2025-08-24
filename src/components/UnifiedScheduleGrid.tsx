@@ -31,7 +31,7 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
   readOnly = false,
   maxSelections,
   employerView = false,
-  jobseekerView = false
+  jobseekerView = false,
 }) => {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(selectedTimeSlots);
   const [saving, setSaving] = useState(false);
@@ -57,13 +57,13 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
     const endHour = (timeSlotIndex + 1) % 24;
 
     const existingSlot = timeSlots.find(
-      slot => slot.day === dayOfWeek && slot.start === startHour && slot.end === endHour
+      slot => slot.day === dayOfWeek && slot.start === startHour && slot.end === endHour,
     );
 
     if (existingSlot) {
       // 선택 해제
       const newTimeSlots = timeSlots.filter(slot =>
-        !(slot.day === dayOfWeek && slot.start === startHour && slot.end === endHour)
+        !(slot.day === dayOfWeek && slot.start === startHour && slot.end === endHour),
       );
       setTimeSlots(newTimeSlots);
       onChange?.(newTimeSlots); // 실시간 변경 알림
@@ -75,9 +75,11 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
       }
 
       const newSlot: TimeSlot = {
-        day: dayOfWeek,
+        day: dayOfWeek as any,
         start: startHour,
-        end: endHour
+        end: endHour,
+        startTime: `${startHour.toString().padStart(2, '0')}:00`,
+        endTime: `${endHour.toString().padStart(2, '0')}:00`,
       };
       const newTimeSlots = [...timeSlots, newSlot];
       setTimeSlots(newTimeSlots);
@@ -89,7 +91,7 @@ const UnifiedScheduleGrid: React.FC<UnifiedScheduleGridProps> = ({
     const startHour = timeSlotIndex;
     const endHour = (timeSlotIndex + 1) % 24;
     return timeSlots.some(
-      slot => slot.day === dayOfWeek && slot.start === startHour && slot.end === endHour
+      slot => slot.day === dayOfWeek && slot.start === startHour && slot.end === endHour,
     );
   };
 

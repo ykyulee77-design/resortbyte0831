@@ -17,7 +17,7 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
   isOpen,
   onClose,
   employerId,
-  workplaceName
+  workplaceName,
 }) => {
   const [accommodationInfo, setAccommodationInfo] = useState<Partial<AccommodationInfo>>({
     name: `${workplaceName} 기숙사`,
@@ -35,7 +35,7 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
     rules: [],
     contactPerson: '',
     contactPhone: '',
-    isAvailable: true
+    isAvailable: true,
   });
 
   const [loading, setLoading] = useState(false);
@@ -72,18 +72,18 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
     if (type === 'number') {
       setAccommodationInfo(prev => ({
         ...prev,
-        [name]: Number(value)
+        [name]: Number(value),
       }));
     } else if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setAccommodationInfo(prev => ({
         ...prev,
-        [name]: checked
+        [name]: checked,
       }));
     } else {
       setAccommodationInfo(prev => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
     }
   };
@@ -91,51 +91,55 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
   const handleArrayChange = (field: keyof AccommodationInfo, index: number, value: string) => {
     setAccommodationInfo(prev => ({
       ...prev,
-      [field]: (prev[field] as string[])?.map((item, i) => i === index ? value : item) || []
+      [field]: (prev[field] as string[])?.map((item, i) => i === index ? value : item) || [],
     }));
   };
 
   const addArrayItem = (field: keyof AccommodationInfo) => {
     setAccommodationInfo(prev => ({
       ...prev,
-      [field]: [...(prev[field] as string[] || []), '']
+      [field]: [...(prev[field] as string[] || []), ''],
     }));
   };
 
   const removeArrayItem = (field: keyof AccommodationInfo, index: number) => {
     setAccommodationInfo(prev => ({
       ...prev,
-      [field]: (prev[field] as string[])?.filter((_, i) => i !== index) || []
+      [field]: (prev[field] as string[])?.filter((_, i) => i !== index) || [],
     }));
   };
 
-  const handleRoomTypeChange = (index: number, field: keyof RoomType, value: string | number) => {
+  const handleRoomTypeChange = (index: number, field: keyof RoomType, value: string | number | string[]) => {
     setAccommodationInfo(prev => ({
       ...prev,
-      roomTypes: prev.roomTypes?.map((room, i) => 
-        i === index ? { ...room, [field]: value } : room
-      ) || []
+      roomTypes: prev.roomTypes?.map((room: RoomType, i: number) => 
+        i === index ? { ...room, [field]: value } : room,
+      ) || [],
     }));
   };
 
   const addRoomType = () => {
     const newRoomType: RoomType = {
-      type: '',
+      id: Date.now().toString(),
+      name: '',
+      description: '',
       capacity: 2,
       price: 0,
       available: 1,
-      description: ''
+      facilities: [],
+      images: [],
+      isAvailable: true,
     };
     setAccommodationInfo(prev => ({
       ...prev,
-      roomTypes: [...(prev.roomTypes || []), newRoomType]
+      roomTypes: [...(prev.roomTypes || []), newRoomType],
     }));
   };
 
   const removeRoomType = (index: number) => {
     setAccommodationInfo(prev => ({
       ...prev,
-      roomTypes: prev.roomTypes?.filter((_, i) => i !== index) || []
+      roomTypes: prev.roomTypes?.filter((_, i) => i !== index) || [],
     }));
   };
 
@@ -185,7 +189,7 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
               maxWidth: 1920,
               maxHeight: 1080,
               quality: 0.8,
-              maxSizeMB: 1
+              maxSizeMB: 1,
             });
             const optimizedSizeMB = getFileSizeMB(optimizedFile);
             console.log(`최적화 완료: ${originalSizeMB.toFixed(2)}MB → ${optimizedSizeMB.toFixed(2)}MB`);
@@ -227,7 +231,7 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
             
             const snapshot = await uploadBytes(storageRef, optimizedFile, metadata);
             console.log('업로드 완료:', snapshot.ref.fullPath);
-            console.log('업로드된 바이트:', );
+            console.log('업로드된 바이트:' );
             
             const downloadURL = await getDownloadURL(storageRef);
             console.log('다운로드 URL 생성 완료:', downloadURL);
@@ -278,7 +282,7 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
         // 기존 이미지와 새로 업로드된 이미지 합치기
         setAccommodationInfo(prev => ({
           ...prev,
-          images: [...(prev.images || []), ...uploadedUrls]
+          images: [...(prev.images || []), ...uploadedUrls],
         }));
 
         alert(`✅ ${uploadedUrls.length}개의 이미지가 성공적으로 업로드되었습니다!`);
@@ -313,7 +317,7 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
         // 상태에서 이미지 제거
         setAccommodationInfo(prev => ({
           ...prev,
-          images: prev.images?.filter((_, i) => i !== index) || []
+          images: prev.images?.filter((_, i) => i !== index) || [],
         }));
         
         alert('이미지가 삭제되었습니다.');
@@ -341,7 +345,7 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
         ...accommodationInfo,
         employerId,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       };
 
       await setDoc(doc(db, 'accommodationInfo', employerId), accommodationData);
@@ -534,42 +538,42 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
                   />
                 </div>
 
-                                                                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">공용시설</label>
-                    <div className="space-y-3">
-                                             {[
-                         '주차장', '엘리베이터', '헬스장', '독서실',
-                         '커뮤니티룸', '정원/테라스', 'CCTV',
-                         '세탁실', '공동주방', '휴게실', '야외공간',
-                         '직원식당', '셔틀버스'
-                       ].map((facility) => (
-                        <label key={facility} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={accommodationInfo.facilities?.includes(facility) || false}
-                            onChange={(e) => {
-                              const currentFacilities = accommodationInfo.facilities || [];
-                              if (e.target.checked) {
-                                if (!currentFacilities.includes(facility)) {
-                                  setAccommodationInfo(prev => ({
-                                    ...prev,
-                                    facilities: [...currentFacilities, facility]
-                                  }));
-                                }
-                              } else {
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">공용시설</label>
+                  <div className="space-y-3">
+                    {[
+                      '주차장', '엘리베이터', '헬스장', '독서실',
+                      '커뮤니티룸', '정원/테라스', 'CCTV',
+                      '세탁실', '공동주방', '휴게실', '야외공간',
+                      '직원식당', '셔틀버스',
+                    ].map((facility) => (
+                      <label key={facility} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={accommodationInfo.facilities?.includes(facility) || false}
+                          onChange={(e) => {
+                            const currentFacilities = accommodationInfo.facilities || [];
+                            if (e.target.checked) {
+                              if (!currentFacilities.includes(facility)) {
                                 setAccommodationInfo(prev => ({
                                   ...prev,
-                                  facilities: currentFacilities.filter(f => f !== facility)
+                                  facilities: [...currentFacilities, facility],
                                 }));
                               }
-                            }}
-                            className="mr-3 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300 rounded"
-                          />
-                          <span className="text-sm text-gray-700">{facility}</span>
-                        </label>
-                      ))}
-                    </div>
+                            } else {
+                              setAccommodationInfo(prev => ({
+                                ...prev,
+                                facilities: currentFacilities.filter(f => f !== facility),
+                              }));
+                            }
+                          }}
+                          className="mr-3 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">{facility}</span>
+                      </label>
+                    ))}
                   </div>
+                </div>
 
                                  
 
@@ -629,161 +633,161 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
               <div className="space-y-4">
                 {accommodationInfo.roomTypes && accommodationInfo.roomTypes.length > 0 ? (
                   accommodationInfo.roomTypes.map((room, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h5 className="font-medium text-gray-900">방 타입 {index + 1}</h5>
-                      <button
-                        type="button"
-                        onClick={() => removeRoomType(index)}
-                        className="text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <div key={room.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h5 className="font-medium text-gray-900">방 타입 {index + 1}</h5>
+                        <button
+                          type="button"
+                          onClick={() => removeRoomType(index)}
+                          className="text-red-500 hover:text-red-700 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                             <div>
-                         <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                            방 타입 (복수 선택 가능) <span className="text-red-500">*</span>
-                         </label>
-                         <div className="space-y-2">
-                           {['1인실', '2인실', '3인실', '4인실', '기타'].map((type) => (
-                             <label key={type} className="flex items-center">
-                               <input
-                                 type="checkbox"
-                                 checked={room.type?.includes(type) || false}
-                                 onChange={(e) => {
-                                   const currentTypes = room.type?.split(',').map(t => t.trim()).filter(t => t) || [];
+                          </label>
+                          <div className="space-y-2">
+                            {['1인실', '2인실', '3인실', '4인실', '기타'].map((type) => (
+                              <label key={type} className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={room.facilities?.includes(type) || false}
+                                  onChange={(e) => {
+                                    const currentTypes = room.facilities || [];
                                    
-                                   if (e.target.checked) {
-                                     // 체크된 경우 추가
-                                     if (!currentTypes.includes(type)) {
-                                       currentTypes.push(type);
-                                     }
-                                   } else {
-                                     // 체크 해제된 경우 제거
-                                     const index = currentTypes.indexOf(type);
-                                     if (index > -1) {
-                                       currentTypes.splice(index, 1);
-                                     }
-                                   }
+                                    if (e.target.checked) {
+                                      // 체크된 경우 추가
+                                      if (!currentTypes.includes(type)) {
+                                        currentTypes.push(type);
+                                      }
+                                    } else {
+                                      // 체크 해제된 경우 제거
+                                      const index = currentTypes.indexOf(type);
+                                      if (index > -1) {
+                                        currentTypes.splice(index, 1);
+                                      }
+                                    }
                                    
-                                   handleRoomTypeChange(index, 'type', currentTypes.join(', '));
-                                 }}
-                                 className="mr-2 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300 rounded"
-                               />
-                               <span className="text-sm text-gray-700">{type}</span>
-                             </label>
-                           ))}
-                         </div>
-                       </div>
+                                    handleRoomTypeChange(index, 'facilities', currentTypes);
+                                  }}
+                                  className="mr-2 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300 rounded"
+                                />
+                                <span className="text-sm text-gray-700">{type}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                           수용 인원 <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={room.capacity}
-                            onChange={(e) => handleRoomTypeChange(index, 'capacity', Number(e.target.value))}
-                            min="1"
-                            max="10"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
-                            placeholder="1"
-                            required
-                          />
-                          <span className="absolute right-3 top-2 text-gray-500 text-sm">명</span>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              value={room.capacity}
+                              onChange={(e) => handleRoomTypeChange(index, 'capacity', Number(e.target.value))}
+                              min="1"
+                              max="10"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
+                              placeholder="1"
+                              required
+                            />
+                            <span className="absolute right-3 top-2 text-gray-500 text-sm">명</span>
+                          </div>
                         </div>
-                      </div>
 
-                                             <div>
-                         <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                            월세
-                         </label>
-                         <div className="space-y-2">
-                           <div className="flex items-center space-x-4">
-                             <label className="flex items-center">
-                               <input
-                                 type="radio"
-                                 name={`modalRentType-${index}`}
-                                 checked={room.price === 0}
-                                 onChange={() => handleRoomTypeChange(index, 'price', 0)}
-                                 className="mr-2 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300"
-                               />
-                               <span className="text-sm text-gray-700">무료</span>
-                             </label>
-                             <label className="flex items-center">
-                               <input
-                                 type="radio"
-                                 name={`modalRentType-${index}`}
-                                 checked={room.price > 0}
-                                 onChange={() => handleRoomTypeChange(index, 'price', 1)}
-                                 className="mr-2 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300"
-                               />
-                               <span className="text-sm text-gray-700">유료</span>
-                             </label>
-                           </div>
-                           {room.price > 0 && (
-                             <div className="relative">
-                               <input
-                                 type="number"
-                                 value={room.price === 1 ? '' : room.price}
-                                 onChange={(e) => handleRoomTypeChange(index, 'price', Number(e.target.value))}
-                                 min="1"
-                                 step="10000"
-                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
-                                 placeholder="월세 금액을 입력하세요"
-                               />
-                               <span className="absolute right-3 top-2 text-gray-500 text-sm">원</span>
-                             </div>
-                           )}
-                         </div>
-                       </div>
+                          </label>
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-4">
+                              <label className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name={`modalRentType-${index}`}
+                                  checked={room.price === 0}
+                                  onChange={() => handleRoomTypeChange(index, 'price', 0)}
+                                  className="mr-2 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300"
+                                />
+                                <span className="text-sm text-gray-700">무료</span>
+                              </label>
+                              <label className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name={`modalRentType-${index}`}
+                                  checked={room.price > 0}
+                                  onChange={() => handleRoomTypeChange(index, 'price', 1)}
+                                  className="mr-2 h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300"
+                                />
+                                <span className="text-sm text-gray-700">유료</span>
+                              </label>
+                            </div>
+                            {room.price > 0 && (
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  value={room.price === 1 ? '' : room.price}
+                                  onChange={(e) => handleRoomTypeChange(index, 'price', Number(e.target.value))}
+                                  min="1"
+                                  step="10000"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
+                                  placeholder="월세 금액을 입력하세요"
+                                />
+                                <span className="absolute right-3 top-2 text-gray-500 text-sm">원</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                           가능한 방 수 <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              value={room.available}
+                              onChange={(e) => handleRoomTypeChange(index, 'available', Number(e.target.value))}
+                              min="0"
+                              max="50"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
+                              placeholder="0"
+                              required
+                            />
+                            <span className="absolute right-3 top-2 text-gray-500 text-sm">개</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        방 설명 (선택사항)
                         </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            value={room.available}
-                            onChange={(e) => handleRoomTypeChange(index, 'available', Number(e.target.value))}
-                            min="0"
-                            max="50"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
-                            placeholder="0"
-                            required
-                          />
-                          <span className="absolute right-3 top-2 text-gray-500 text-sm">개</span>
+                        <textarea
+                          value={room.description}
+                          onChange={(e) => handleRoomTypeChange(index, 'description', e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors resize-none"
+                          placeholder="방의 특징, 시설, 편의사항 등을 자세히 설명해주세요..."
+                          maxLength={500}
+                        />
+                        <div className="flex justify-between items-center mt-1">
+                          <p className="text-xs text-gray-500">
+                          예: 에어컨, 냉장고, 개별 화장실, 옷장 포함
+                          </p>
+                          <span className="text-xs text-gray-400">
+                            {room.description.length}/500
+                          </span>
                         </div>
                       </div>
                     </div>
-
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        방 설명 (선택사항)
-                      </label>
-                      <textarea
-                        value={room.description}
-                        onChange={(e) => handleRoomTypeChange(index, 'description', e.target.value)}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors resize-none"
-                        placeholder="방의 특징, 시설, 편의사항 등을 자세히 설명해주세요..."
-                        maxLength={500}
-                      />
-                      <div className="flex justify-between items-center mt-1">
-                        <p className="text-xs text-gray-500">
-                          예: 에어컨, 냉장고, 개별 화장실, 옷장 포함
-                        </p>
-                        <span className="text-xs text-gray-400">
-                          {room.description.length}/500
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))
+                  ))
                 ) : (
                   <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
                     <div className="text-gray-400 mb-2">
@@ -811,13 +815,13 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
                     <div className="text-center">
                       <p className="text-gray-600">총 수용 가능 인원</p>
                       <p className="text-lg font-semibold text-resort-600">
-                        {accommodationInfo.roomTypes.reduce((sum, room) => sum + ((room.capacity || 0) * room.available), 0)}명
+                        {accommodationInfo.roomTypes.reduce((sum, room) => sum + ((room.capacity || 0) * (room.available || 0)), 0)}명
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="text-gray-600">총 가능한 방 수</p>
                       <p className="text-lg font-semibold text-resort-600">
-                        {accommodationInfo.roomTypes.reduce((sum, room) => sum + room.available, 0)}개
+                        {accommodationInfo.roomTypes.reduce((sum, room) => sum + (room.available || 0), 0)}개
                       </p>
                     </div>
                   </div>

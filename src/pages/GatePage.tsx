@@ -9,7 +9,7 @@ import {
   Award, 
   TrendingUp,
   Heart,
-  ArrowRight
+  ArrowRight,
 } from 'lucide-react';
 
 const GatePage: React.FC = () => {
@@ -23,11 +23,11 @@ const GatePage: React.FC = () => {
               <span className="text-blue-600">리조트</span>
               <span className="text-green-600">바이트</span>
             </h1>
-                         <p className="text-2xl md:text-3xl text-gray-600 max-w-5xl mx-auto leading-relaxed mb-12">
+            <p className="text-2xl md:text-3xl text-gray-600 max-w-5xl mx-auto leading-relaxed mb-12">
                지역 리조트와 크루를 연결하는 <span className="font-semibold text-blue-600">스마트한 구인구직 플랫폼이에요</span>
-             </p>
+            </p>
             
-                                     <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
               <Link
                 to="/register?type=employer"
                 className="inline-flex items-center px-10 py-4 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl text-lg"
@@ -263,20 +263,20 @@ const GatePage: React.FC = () => {
             당신의 새로운 기회를 찾아보세요!
           </p>
           
-                     <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-             <Link
-               to="/register?type=employer"
-               className="inline-flex items-center px-10 py-4 bg-white text-blue-600 font-semibold rounded-full hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl text-lg"
-             >
+          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+            <Link
+              to="/register?type=employer"
+              className="inline-flex items-center px-10 py-4 bg-white text-blue-600 font-semibold rounded-full hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl text-lg"
+            >
                구인자 시작하기
-             </Link>
-             <Link
-               to="/signup"
-               className="inline-flex items-center px-10 py-4 bg-white text-green-600 font-semibold rounded-full hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl text-lg"
-             >
+            </Link>
+            <Link
+              to="/signup"
+              className="inline-flex items-center px-10 py-4 bg-white text-green-600 font-semibold rounded-full hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl text-lg"
+            >
                구직자 시작하기
-             </Link>
-           </div>
+            </Link>
+          </div>
         </div>
       </section>
 

@@ -30,7 +30,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ selectedTimeSlots, onSave, 
     const endHour = (timeSlotIndex + 1) % 24;
 
     const existingSlot = timeSlots.find(
-      slot => slot.day === dayOfWeek && slot.start === startHour && slot.end === endHour
+      slot => slot.day === dayOfWeek && slot.start === startHour && slot.end === endHour,
     );
 
     if (existingSlot) {
@@ -39,16 +39,23 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ selectedTimeSlots, onSave, 
         setTimeSlots(prev => prev.map(slot =>
           slot.day === dayOfWeek && slot.start === startHour && slot.end === endHour
             ? { ...slot, priority: 2 }
-            : slot
+            : slot,
         ));
       } else if (existingSlot.priority === 2) {
         setTimeSlots(prev => prev.filter(slot =>
-          !(slot.day === dayOfWeek && slot.start === startHour && slot.end === endHour)
+          !(slot.day === dayOfWeek && slot.start === startHour && slot.end === endHour),
         ));
       }
     } else {
       // 새로운 슬롯 추가 (기본값: 1 - high)
-      setTimeSlots(prev => [...prev, { day: dayOfWeek, start: startHour, end: endHour, priority: 1 }]);
+      setTimeSlots(prev => [...prev, { 
+        day: dayOfWeek as any, 
+        start: startHour, 
+        end: endHour, 
+        priority: 1,
+        startTime: `${startHour.toString().padStart(2, '0')}:00`,
+        endTime: `${endHour.toString().padStart(2, '0')}:00`,
+      }]);
     }
   };
 
@@ -56,30 +63,30 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ selectedTimeSlots, onSave, 
     const startHour = timeSlotIndex;
     const endHour = (timeSlotIndex + 1) % 24;
     const slot = timeSlots.find(
-      s => s.day === dayOfWeek && s.start === startHour && s.end === endHour
+      s => s.day === dayOfWeek && s.start === startHour && s.end === endHour,
     );
     return slot?.priority || 'none';
   };
 
   const getSlotClassName = (status: number | string) => {
     switch (status) {
-      case 1:
-        return 'bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-sm';
-      case 2:
-        return 'bg-gradient-to-br from-blue-200 to-blue-300 text-blue-800 hover:from-blue-300 hover:to-blue-400 shadow-sm';
-      default:
-        return 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800';
+    case 1:
+      return 'bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-sm';
+    case 2:
+      return 'bg-gradient-to-br from-blue-200 to-blue-300 text-blue-800 hover:from-blue-300 hover:to-blue-400 shadow-sm';
+    default:
+      return 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800';
     }
   };
 
   const getSlotText = (status: number | string) => {
     switch (status) {
-      case 1:
-        return '매우 선호';
-      case 2:
-        return '선호';
-      default:
-        return '';
+    case 1:
+      return '매우 선호';
+    case 2:
+      return '선호';
+    default:
+      return '';
     }
   };
 
@@ -93,8 +100,10 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ selectedTimeSlots, onSave, 
   };
 
   const getTimeSlotText = (slot: TimeSlot) => {
-    const startHour = slot.start.toString().padStart(2, '0');
-    const endHour = slot.end.toString().padStart(2, '0');
+    const start = slot.start || 0;
+    const end = slot.end || 0;
+    const startHour = start.toString().padStart(2, '0');
+    const endHour = end.toString().padStart(2, '0');
     return `${startHour}:00-${endHour}:00`;
   };
 

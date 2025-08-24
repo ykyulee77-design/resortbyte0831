@@ -12,7 +12,7 @@ import {
   TrendingUp,
   Badge,
   Eye,
-  EyeOff
+  EyeOff,
 } from 'lucide-react';
 import { CrewProfile, PositiveReview, SkillCertification, Badge as BadgeType } from '../types';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
@@ -29,7 +29,7 @@ const CrewProfileCard: React.FC<CrewProfileCardProps> = ({
   jobseekerId,
   jobseekerName,
   showFullProfile = false,
-  onReviewClick
+  onReviewClick,
 }) => {
   const [profile, setProfile] = useState<CrewProfile | null>(null);
   const [recentReviews, setRecentReviews] = useState<PositiveReview[]>([]);
@@ -46,7 +46,7 @@ const CrewProfileCard: React.FC<CrewProfileCardProps> = ({
       // 크루 프로필 데이터 가져오기
       const profileQuery = query(
         collection(db, 'crewProfiles'),
-        where('jobseekerId', '==', jobseekerId)
+        where('jobseekerId', '==', jobseekerId),
       );
       const profileSnapshot = await getDocs(profileQuery);
       
@@ -59,15 +59,15 @@ const CrewProfileCard: React.FC<CrewProfileCardProps> = ({
       const reviewsQuery = query(
         collection(db, 'positiveReviews'),
         where('jobseekerId', '==', jobseekerId),
-        where('isPublic', '==', true)
+        where('isPublic', '==', true),
       );
       const reviewsSnapshot = await getDocs(reviewsQuery);
       const reviewsData = reviewsSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() })) as PositiveReview[];
       // 클라이언트에서 정렬
       const sortedReviews = reviewsData.sort((a, b) => {
-        const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : a.createdAt.toDate().getTime();
-        const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : b.createdAt.toDate().getTime();
+        const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : a.createdAt?.toDate?.()?.getTime() || 0;
+        const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : b.createdAt?.toDate?.()?.getTime() || 0;
         return bTime - aTime;
       }).slice(0, 5);
       setRecentReviews(sortedReviews);
@@ -76,15 +76,15 @@ const CrewProfileCard: React.FC<CrewProfileCardProps> = ({
       const certificationsQuery = query(
         collection(db, 'skillCertifications'),
         where('jobseekerId', '==', jobseekerId),
-        where('isVerified', '==', true)
+        where('isVerified', '==', true),
       );
       const certificationsSnapshot = await getDocs(certificationsQuery);
       const certificationsData = certificationsSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() })) as SkillCertification[];
       // 클라이언트에서 정렬
       const sortedCertifications = certificationsData.sort((a, b) => {
-        const aTime = a.certifiedAt instanceof Date ? a.certifiedAt.getTime() : a.certifiedAt.toDate().getTime();
-        const bTime = b.certifiedAt instanceof Date ? b.certifiedAt.getTime() : b.certifiedAt.toDate().getTime();
+        const aTime = a.certifiedAt instanceof Date ? a.certifiedAt.getTime() : (a.certifiedAt as any)?.toDate?.()?.getTime() || 0;
+        const bTime = b.certifiedAt instanceof Date ? b.certifiedAt.getTime() : (b.certifiedAt as any)?.toDate?.()?.getTime() || 0;
         return bTime - aTime;
       });
       setSkillCertifications(sortedCertifications);
@@ -98,45 +98,45 @@ const CrewProfileCard: React.FC<CrewProfileCardProps> = ({
 
   const getReviewTypeIcon = (type: PositiveReview['reviewType']) => {
     switch (type) {
-      case 'praise': return Heart;
-      case 'certification': return Award;
-      case 'skill_recognition': return CheckCircle;
-      case 'attitude': return ThumbsUp;
-      case 'teamwork': return Users;
-      case 'reliability': return Clock;
-      default: return Star;
+    case 'praise': return Heart;
+    case 'certification': return Award;
+    case 'skill_recognition': return CheckCircle;
+    case 'attitude': return ThumbsUp;
+    case 'teamwork': return Users;
+    case 'reliability': return Clock;
+    default: return Star;
     }
   };
 
   const getReviewTypeColor = (type: PositiveReview['reviewType']) => {
     switch (type) {
-      case 'praise': return 'text-red-500';
-      case 'certification': return 'text-yellow-500';
-      case 'skill_recognition': return 'text-green-500';
-      case 'attitude': return 'text-blue-500';
-      case 'teamwork': return 'text-purple-500';
-      case 'reliability': return 'text-indigo-500';
-      default: return 'text-gray-500';
+    case 'praise': return 'text-red-500';
+    case 'certification': return 'text-yellow-500';
+    case 'skill_recognition': return 'text-green-500';
+    case 'attitude': return 'text-blue-500';
+    case 'teamwork': return 'text-purple-500';
+    case 'reliability': return 'text-indigo-500';
+    default: return 'text-gray-500';
     }
   };
 
   const getSkillLevelColor = (level: SkillCertification['level']) => {
     switch (level) {
-      case 'beginner': return 'bg-green-100 text-green-800';
-      case 'intermediate': return 'bg-blue-100 text-blue-800';
-      case 'advanced': return 'bg-purple-100 text-purple-800';
-      case 'expert': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+    case 'beginner': return 'bg-green-100 text-green-800';
+    case 'intermediate': return 'bg-blue-100 text-blue-800';
+    case 'advanced': return 'bg-purple-100 text-purple-800';
+    case 'expert': return 'bg-red-100 text-red-800';
+    default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getSkillLevelText = (level: SkillCertification['level']) => {
     switch (level) {
-      case 'beginner': return '초급';
-      case 'intermediate': return '중급';
-      case 'advanced': return '고급';
-      case 'expert': return '전문가';
-      default: return '기본';
+    case 'beginner': return '초급';
+    case 'intermediate': return '중급';
+    case 'advanced': return '고급';
+    case 'expert': return '전문가';
+    default: return '기본';
     }
   };
 
@@ -227,10 +227,10 @@ const CrewProfileCard: React.FC<CrewProfileCardProps> = ({
 
       {/* 다시 같이 일하고 싶어요 평가 */}
       <div className="p-6">
-                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-between">
-           <span>다시 같이 일하고 싶어요</span>
-           <Users className="h-5 w-5 text-blue-500" />
-         </h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-between">
+          <span>다시 같이 일하고 싶어요</span>
+          <Users className="h-5 w-5 text-blue-500" />
+        </h3>
         
         {recentReviews.length > 0 ? (
           <div className="space-y-4">
@@ -241,7 +241,7 @@ const CrewProfileCard: React.FC<CrewProfileCardProps> = ({
                   <span className="text-xs text-green-600">
                     {review.createdAt instanceof Date 
                       ? review.createdAt.toLocaleDateString() 
-                      : review.createdAt.toDate().toLocaleDateString()}
+                      : review.createdAt?.toDate?.()?.toLocaleDateString() || '날짜 없음'}
                   </span>
                 </div>
                 <p className="text-sm text-green-700">{review.description}</p>
@@ -249,11 +249,11 @@ const CrewProfileCard: React.FC<CrewProfileCardProps> = ({
             ))}
           </div>
         ) : (
-                     <div className="text-center py-8 text-gray-500">
-             <Users className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-             <p>아직 받은 평가가 없습니다.</p>
-             <p className="text-sm">좋은 일을 하면 "다시 같이 일하고 싶어요" 평가를 받을 수 있어요!</p>
-           </div>
+          <div className="text-center py-8 text-gray-500">
+            <Users className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+            <p>아직 받은 평가가 없습니다.</p>
+            <p className="text-sm">좋은 일을 하면 "다시 같이 일하고 싶어요" 평가를 받을 수 있어요!</p>
+          </div>
         )}
       </div>
 

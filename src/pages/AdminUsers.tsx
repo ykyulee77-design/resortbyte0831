@@ -32,7 +32,7 @@ const AdminUsers: React.FC = () => {
         displayName: doc.data().displayName || doc.data().name || '이름 없음',
         role: doc.data().role,
         createdAt: doc.data().createdAt?.toDate() || new Date(),
-        status: doc.data().status || 'active'
+        status: doc.data().status || 'active',
       }));
       
       setUsers(fetchedUsers);
@@ -78,7 +78,7 @@ const AdminUsers: React.FC = () => {
     try {
       await updateDoc(doc(db, 'users', uid), { role: newRole });
       setUsers(prev => 
-        prev.map(user => user.uid === uid ? { ...user, role: newRole } : user)
+        prev.map(user => user.uid === uid ? { ...user, role: newRole } : user),
       );
     } catch (error) {
       console.error('역할 변경 실패:', error);

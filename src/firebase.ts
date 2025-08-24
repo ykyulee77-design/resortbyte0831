@@ -1,8 +1,8 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
 const getFirebaseConfig = () => {
@@ -14,7 +14,7 @@ const getFirebaseConfig = () => {
       'REACT_APP_FIREBASE_PROJECT_ID',
       'REACT_APP_FIREBASE_STORAGE_BUCKET',
       'REACT_APP_FIREBASE_MESSAGING_SENDER_ID',
-      'REACT_APP_FIREBASE_APP_ID'
+      'REACT_APP_FIREBASE_APP_ID',
     ];
 
     const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -31,18 +31,18 @@ const getFirebaseConfig = () => {
       storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
       messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
       appId: process.env.REACT_APP_FIREBASE_APP_ID,
-      measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+      measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
     };
   } else {
     // 개발 환경용 설정
     return {
-      apiKey: "AIzaSyDMbwRLPGOyilZqWC0wQBE5AaUetES4NG0",
-      authDomain: "resortbyte.firebaseapp.com",
-      projectId: "resortbyte",
-      storageBucket: "resortbyte.firebasestorage.app",
-      messagingSenderId: "267339322445",
-      appId: "1:267339322445:web:ba25d81a94b33252c47804",
-      measurementId: "G-3GG8DMZTW3"
+      apiKey: 'AIzaSyDMbwRLPGOyilZqWC0wQBE5AaUetES4NG0',
+      authDomain: 'resortbyte.firebaseapp.com',
+      projectId: 'resortbyte',
+      storageBucket: 'resortbyte.firebasestorage.app',
+      messagingSenderId: '267339322445',
+      appId: '1:267339322445:web:ba25d81a94b33252c47804',
+      measurementId: 'G-3GG8DMZTW3',
     };
   }
 };

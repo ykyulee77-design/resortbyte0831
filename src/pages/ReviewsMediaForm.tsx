@@ -6,6 +6,9 @@ import { storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import HomeLayout from '../components/HomeLayout';
 import VideoPreviewModal from '../components/VideoPreviewModal';
+import ShareModal from '../components/ShareModal';
+import { Share2, Upload, Camera, Video } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const ReviewsMediaForm: React.FC = () => {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -21,9 +24,28 @@ const ReviewsMediaForm: React.FC = () => {
   }>({
     isOpen: false,
     videoUrl: '',
-    videoName: ''
+    videoName: '',
   });
+
+  const [shareModal, setShareModal] = useState<{
+    isOpen: boolean;
+    mediaUrl: string;
+    mediaType: 'image' | 'video';
+    title: string;
+    description: string;
+    resortName: string;
+  }>({
+    isOpen: false,
+    mediaUrl: '',
+    mediaType: 'image',
+    title: '',
+    description: '',
+    resortName: '',
+  });
+
+  const [uploadedMedia, setUploadedMedia] = useState<any>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchResorts = async () => {
@@ -54,28 +76,28 @@ const ReviewsMediaForm: React.FC = () => {
         return;
       }
 
-             setMediaFile(file);
-       setPreviewUrl(URL.createObjectURL(file));
-     }
-   };
+      setMediaFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
 
-   // 동영상 모달 열기
-   const handleVideoPreview = (videoUrl: string, videoName: string) => {
-     setVideoModal({
-       isOpen: true,
-       videoUrl,
-       videoName
-     });
-   };
+  // 동영상 모달 열기
+  const handleVideoPreview = (videoUrl: string, videoName: string) => {
+    setVideoModal({
+      isOpen: true,
+      videoUrl,
+      videoName,
+    });
+  };
 
-   // 동영상 모달 닫기
-   const handleVideoModalClose = () => {
-     setVideoModal({
-       isOpen: false,
-       videoUrl: '',
-       videoName: ''
-     });
-   };
+  // 동영상 모달 닫기
+  const handleVideoModalClose = () => {
+    setVideoModal({
+      isOpen: false,
+      videoUrl: '',
+      videoName: '',
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,22 +111,64 @@ const ReviewsMediaForm: React.FC = () => {
       const storageRef = ref(storage, `media/${Date.now()}_${mediaFile.name}`);
       await uploadBytes(storageRef, mediaFile);
       const downloadURL = await getDownloadURL(storageRef);
+      
       // 2. Firestore에 정보 저장
-      await addDoc(collection(db, 'media'), {
+      const docRef = await addDoc(collection(db, 'media'), {
         description,
         resort,
+        userId: user?.uid, // 사용자 ID 추가
         createdAt: serverTimestamp(),
         fileName: mediaFile.name,
         fileUrl: downloadURL,
         fileType: mediaFile.type,
       });
-      alert('사진/쇼츠가 등록되었습니다!');
-      navigate('/reviews');
+
+      // 3. 업로드된 미디어 정보 저장
+      const uploadedMediaData = {
+        id: docRef.id,
+        description,
+        resort,
+        fileUrl: downloadURL,
+        fileType: mediaFile.type,
+        fileName: mediaFile.name,
+      };
+      setUploadedMedia(uploadedMediaData);
+
+      alert('사진/쇼츠가 등록되었습니다! 공유하시겠습니까?');
     } catch (err) {
       alert('업로드 중 오류가 발생했습니다.');
     } finally {
       setUploading(false);
     }
+  };
+
+  // 공유 모달 열기
+  const handleShareModalOpen = () => {
+    if (!uploadedMedia) return;
+    
+    const selectedResort = resorts.find(r => r.id === uploadedMedia.resort);
+    setShareModal({
+      isOpen: true,
+      mediaUrl: uploadedMedia.fileUrl,
+      mediaType: uploadedMedia.fileType?.startsWith('image') ? 'image' : 'video',
+      title: uploadedMedia.description,
+      description: uploadedMedia.description,
+      resortName: selectedResort?.name || '알 수 없는 리조트',
+    });
+  };
+
+  // 공유 모달 닫기
+  const handleShareModalClose = () => {
+    setShareModal({
+      isOpen: false,
+      mediaUrl: '',
+      mediaType: 'image',
+      title: '',
+      description: '',
+      resortName: '',
+    });
+    // 공유 모달이 닫히면 리뷰 페이지로 이동
+    navigate('/reviews');
   };
 
   return (
@@ -136,29 +200,29 @@ const ReviewsMediaForm: React.FC = () => {
               <div className="mt-2">
                 {mediaFile && mediaFile.type.startsWith('image') ? (
                   <img src={previewUrl} alt="미리보기" className="w-full h-48 object-cover rounded" />
-                                 ) : (
-                   <div 
-                     className="relative w-full h-48 bg-gray-900 rounded cursor-pointer"
-                     onClick={() => handleVideoPreview(previewUrl, mediaFile?.name || '동영상 미리보기')}
-                   >
-                     <video 
-                       src={previewUrl} 
-                       className="w-full h-full object-cover rounded"
-                       preload="metadata"
-                       onError={(e) => {
-                         console.error('동영상 미리보기 로드 실패:', previewUrl);
-                         e.currentTarget.style.display = 'none';
-                       }}
-                     />
-                     <div className="absolute inset-0 flex items-center justify-center">
-                       <div className="bg-black bg-opacity-50 text-white rounded-full p-4 hover:bg-opacity-70 transition-all">
-                         <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                         </svg>
-                       </div>
-                     </div>
-                   </div>
-                 )}
+                ) : (
+                  <div 
+                    className="relative w-full h-48 bg-gray-900 rounded cursor-pointer"
+                    onClick={() => handleVideoPreview(previewUrl, mediaFile?.name || '동영상 미리보기')}
+                  >
+                    <video 
+                      src={previewUrl} 
+                      className="w-full h-full object-cover rounded"
+                      preload="metadata"
+                      onError={(e) => {
+                        console.error('동영상 미리보기 로드 실패:', previewUrl);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-black bg-opacity-50 text-white rounded-full p-4 hover:bg-opacity-70 transition-all">
+                        <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -169,18 +233,57 @@ const ReviewsMediaForm: React.FC = () => {
           <button type="submit" className="w-full bg-resort-600 text-white py-2 rounded hover:bg-resort-700 font-semibold" disabled={uploading}>
             {uploading ? '업로드 중...' : '등록하기'}
           </button>
-                 </form>
-       </div>
 
-       {/* 동영상 모달 */}
-       <VideoPreviewModal
-         isOpen={videoModal.isOpen}
-         onClose={handleVideoModalClose}
-         videoUrl={videoModal.videoUrl}
-         videoName={videoModal.videoName}
-       />
-     </HomeLayout>
-   );
- };
+          {/* 업로드 성공 후 공유 버튼 */}
+          {uploadedMedia && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    {uploadedMedia.fileType?.startsWith('image') ? (
+                      <Camera className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Video className="w-4 h-4 text-green-600" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-green-800">업로드 완료!</p>
+                    <p className="text-xs text-green-600">이제 친구들과 공유해보세요</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleShareModalOpen}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                >
+                  <Share2 className="w-4 h-4" />
+                  공유하기
+                </button>
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
+
+      {/* 동영상 모달 */}
+      <VideoPreviewModal
+        isOpen={videoModal.isOpen}
+        onClose={handleVideoModalClose}
+        videoUrl={videoModal.videoUrl}
+        videoName={videoModal.videoName}
+      />
+
+      {/* 공유 모달 */}
+      <ShareModal
+        isOpen={shareModal.isOpen}
+        onClose={handleShareModalClose}
+        mediaUrl={shareModal.mediaUrl}
+        mediaType={shareModal.mediaType}
+        title={shareModal.title}
+        description={shareModal.description}
+        resortName={shareModal.resortName}
+      />
+    </HomeLayout>
+  );
+};
 
 export default ReviewsMediaForm; 

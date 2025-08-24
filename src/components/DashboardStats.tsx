@@ -18,7 +18,7 @@ const DashboardStats: React.FC<DashboardStatsProps> = ({
   rejectedApplications,
   matchingScore = 0,
   preferredLocations = [],
-  averageSalary = 0
+  averageSalary = 0,
 }) => {
   const acceptanceRate = totalApplications > 0 ? (acceptedApplications / totalApplications * 100).toFixed(1) : '0';
   const pendingRate = totalApplications > 0 ? (pendingApplications / totalApplications * 100).toFixed(1) : '0';

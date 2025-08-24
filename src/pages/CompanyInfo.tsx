@@ -54,7 +54,7 @@ const CompanyInfoPage: React.FC = () => {
           dormitoryFacilities: [],
           salaryRange: '',
           environment: '도심' as const,
-          workTimeType: '고정제' as const
+          workTimeType: '고정제' as const,
         };
         setFormData(defaultData);
       }
@@ -75,28 +75,28 @@ const CompanyInfoPage: React.FC = () => {
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev: any) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   const handleArrayChange = (field: string, index: number, value: string) => {
     setFormData((prev: any) => ({
       ...prev,
-      [field]: prev[field].map((item: string, i: number) => i === index ? value : item)
+      [field]: prev[field].map((item: string, i: number) => i === index ? value : item),
     }));
   };
 
   const addArrayItem = (field: string) => {
     setFormData((prev: any) => ({
       ...prev,
-      [field]: [...(prev[field] || []), '']
+      [field]: [...(prev[field] || []), ''],
     }));
   };
 
   const removeArrayItem = (field: string, index: number) => {
     setFormData((prev: any) => ({
       ...prev,
-      [field]: prev[field].filter((_: string, i: number) => i !== index)
+      [field]: prev[field].filter((_: string, i: number) => i !== index),
     }));
   };
 
@@ -107,7 +107,7 @@ const CompanyInfoPage: React.FC = () => {
     try {
       const dataToSave = {
         ...formData,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
       if (companyInfo?.id) {
@@ -117,7 +117,7 @@ const CompanyInfoPage: React.FC = () => {
         // 새 데이터 생성
         await setDoc(doc(db, 'companyInfo', employerId), {
           ...dataToSave,
-          createdAt: new Date()
+          createdAt: new Date(),
         });
       }
 

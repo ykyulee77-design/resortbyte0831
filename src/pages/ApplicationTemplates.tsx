@@ -36,7 +36,7 @@ const ApplicationTemplates: React.FC = () => {
       const querySnapshot = await getDocs(q);
       const templatesData = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       })) as ApplicationTemplate[];
       
       setTemplates(templatesData);
@@ -74,7 +74,7 @@ const ApplicationTemplates: React.FC = () => {
         education,
         skills,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       setShowCreateModal(false);
@@ -100,7 +100,7 @@ const ApplicationTemplates: React.FC = () => {
         experience,
         education,
         skills,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       setShowEditModal(false);
@@ -251,7 +251,7 @@ const ApplicationTemplates: React.FC = () => {
               
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <p className="text-xs text-gray-500">
-                  생성일: {template.createdAt.toDate().toLocaleDateString()}
+                  생성일: {template.createdAt?.toDate?.()?.toLocaleDateString() || '날짜 없음'}
                 </p>
               </div>
             </div>

@@ -23,7 +23,7 @@ const PositiveReviewModal: React.FC<PositiveReviewModalProps> = ({
   jobPostId,
   employerId,
   workTypeId,
-  onReviewComplete
+  onReviewComplete,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,7 +35,7 @@ const PositiveReviewModal: React.FC<PositiveReviewModalProps> = ({
         collection(db, 'positiveReviews'),
         where('employerId', '==', employerId),
         where('jobseekerId', '==', jobseekerId),
-        where('jobPostId', '==', jobPostId)
+        where('jobPostId', '==', jobPostId),
       );
       const existingReviewSnapshot = await getDocs(existingReviewQuery);
       
@@ -46,18 +46,23 @@ const PositiveReviewModal: React.FC<PositiveReviewModalProps> = ({
       }
 
       const reviewData: Omit<PositiveReview, 'id'> = {
+        reviewerId: employerId,
+        reviewedId: jobseekerId,
+        jobPostId: jobPostId,
+        rating: 5,
+        comment: `${jobseekerName}님과 함께 일한 경험이 매우 만족스러웠습니다.`,
+        tags: ['recommend'],
+        isAnonymous: false,
         employerId,
         jobseekerId,
-        jobPostId,
         ...(workTypeId && { workTypeId }),
         reviewType: 'praise',
         category: 'service_skill',
         title: '다시 같이 일하고 싶어요',
         description: `${jobseekerName}님과 함께 일한 경험이 매우 만족스러웠습니다.`,
-        tags: ['recommend'],
         isPublic: true,
         createdAt: serverTimestamp() as any,
-        updatedAt: serverTimestamp() as any
+        updatedAt: serverTimestamp() as any,
       };
 
       const docRef = await addDoc(collection(db, 'positiveReviews'), reviewData);
@@ -99,9 +104,9 @@ const PositiveReviewModal: React.FC<PositiveReviewModalProps> = ({
           <div className="space-y-6">
             {/* 간단한 평가 메시지 */}
             <div className="text-center py-8">
-                             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                 <Users className="w-8 h-8 text-green-600" />
-               </div>
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-green-600" />
+              </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 다시 같이 일하고 싶어요!
               </h3>

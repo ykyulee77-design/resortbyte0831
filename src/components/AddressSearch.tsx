@@ -18,8 +18,8 @@ export interface AddressSearchProps {
 
 const AddressSearch: React.FC<AddressSearchProps> = ({ 
   onAddressSelect, 
-  placeholder = "주소를 검색하세요", 
-  value = "" 
+  placeholder = '주소를 검색하세요', 
+  value = '', 
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -63,7 +63,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         jibunAddress: '서울특별시 강남구 역삼동 737-32',
         region: '서울특별시 강남구',
         sido: '서울특별시',
-        sigungu: '강남구'
+        sigungu: '강남구',
       },
       {
         zipCode: '06124',
@@ -72,7 +72,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         jibunAddress: '서울특별시 강남구 역삼동 737-32',
         region: '서울특별시 강남구',
         sido: '서울특별시',
-        sigungu: '강남구'
+        sigungu: '강남구',
       },
       {
         zipCode: '06125',
@@ -81,7 +81,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         jibunAddress: '서울특별시 강남구 삼성동 159-1',
         region: '서울특별시 강남구',
         sido: '서울특별시',
-        sigungu: '강남구'
+        sigungu: '강남구',
       },
       {
         zipCode: '06131',
@@ -90,7 +90,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         jibunAddress: '서울특별시 강남구 역삼동 737-32',
         region: '서울특별시 강남구',
         sido: '서울특별시',
-        sigungu: '강남구'
+        sigungu: '강남구',
       },
       {
         zipCode: '06134',
@@ -99,7 +99,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         jibunAddress: '서울특별시 강남구 삼성동 123-45',
         region: '서울특별시 강남구',
         sido: '서울특별시',
-        sigungu: '강남구'
+        sigungu: '강남구',
       },
       {
         zipCode: '06136',
@@ -108,7 +108,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         jibunAddress: '서울특별시 강남구 삼성동 123-45',
         region: '서울특별시 강남구',
         sido: '서울특별시',
-        sigungu: '강남구'
+        sigungu: '강남구',
       },
       {
         zipCode: '06138',
@@ -117,7 +117,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         jibunAddress: '서울특별시 강남구 청담동 123-45',
         region: '서울특별시 강남구',
         sido: '서울특별시',
-        sigungu: '강남구'
+        sigungu: '강남구',
       },
       {
         zipCode: '06140',
@@ -126,7 +126,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         jibunAddress: '서울특별시 강남구 역삼동 123-45',
         region: '서울특별시 강남구',
         sido: '서울특별시',
-        sigungu: '강남구'
+        sigungu: '강남구',
       },
       {
         zipCode: '06142',
@@ -135,7 +135,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         jibunAddress: '서울특별시 강남구 역삼동 123-45',
         region: '서울특별시 강남구',
         sido: '서울특별시',
-        sigungu: '강남구'
+        sigungu: '강남구',
       },
       {
         zipCode: '06144',
@@ -144,8 +144,8 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         jibunAddress: '서울특별시 강남구 개포동 123-45',
         region: '서울특별시 강남구',
         sido: '서울특별시',
-        sigungu: '강남구'
-      }
+        sigungu: '강남구',
+      },
     ];
 
     // 키워드로 필터링
@@ -168,7 +168,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         addr.jibunAddress.toLowerCase().includes(term.toLowerCase()) ||
         addr.region?.toLowerCase().includes(term.toLowerCase()) ||
         addr.sido?.toLowerCase().includes(term.toLowerCase()) ||
-        addr.sigungu?.toLowerCase().includes(term.toLowerCase())
+        addr.sigungu?.toLowerCase().includes(term.toLowerCase()),
       );
       
       return exactMatch || partialMatch;
@@ -210,7 +210,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
           jibunAddress: juso.jibunAddr,
           region: `${juso.admCd.split(' ')[0]} ${juso.admCd.split(' ')[1]}`,
           sido: juso.admCd.split(' ')[0],
-          sigungu: juso.admCd.split(' ')[1]
+          sigungu: juso.admCd.split(' ')[1],
         }));
         
         setAddresses(apiAddresses);
@@ -286,7 +286,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         address: searchTerm,
         roadAddress: searchTerm,
         jibunAddress: searchTerm,
-        ...regionInfo
+        ...regionInfo,
       };
       onAddressSelect(customAddress);
       setIsEditing(false);

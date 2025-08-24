@@ -13,7 +13,7 @@ const SmartMatchingCTA: React.FC<SmartMatchingCTAProps> = ({
   title = '🎯 스마트 매칭으로 완벽한 일자리 찾기',
   description = '내 시간에 맞는 최적의 일자리를 AI가 추천해드려요!',
   onOpenSchedule,
-  variant = 'enhanced'
+  variant = 'enhanced',
 }) => {
   if (variant === 'minimal') {
     return (

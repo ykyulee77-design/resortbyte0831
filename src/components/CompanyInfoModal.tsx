@@ -17,7 +17,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
   isOpen,
   onClose,
   employerId,
-  companyName
+  companyName,
 }) => {
   const [companyInfo, setCompanyInfo] = useState<Partial<CompanyInfo>>({
     name: companyName,
@@ -76,34 +76,34 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
     const { name, value } = e.target;
     setCompanyInfo(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleBenefitChange = (index: number, value: string) => {
     setCompanyInfo(prev => ({
       ...prev,
-      benefits: prev.benefits?.map((benefit, i) => i === index ? value : benefit) || []
+      benefits: prev.benefits?.map((benefit, i) => i === index ? value : benefit) || [],
     }));
   };
 
   const addBenefit = () => {
     setCompanyInfo(prev => ({
       ...prev,
-      benefits: [...(prev.benefits || []), '']
+      benefits: [...(prev.benefits || []), ''],
     }));
   };
 
   const removeBenefit = (index: number) => {
     setCompanyInfo(prev => ({
       ...prev,
-      benefits: prev.benefits?.filter((_, i) => i !== index) || []
+      benefits: prev.benefits?.filter((_, i) => i !== index) || [],
     }));
   };
 
   // 숙소 시설 체크박스 옵션
   const dormitoryFacilityOptions = [
-    '와이파이', '에어컨', '세탁기', '개인욕실', '공용주방', 'TV', '냉장고', '책상', '옷장', '난방'
+    '와이파이', '에어컨', '세탁기', '개인욕실', '공용주방', 'TV', '냉장고', '책상', '옷장', '난방',
   ];
 
   // handleDormitoryFacilitiesChange 함수 추가
@@ -112,7 +112,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
       ...prev,
       dormitoryFacilities: prev.dormitoryFacilities?.includes(facility)
         ? prev.dormitoryFacilities.filter(f => f !== facility)
-        : [...(prev.dormitoryFacilities || []), facility]
+        : [...(prev.dormitoryFacilities || []), facility],
     }));
   };
 
@@ -163,8 +163,8 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
           metadata: {
             uploadedBy: employerId,
             uploadType: 'company-info',
-            originalName: file.name
-          }
+            originalName: file.name,
+          },
         });
 
         if (result.success && result.url) {
@@ -181,7 +181,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
         console.log(`업로드 완료: ${uploadedUrls.length}개 파일 성공`);
         setCompanyInfo(prev => ({
           ...prev,
-          images: [...(prev.images || []), ...uploadedUrls]
+          images: [...(prev.images || []), ...uploadedUrls],
         }));
         alert(`${uploadedUrls.length}개 이미지가 성공적으로 업로드되었습니다.`);
       } else {
@@ -209,7 +209,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
         // 상태에서 이미지 제거
         setCompanyInfo(prev => ({
           ...prev,
-          images: prev.images?.filter((_, i) => i !== index) || []
+          images: prev.images?.filter((_, i) => i !== index) || [],
         }));
         
         alert('이미지가 삭제되었습니다.');
@@ -240,7 +240,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
         ...companyInfo,
         employerId,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       };
 
       await setDoc(doc(db, 'companyInfo', employerId), companyData);
@@ -636,11 +636,11 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
                   >
-                                         <option value="무관">무관</option>
-                     <option value="주간 근무타입">주간 근무타입</option>
-                     <option value="야간 근무타입">야간 근무타입</option>
-                     <option value="주말근무타입">주말근무타입</option>
-                     <option value="주중근무타입">주중근무타입</option>
+                    <option value="무관">무관</option>
+                    <option value="주간 근무타입">주간 근무타입</option>
+                    <option value="야간 근무타입">야간 근무타입</option>
+                    <option value="주말근무타입">주말근무타입</option>
+                    <option value="주중근무타입">주중근무타입</option>
                   </select>
                 </div>
               </div>

@@ -47,7 +47,7 @@ export const useCompanyInfo = (employerId?: string) => {
       await setDoc(ref, { ...data, employerId, updatedAt: new Date() }, { merge: true });
       await fetch();
     },
-    [employerId, fetch]
+    [employerId, fetch],
   );
 
   const update = useCallback(
@@ -57,7 +57,7 @@ export const useCompanyInfo = (employerId?: string) => {
       await updateDoc(ref, { ...data, updatedAt: new Date() });
       await fetch();
     },
-    [employerId, fetch]
+    [employerId, fetch],
   );
 
   useEffect(() => {

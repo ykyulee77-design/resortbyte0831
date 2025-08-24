@@ -1,7 +1,7 @@
 // 디바운스 함수 - 연속된 이벤트를 제한
 export const debounce = <T extends (...args: any[]) => any>(
   func: T,
-  wait: number
+  wait: number,
 ): ((...args: Parameters<T>) => void) => {
   let timeout: NodeJS.Timeout;
   
@@ -14,7 +14,7 @@ export const debounce = <T extends (...args: any[]) => any>(
 // 쓰로틀 함수 - 일정 시간 간격으로 함수 실행 제한
 export const throttle = <T extends (...args: any[]) => any>(
   func: T,
-  limit: number
+  limit: number,
 ): ((...args: Parameters<T>) => void) => {
   let inThrottle: boolean;
   
@@ -30,7 +30,7 @@ export const throttle = <T extends (...args: any[]) => any>(
 // 메모이제이션 함수 - 동일한 입력에 대한 결과를 캐시
 export const memoize = <T extends (...args: any[]) => any>(
   func: T,
-  resolver?: (...args: Parameters<T>) => string
+  resolver?: (...args: Parameters<T>) => string,
 ): T => {
   const cache = new Map<string, ReturnType<T>>();
   
@@ -50,7 +50,7 @@ export const memoize = <T extends (...args: any[]) => any>(
 // 이미지 지연 로딩을 위한 Intersection Observer 래퍼
 export const createLazyLoadObserver = (
   callback: (entries: IntersectionObserverEntry[]) => void,
-  options: IntersectionObserverInit = {}
+  options: IntersectionObserverInit = {},
 ): IntersectionObserver => {
   const defaultOptions: IntersectionObserverInit = {
     root: null,
@@ -67,7 +67,7 @@ export const calculateVirtualScrollItems = (
   totalItems: number,
   containerHeight: number,
   itemHeight: number,
-  scrollTop: number
+  scrollTop: number,
 ) => {
   const visibleCount = Math.ceil(containerHeight / itemHeight);
   const startIndex = Math.floor(scrollTop / itemHeight);
@@ -85,7 +85,7 @@ export const calculateVirtualScrollItems = (
 // 성능 측정을 위한 유틸리티
 export const measurePerformance = <T extends (...args: any[]) => any>(
   name: string,
-  func: T
+  func: T,
 ): ((...args: Parameters<T>) => ReturnType<T>) => {
   return (...args: Parameters<T>) => {
     const start = performance.now();
@@ -103,7 +103,7 @@ export const measurePerformance = <T extends (...args: any[]) => any>(
 // 비동기 작업의 성능 측정
 export const measureAsyncPerformance = async <T>(
   name: string,
-  asyncFunc: () => Promise<T>
+  asyncFunc: () => Promise<T>,
 ): Promise<T> => {
   const start = performance.now();
   const result = await asyncFunc();
@@ -169,7 +169,7 @@ export const deepClone = <T>(obj: T): T => {
 };
 
 // 메모리 사용량 모니터링 (개발 환경에서만)
-export const logMemoryUsage = (label: string = 'Memory Usage'): void => {
+export const logMemoryUsage = (label = 'Memory Usage'): void => {
   if (process.env.NODE_ENV === 'development' && 'memory' in performance) {
     const memory = (performance as any).memory;
     console.log(`${label}:`, {

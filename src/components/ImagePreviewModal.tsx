@@ -12,7 +12,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({
   isOpen,
   onClose,
   imageUrl,
-  imageName
+  imageName,
 }) => {
   const [scale, setScale] = React.useState(1);
   const [rotation, setRotation] = React.useState(0);
@@ -180,7 +180,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({
               className="relative cursor-move select-none"
               style={{
                 transform: `scale(${scale}) rotate(${rotation}deg)`,
-                transition: 'transform 0.2s ease-out'
+                transition: 'transform 0.2s ease-out',
               }}
             >
               {!imageLoaded && (
@@ -195,7 +195,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({
                 style={{
                   maxWidth: '80vw',
                   maxHeight: '80vh',
-                  opacity: imageLoaded ? 1 : 0
+                  opacity: imageLoaded ? 1 : 0,
                 }}
                 draggable={false}
                 onLoad={handleImageLoad}

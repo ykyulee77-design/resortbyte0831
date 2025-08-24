@@ -21,7 +21,7 @@ export interface ImageUploadResult {
  */
 export const uploadImage = async (
   file: File, 
-  options: ImageUploadOptions
+  options: ImageUploadOptions,
 ): Promise<ImageUploadResult> => {
   try {
     console.log(`이미지 업로드 시작: ${file.name} -> ${options.folder}`);
@@ -58,8 +58,8 @@ export const uploadImage = async (
         originalName: file.name,
         processedName: processedFile.name,
         uploadedAt: new Date().toISOString(),
-        ...options.metadata
-      }
+        ...options.metadata,
+      },
     };
     
     // 파일 업로드
@@ -77,13 +77,13 @@ export const uploadImage = async (
     
     return {
       success: true,
-      url: downloadURL
+      url: downloadURL,
     };
   } catch (error) {
     console.error('이미지 업로드 실패:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : '알 수 없는 오류'
+      error: error instanceof Error ? error.message : '알 수 없는 오류',
     };
   }
 };
@@ -96,7 +96,7 @@ export const uploadImage = async (
  */
 export const uploadMultipleImages = async (
   files: File[], 
-  options: ImageUploadOptions
+  options: ImageUploadOptions,
 ): Promise<ImageUploadResult[]> => {
   console.log(`다중 이미지 업로드 시작: ${files.length}개 파일`);
   
@@ -126,13 +126,13 @@ export const deleteImage = async (imageUrl: string): Promise<ImageUploadResult> 
     console.log('이미지 삭제 완료');
     
     return {
-      success: true
+      success: true,
     };
   } catch (error) {
     console.error('이미지 삭제 실패:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : '알 수 없는 오류'
+      error: error instanceof Error ? error.message : '알 수 없는 오류',
     };
   }
 };
@@ -158,7 +158,7 @@ export const validateImageFile = (file: File): { valid: boolean; error?: string 
   if (file.size > maxSize) {
     return {
       valid: false,
-      error: '파일 크기가 10MB를 초과합니다.'
+      error: '파일 크기가 10MB를 초과합니다.',
     };
   }
   
@@ -170,7 +170,7 @@ export const validateImageFile = (file: File): { valid: boolean; error?: string 
   if (!allowedTypes.includes(file.type) && !isHeicFile) {
     return {
       valid: false,
-      error: '지원하지 않는 이미지 형식입니다. (JPEG, PNG, GIF, WebP, HEIC만 지원)'
+      error: '지원하지 않는 이미지 형식입니다. (JPEG, PNG, GIF, WebP, HEIC만 지원)',
     };
   }
   
@@ -192,7 +192,7 @@ export const convertHeicToJpeg = (file: File): Promise<File> => {
         const shouldContinue = window.confirm(
           'HEIC 파일이 감지되었습니다. 이 파일은 일부 브라우저에서 제대로 표시되지 않을 수 있습니다.\n\n' +
           'JPEG 또는 PNG 형식으로 변환 후 업로드하는 것을 권장합니다.\n\n' +
-          '계속 진행하시겠습니까?'
+          '계속 진행하시겠습니까?',
         );
         
         if (!shouldContinue) {
@@ -226,7 +226,7 @@ export const convertHeicToJpeg = (file: File): Promise<File> => {
  * @param maxWidth 최대 너비
  * @returns 압축된 파일
  */
-export const compressImage = (file: File, maxWidth: number = 1200): Promise<File> => {
+export const compressImage = (file: File, maxWidth = 1200): Promise<File> => {
   return new Promise((resolve, reject) => {
     try {
       // HEIC 파일인지 확인
@@ -273,7 +273,7 @@ export const compressImage = (file: File, maxWidth: number = 1200): Promise<File
               }
             },
             'image/jpeg',
-            0.8 // 품질 설정
+            0.8, // 품질 설정
           );
         } catch (error) {
           console.warn('이미지 압축 중 오류 발생, 원본 파일 사용:', error);

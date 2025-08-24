@@ -61,7 +61,9 @@ interface JobPostFormData {
 // 총 근무시간 계산 함수
 const calculateTotalHoursPerWeek = (schedules: TimeSlot[]): number => {
   return schedules.reduce((total, slot) => {
-    const hoursInSlot = slot.end > slot.start ? slot.end - slot.start : (24 - slot.start) + slot.end;
+    const start = slot.start || 0;
+    const end = slot.end || 0;
+    const hoursInSlot = end > start ? end - start : (24 - start) + end;
     return total + hoursInSlot;
   }, 0);
 };
@@ -80,7 +82,7 @@ const JobPostForm: React.FC = () => {
     name: '',
     description: '',
     hourlyWage: 0,
-    isActive: true
+    isActive: true,
   });
   const [schedules, setSchedules] = useState<TimeSlot[]>([]);
   const [isSavingWorkType, setIsSavingWorkType] = useState(false);
@@ -110,19 +112,19 @@ const JobPostForm: React.FC = () => {
       address: '',
       contactEmail: '',
       contactPhone: '',
-      contactPerson: ''
+      contactPerson: '',
     },
     
 
     
     workPeriod: {
       startDate: '',
-      endDate: ''
+      endDate: '',
     },
     salary: {
       min: 0,
       max: 0,
-      type: 'hourly'
+      type: 'hourly',
     },
     requirements: [''],
     benefits: [''],
@@ -133,11 +135,11 @@ const JobPostForm: React.FC = () => {
     images: [],
     contactInfo: {
       email: '',
-      phone: ''
+      phone: '',
     },
     accommodation: { provided: false, info: '' },
     meal: { provided: false, info: '' },
-    employeeBenefits: ''
+    employeeBenefits: '',
   });
 
   useEffect(() => {
@@ -229,8 +231,8 @@ const JobPostForm: React.FC = () => {
         ...prev,
         accommodation: {
           provided: accommodationInfo.isAvailable || false,
-          info: accommodationInfo.description || accommodationInfo.name || ''
-        }
+          info: accommodationInfo.description || accommodationInfo.name || '',
+        },
       }));
     }
   };
@@ -284,7 +286,7 @@ const JobPostForm: React.FC = () => {
         description: workTypeFormData.description.trim(),
         hourlyWage: workTypeFormData.hourlyWage,
         schedules: schedules,
-        isActive: workTypeFormData.isActive
+        isActive: workTypeFormData.isActive,
       });
       
       // 생성 후 자동으로 선택
@@ -298,7 +300,7 @@ const JobPostForm: React.FC = () => {
         name: '',
         description: '',
         hourlyWage: 0,
-        isActive: true
+        isActive: true,
       });
       setSchedules([]);
       setWorkTypeErrors({});
@@ -344,12 +346,12 @@ const JobPostForm: React.FC = () => {
             address: '',
             contactEmail: '',
             contactPhone: '',
-            contactPerson: ''
+            contactPerson: '',
           },
 
           workPeriod: { 
             startDate: data.startDate ? new Date(data.startDate.seconds * 1000).toISOString().split('T')[0] : '',
-            endDate: data.endDate ? new Date(data.endDate.seconds * 1000).toISOString().split('T')[0] : ''
+            endDate: data.endDate ? new Date(data.endDate.seconds * 1000).toISOString().split('T')[0] : '',
           },
           salary: data.salary,
           requirements: data.requirements || [''],
@@ -362,7 +364,7 @@ const JobPostForm: React.FC = () => {
           contactInfo: (data as any).contactInfo || { email: '', phone: '' },
           accommodation: (data as any).accommodation || { provided: false, info: '' },
           meal: (data as any).meal || { provided: false, info: '' },
-          employeeBenefits: (data as any).employeeBenefits || ''
+          employeeBenefits: (data as any).employeeBenefits || '',
         });
       }
     } catch (error) {
@@ -375,7 +377,7 @@ const JobPostForm: React.FC = () => {
   const handleInputChange = (field: keyof JobPostFormData, value: any) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -384,29 +386,29 @@ const JobPostForm: React.FC = () => {
       ...prev,
       salary: {
         ...prev.salary,
-        [field]: value
-      }
+        [field]: value,
+      },
     }));
   };
 
   const handleArrayChange = (field: 'requirements' | 'benefits', index: number, value: string) => {
     setFormData(prev => ({
       ...prev,
-      [field]: prev[field].map((item, i) => i === index ? value : item)
+      [field]: prev[field].map((item, i) => i === index ? value : item),
     }));
   };
 
   const addArrayItem = (field: 'requirements' | 'benefits') => {
     setFormData(prev => ({
       ...prev,
-      [field]: [...prev[field], '']
+      [field]: [...prev[field], ''],
     }));
   };
 
   const removeArrayItem = (field: 'requirements' | 'benefits', index: number) => {
     setFormData(prev => ({
       ...prev,
-      [field]: prev[field].filter((_, i) => i !== index)
+      [field]: prev[field].filter((_, i) => i !== index),
     }));
   };
 
@@ -414,7 +416,7 @@ const JobPostForm: React.FC = () => {
     const files = Array.from(e.target.files || []);
     setFormData(prev => ({
       ...prev,
-      images: [...prev.images, ...files]
+      images: [...prev.images, ...files],
     }));
   };
 
@@ -434,8 +436,8 @@ const JobPostForm: React.FC = () => {
       folder: 'job-posts',
       metadata: {
         uploadedBy: user?.uid,
-        uploadType: 'job-post'
-      }
+        uploadType: 'job-post',
+      },
     });
     
     // 성공한 업로드만 URL 반환
@@ -499,7 +501,7 @@ const JobPostForm: React.FC = () => {
         employeeBenefits: formData.employeeBenefits,
         employerId: user?.uid, // 고용주 ID 추가
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       } as any;
 
       // 디버깅을 위한 로그
@@ -710,7 +712,7 @@ const JobPostForm: React.FC = () => {
                       value={formData.workPeriod.startDate}
                       onChange={(e) => handleInputChange('workPeriod', {
                         ...formData.workPeriod,
-                        startDate: e.target.value
+                        startDate: e.target.value,
                       })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -722,7 +724,7 @@ const JobPostForm: React.FC = () => {
                       value={formData.workPeriod.endDate}
                       onChange={(e) => handleInputChange('workPeriod', {
                         ...formData.workPeriod,
-                        endDate: e.target.value
+                        endDate: e.target.value,
                       })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -831,7 +833,7 @@ const JobPostForm: React.FC = () => {
                         if (workTypeErrors.name && e.target.value.trim()) {
                           setWorkTypeErrors(prev => ({
                             ...prev,
-                            name: ''
+                            name: '',
                           }));
                         }
                       }}
@@ -889,7 +891,7 @@ const JobPostForm: React.FC = () => {
                           if (workTypeErrors.schedules && newSchedules.length > 0) {
                             setWorkTypeErrors(prev => ({
                               ...prev,
-                              schedules: ''
+                              schedules: '',
                             }));
                           }
                         }}
@@ -1085,7 +1087,7 @@ const JobPostForm: React.FC = () => {
                     checked={formData.accommodation.provided}
                     onChange={(e) => handleInputChange('accommodation', {
                       ...formData.accommodation,
-                      provided: e.target.checked
+                      provided: e.target.checked,
                     })}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
@@ -1103,7 +1105,7 @@ const JobPostForm: React.FC = () => {
                       value={formData.accommodation.info}
                       onChange={(e) => handleInputChange('accommodation', {
                         ...formData.accommodation,
-                        info: e.target.value
+                        info: e.target.value,
                       })}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1122,7 +1124,7 @@ const JobPostForm: React.FC = () => {
                     checked={formData.meal.provided}
                     onChange={(e) => handleInputChange('meal', {
                       ...formData.meal,
-                      provided: e.target.checked
+                      provided: e.target.checked,
                     })}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
@@ -1140,7 +1142,7 @@ const JobPostForm: React.FC = () => {
                       value={formData.meal.info}
                       onChange={(e) => handleInputChange('meal', {
                         ...formData.meal,
-                        info: e.target.value
+                        info: e.target.value,
                       })}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1180,7 +1182,7 @@ const JobPostForm: React.FC = () => {
                   value={formData.contactInfo.email}
                   onChange={(e) => handleInputChange('contactInfo', {
                     ...formData.contactInfo,
-                    email: e.target.value
+                    email: e.target.value,
                   })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -1195,7 +1197,7 @@ const JobPostForm: React.FC = () => {
                   value={formData.contactInfo.phone}
                   onChange={(e) => handleInputChange('contactInfo', {
                     ...formData.contactInfo,
-                    phone: e.target.value
+                    phone: e.target.value,
                   })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -1262,17 +1264,17 @@ const JobPostForm: React.FC = () => {
 
 
         {/* 근무타입 상세 정보 모달 */}
-              <WorkTypeEditModal
-        workType={selectedWorkTypeForDetail}
-        isOpen={showWorkTypeDetailModal}
-        onClose={() => {
-          setShowWorkTypeDetailModal(false);
-          setSelectedWorkTypeForDetail(null);
-        }}
-        onUpdate={(updatedWorkType) => {
-          setSelectedWorkTypeForDetail(updatedWorkType);
-        }}
-      />
+        <WorkTypeEditModal
+          workType={selectedWorkTypeForDetail}
+          isOpen={showWorkTypeDetailModal}
+          onClose={() => {
+            setShowWorkTypeDetailModal(false);
+            setSelectedWorkTypeForDetail(null);
+          }}
+          onUpdate={(updatedWorkType) => {
+            setSelectedWorkTypeForDetail(updatedWorkType);
+          }}
+        />
 
         {/* 이미지 상세 정보 모달 */}
         <ImageDetailModal

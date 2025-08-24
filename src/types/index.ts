@@ -1,18 +1,86 @@
 import { Timestamp } from 'firebase/firestore';
 
+// 공통 타입 정의
+export type DateOrTimestamp = Date | Timestamp;
+export type StatusType = 'pending' | 'reviewing' | 'interview_scheduled' | 'interview_completed' | 'offer_sent' | 'accepted' | 'rejected' | 'withdrawn';
+
+// 기본 인터페이스들
+export interface BaseEntity {
+  id: string;
+  createdAt?: Timestamp; // 선택적으로 변경
+  updatedAt?: Timestamp;
+}
+
+// RoomType 타입 추가
+export interface RoomType {
+  id: string;
+  name: string;
+  description: string;
+  capacity: number;
+  price: number;
+  available?: number; // 추가
+  facilities: string[];
+  images: string[];
+  isAvailable: boolean;
+}
+
+// WorkerAvailability 타입 추가
+export interface WorkerAvailability {
+  id?: string; // 추가
+  workerId: string;
+  day: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday' | 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  hour: number;
+  priority: 1 | 2;
+}
+
+// TimeSlot 타입 수정 (start, end 속성 추가)
+export interface TimeSlot {
+  day: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday' | 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  startTime: string;
+  endTime: string;
+  start?: number; // 시간 매칭을 위한 숫자 값
+  end?: number;   // 시간 매칭을 위한 숫자 값
+  priority?: 1 | 2; // 우선순위 추가
+}
+
+// MatchingResult 타입 수정
+export interface MatchingResult extends BaseEntity {
+  jobseekerId: string;
+  jobPostId: string;
+  workTypeId: string;
+  workTypeName?: string; // 추가
+  score: number;
+  matchScore?: number; // 추가
+  detailedScore?: {     // 추가
+    priority1Matches: number;
+    priority2Matches: number;
+    totalPossibleMatches: number;
+    overlapHours: number;
+  };
+  company?: {           // 추가
+    name: string;
+    location: string;
+  };
+  schedulePreview?: any; // 추가
+  matchedTimeSlots: TimeSlot[];
+  status: 'pending' | 'accepted' | 'rejected' | 'expired';
+  employerResponse?: 'accepted' | 'rejected' | 'pending';
+  jobseekerResponse?: 'accepted' | 'rejected' | 'pending';
+  responseAt?: Timestamp;
+}
+
 export interface Resume {
   phone?: string;
   birth?: string;
-  jobType?: string;
+  jobType?: string | string[];
   career?: string;
   intro?: string;
   certs?: string[];
   photoUrl?: string;
   showEvaluations?: boolean;
   education?: string;
-  hourlyWage?: number; // 시급 (원)
+  hourlyWage?: number;
   availableStartDate?: string;
-  // 추가된 필드들
   address?: string;
   gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
   workType?: 'full_time' | 'part_time' | 'temporary' | 'freelance';
@@ -25,8 +93,8 @@ export interface Resume {
   restaurantExp?: boolean;
   languages?: string[];
   computerSkills?: string[];
-  preferredTimeType?: 'general' | 'specific'; // 선호근무시간 타입: 일반/시간지정
-  preferredTimeSlots?: TimeSlot[]; // 선호 근무시간 (시간지정일 때만 사용)
+  preferredTimeType?: 'general' | 'specific';
+  preferredTimeSlots?: TimeSlot[];
   previousJobs?: {
     company: string;
     position: string;
@@ -40,12 +108,11 @@ export interface Resume {
   };
 }
 
-export interface User {
+export interface User extends BaseEntity {
   uid: string;
   email: string;
   displayName: string;
   role: 'employer' | 'jobseeker' | 'admin';
-  createdAt: Timestamp;
   profileImage?: string;
   phone?: string;
   location?: string;
@@ -57,8 +124,7 @@ export interface User {
   resume?: Resume;
 }
 
-export interface CompanyInfo {
-  id: string;
+export interface CompanyInfo extends BaseEntity {
   employerId: string;
   name: string;
   description: string;
@@ -73,8 +139,6 @@ export interface CompanyInfo {
   contactPhone?: string;
   contactPerson?: string;
   address: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
   region: string;
   dormitory: boolean;
   dormitoryFacilities: string[];
@@ -90,173 +154,112 @@ export interface ExternalLink {
   description?: string;
 }
 
-export interface AccommodationReview {
-  id: string;
+export interface AccommodationReview extends BaseEntity {
   reviewerId: string;
   reviewerName: string;
   rating: number;
   comment: string;
-  createdAt: Timestamp;
   helpful?: number;
+  images?: string[];
 }
 
-export interface AccommodationInfo {
-  id: string;
+export interface AccommodationInfo extends BaseEntity {
   employerId: string;
   name: string;
   description: string;
-  type: 'dormitory' | 'apartment' | 'house' | 'other';
   address: string;
-  distanceFromWorkplace: string;
+  distanceFromWorkplace?: string; // 추가
+  type: 'dormitory' | 'apartment' | 'house' | 'other';
   capacity: number;
-  currentOccupancy: number;
-  roomTypes: RoomType[];
+  currentOccupancy?: number; // 추가
+  roomTypes?: RoomType[]; // 추가
+  price: {
+    monthly?: number;
+    daily?: number;
+    deposit?: number;
+  };
+  monthlyRent?: number; // 추가
+  utilities?: string[]; // 추가
   facilities: string[];
-  facilitiesOther?: string;
-  monthlyRent: number;
-  utilities: string[];
-  images: string[];
   rules: string[];
-  contactPerson: string;
-  contactPhone: string;
-  isAvailable: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  // 새로운 필드들 추가
-  deposit?: number; // 보증금
-  // 객실 유형 체크박스 필드 추가
+  images: string[];
+  contactInfo: {
+    phone: string;
+    email?: string;
+  };
+  contactPerson?: string; // 추가
+  contactPhone?: string; // 추가
+  availability: boolean;
+  isAvailable?: boolean; // 추가
+  externalLinks?: ExternalLink[];
+  reviews?: AccommodationReview[];
+  rating?: number;
+  reviewCount?: number;
+  otherFacilityText?: string; // 추가
+  facilityOptions?: { // 객체 타입으로 수정
+    parking?: boolean;
+    laundry?: boolean;
+    kitchen?: boolean;
+    gym?: boolean;
+    studyRoom?: boolean;
+    lounge?: boolean;
+    wifi?: boolean;
+    security?: boolean;
+    elevator?: boolean;
+    other?: boolean;
+  };
+  // 기존 개별 속성들도 유지
+  wifi?: boolean;
+  tv?: boolean;
+  refrigerator?: boolean;
+  airConditioning?: boolean;
+  laundry?: boolean;
+  kitchen?: boolean;
+  parkingAvailable?: boolean;
+  petAllowed?: boolean;
+  smokingAllowed?: boolean;
+  otherFacilities?: string;
   roomTypeOptions?: {
-    singleRoom?: boolean; // 1인실
-    doubleRoom?: boolean; // 2인실
-    tripleRoom?: boolean; // 3인실
-    quadRoom?: boolean; // 4인실
-    otherRoom?: boolean; // 기타
+    singleRoom?: boolean;
+    doubleRoom?: boolean;
+    tripleRoom?: boolean;
+    quadRoom?: boolean;
+    otherRoom?: boolean;
   };
-  // 요금 유형 필드 추가
-  paymentType?: 'free' | 'paid'; // 무료 또는 유료
-  // 객실별 월세 필드 추가
+  paymentType?: 'free' | 'paid';
   roomPrices?: {
-    singleRoom?: number; // 1인실 월세 (천원 단위)
-    doubleRoom?: number; // 2인실 월세 (천원 단위)
-    tripleRoom?: number; // 3인실 월세 (천원 단위)
-    quadRoom?: number; // 4인실 월세 (천원 단위)
-    otherRoom?: number; // 기타 월세 (천원 단위)
+    singleRoom?: number;
+    doubleRoom?: number;
+    tripleRoom?: number;
+    quadRoom?: number;
+    otherRoom?: number;
   };
-  // 기타 객실 유형 텍스트 필드 추가
-  otherRoomType?: string; // 기타 객실 유형 설명
-  // 부대시설 체크박스 필드 추가
-  facilityOptions?: {
-    parking?: boolean; // 주차장
-    laundry?: boolean; // 세탁실
-    kitchen?: boolean; // 공용주방
-    gym?: boolean; // 체육관
-    studyRoom?: boolean; // 스터디룸
-    lounge?: boolean; // 휴게실
-    wifi?: boolean; // 와이파이
-    security?: boolean; // 보안시설
-    elevator?: boolean; // 엘리베이터
-    other?: boolean; // 기타
-  };
-  otherFacilityText?: string; // 부대시설 기타 텍스트
-  // 객실시설 기타 필드 추가
-  otherFacilities?: boolean; // 기타 시설 체크박스
-  otherFacilitiesText?: string; // 기타 시설 텍스트
-  contractPeriod?: string; // 계약기간
-  contractStartDate?: string; // 계약 시작일
-  contractEndDate?: string; // 계약 종료일
-  moveInDate?: string; // 입주 가능일
-  petAllowed?: boolean; // 반려동물 허용
-  smokingAllowed?: boolean; // 흡연 허용
-  parkingAvailable?: boolean; // 주차 가능
-  internetIncluded?: boolean; // 인터넷 포함
-  airConditioning?: boolean; // 에어컨
-  heating?: boolean; // 난방
-  laundry?: boolean; // 세탁기
-  kitchen?: boolean; // 주방
-  bathroom?: 'private' | 'shared' | 'none'; // 화장실 유형
-  wifi?: boolean; // 와이파이
-  tv?: boolean; // TV
-  refrigerator?: boolean; // 냉장고
-  bed?: boolean; // 침대
-  desk?: boolean; // 책상
-  closet?: boolean; // 옷장
-  security?: string[]; // 보안 시설
-  nearbyFacilities?: string[]; // 주변 시설
-  transportation?: string[]; // 교통편
-  externalLinks?: ExternalLink[]; // 외부 링크 (부동산, 호텔 등)
-  reviews?: AccommodationReview[]; // 리뷰
-  averageRating?: number; // 평균 평점
-  totalReviews?: number; // 총 리뷰 수
-  amenities?: string[]; // 편의시설
-  restrictions?: string[]; // 제한사항
-  specialFeatures?: string[]; // 특별한 특징
-  maintenanceContact?: string; // 관리 연락처
-  emergencyContact?: string; // 비상 연락처
-  checkInTime?: string; // 체크인 시간
-  checkOutTime?: string; // 체크아웃 시간
-  cancellationPolicy?: string; // 취소 정책
-  houseRules?: string[]; // 숙소 규칙
-  cleaningService?: boolean; // 청소 서비스
-  cleaningFrequency?: string; // 청소 빈도
-  mealService?: boolean; // 식사 서비스
-  isPublic?: boolean; // 공개 여부
-  mealOptions?: string[]; // 식사 옵션
-  noiseLevel?: 'quiet' | 'moderate' | 'lively'; // 소음 수준
-  neighborhood?: string; // 주변 환경
-  safetyRating?: number; // 안전도 평점
-  accessibility?: string[]; // 접근성
-  sustainability?: string[]; // 친환경 요소
-  // 비용 정보 (부대비용) 추가 필드
-  utilitiesCostType?: '무료' | '실비' | '유료';
-  utilitiesCostAmount?: number;
-  mealCostType?: '무료' | '유료';
-  mealCostAmount?: number;
-  mealNote?: string; // 식사 추가 정보
-  // 새로운 비용 정보 구조
-  costInfo?: {
-    room?: {
-      type: '무료' | '유료';
-      amount?: number;
-      note?: string;
-    };
-    meal?: {
-      type: '무료' | '유료';
-      amount?: number;
-      note?: string;
-    };
-    utilities?: {
-      type: '무료' | '실비' | '유료';
-      amount?: number;
-      note?: string;
-    };
-    other?: {
-      type: '무료' | '유료';
-      amount?: number;
-      note?: string;
-    };
-  };
+  otherRoomType?: string;
 }
 
-export interface RoomType {
-  type: string;
-  capacity?: number;
-  price: number;
-  available: number;
-  description: string;
-  // 식사 정보 (편집 섹션 요구사항)
-  mealType?: '무료' | '유료';
-  mealNote?: string;
+export interface WorkType extends BaseEntity {
+  employerId?: string; // 추가
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  isActive: boolean;
+  scheduleType?: 'traditional' | 'flexible' | 'smart_matching';
+  timeSlots?: TimeSlot[];
+  schedules?: TimeSlot[]; // 추가
+  maxWorkers?: number;
+  hourlyWage?: number;
+  requirements?: string[];
 }
 
-export interface JobPost {
-  id: string;
+export interface JobPost extends BaseEntity {
   employerId: string;
   employerName: string;
   workplaceName?: string;
   workplaceLocation?: string;
   contactPerson?: string;
   title: string;
-  jobTitle?: string; // 채용직무 필드 추가
+  jobTitle?: string;
   description: string;
   location: string;
   salary: {
@@ -276,55 +279,48 @@ export interface JobPost {
   startDate: Timestamp;
   endDate?: Timestamp;
   isActive: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
   applications: Application[];
   views?: number;
   contactInfo?: { email: string; phone: string };
   memo?: string;
+  recommendationScore?: number;
 }
 
-export interface Application {
-  id: string;
+export interface Application extends BaseEntity {
   jobPostId: string;
   jobseekerId: string;
   jobseekerName: string;
-  status: 'pending' | 'reviewing' | 'interview_scheduled' | 'interview_completed' | 'offer_sent' | 'accepted' | 'rejected' | 'withdrawn';
-  appliedAt: Date;
+  status: StatusType;
+  appliedAt: DateOrTimestamp;
   message?: string;
   coverLetter?: string;
   experience?: string;
   education?: string;
-  availableStartDate?: Date;
+  availableStartDate?: DateOrTimestamp;
   skills?: string[];
-  hourlyWage?: number; // 시급 (원)
-  selectedWorkTypeIds?: string[]; // 선택된 근무타입 ID들을 배열로 변경
-  updatedAt?: Date;
+  hourlyWage?: number;
+  selectedWorkTypeIds?: string[];
   employerFeedback?: string;
-  employerFeedbackAt?: Date;
+  employerFeedbackAt?: DateOrTimestamp;
   jobTitle?: string;
   employerName?: string;
   location?: string;
   salary?: { min: number; max: number; type: string };
-  phone?: string; // 연락처 정보 추가
-  email?: string; // 이메일 정보 추가
-  showEvaluations?: boolean; // 평가 노출 여부
+  phone?: string;
+  email?: string;
+  showEvaluations?: boolean;
 }
 
-export interface ApplicationTemplate {
-  id: string;
+export interface ApplicationTemplate extends BaseEntity {
   userId: string;
   name: string;
   coverLetter: string;
   experience: string;
   education: string;
   skills: string[];
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
 }
 
-export interface Chat {
-  id: string;
+export interface Chat extends BaseEntity {
   participants: string[];
   jobPostId: string;
   lastMessage?: {
@@ -332,12 +328,9 @@ export interface Chat {
     senderId: string;
     timestamp: Timestamp;
   };
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
 }
 
-export interface Message {
-  id: string;
+export interface Message extends BaseEntity {
   chatId: string;
   senderId: string;
   content: string;
@@ -345,184 +338,203 @@ export interface Message {
   isRead: boolean;
 }
 
-export interface Review {
-  id: string;
+export interface Review extends BaseEntity {
   reviewerId: string;
   reviewedId: string;
   jobPostId: string;
   rating: number;
   comment: string;
-  createdAt: Timestamp;
 }
 
-export interface Notification {
-  id: string;
+export interface Notification extends BaseEntity {
   userId: string;
   title: string;
   message: string;
   type: 'application' | 'message' | 'review' | 'system' | 'application_status';
   isRead: boolean;
-  createdAt: Timestamp;
   relatedId?: string;
   applicationId?: string;
-  status?: 'pending' | 'reviewing' | 'interview_scheduled' | 'interview_completed' | 'offer_sent' | 'accepted' | 'rejected' | 'withdrawn';
+  status?: StatusType;
 }
 
-export interface WorkType {
-  id: string;
+export interface FavoriteJob extends BaseEntity {
+  jobseekerId: string;
+  jobPostId: string;
+  jobTitle: string;
+  employerName: string;
+  location: string;
+  salary: { min: number; max: number; type: string };
+  memo?: string;
+}
+
+export interface JobShare extends BaseEntity {
+  jobseekerId: string;
+  jobPostId: string;
+  shareType: 'kakao' | 'facebook' | 'link' | 'other';
+  shareUrl?: string;
+  shareText?: string;
+  sharedAt?: Date; // 추가
+  jobTitle?: string; // 추가
+  employerName?: string; // 추가
+  shareMethod?: string; // 추가
+  sharedWith?: string; // 추가
+}
+
+export interface PositiveReview extends BaseEntity {
+  reviewerId: string;
+  reviewedId: string;
+  jobPostId: string;
+  rating: number;
+  comment: string;
+  tags: string[];
+  isAnonymous: boolean;
+  reviewerName?: string;
+  reviewType?: string; // 추가
+  category?: string; // 추가
+  title?: string; // 추가
+  description?: string; // 추가
+  isPublic?: boolean; // 추가
+  workTypeId?: string; // 추가
+  employerId?: string; // 추가
+  jobseekerId?: string; // 추가
+}
+
+export interface WorkHistory extends BaseEntity {
+  jobseekerId: string;
+  jobPostId: string;
   employerId: string;
-  name: string;
-  description?: string;
-  schedules: TimeSlot[];
-  hourlyWage?: number; // 시급 (원/시간)
+  jobTitle: string;
+  employerName: string;
+  startDate: Timestamp;
+  endDate?: Timestamp;
+  status: 'completed' | 'ongoing' | 'terminated';
+  rating?: number;
+  review?: string;
+  hourlyWage?: number;
+  totalHours?: number;
+  totalEarnings?: number;
+}
+
+export interface SchedulePreference extends BaseEntity {
+  jobseekerId: string;
+  workTypeId: string;
+  preferredDays: string[];
+  preferredTimeSlots: TimeSlot[];
+  priority: 'high' | 'medium' | 'low';
   isActive: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
 }
 
-export interface TimeSlot {
-  day: number;
-  start: number;
-  end: number;
-  priority?: 1 | 2;
+export interface AccommodationRecommendation extends BaseEntity {
+  jobseekerId: string;
+  accommodationId: string;
+  score: number;
+  reasons: string[];
+  isViewed: boolean;
+  isInterested?: boolean;
 }
 
-export interface WorkerAvailability {
-  id: string;
-  workerId: string;
-  day: number;
-  hour: number;
-  priority: 1 | 2;
-  createdAt: Timestamp | Date;
-}
-
-// 긍정적 평가 시스템을 위한 새로운 타입들
-export interface PositiveReview {
-  id: string;
-  employerId: string;
+export interface JobRecommendation extends BaseEntity {
   jobseekerId: string;
   jobPostId: string;
-  workTypeId?: string;
-  reviewType: 'praise' | 'certification' | 'skill_recognition' | 'attitude' | 'teamwork' | 'reliability';
-  category: 'service_skill' | 'communication' | 'punctuality' | 'adaptability' | 'leadership' | 'problem_solving' | 'customer_service' | 'technical_skill';
-  title: string;
-  description: string;
-  tags: string[]; // 예: "친절함", "정확함", "창의적", "책임감"
-  isPublic: boolean; // 크루 프로필에 공개할지 여부
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  score: number;
+  reasons: string[];
+  isViewed: boolean;
+  isInterested?: boolean;
 }
 
-export interface SkillCertification {
-  id: string;
-  jobseekerId: string;
-  employerId: string;
-  jobPostId: string;
-  skillName: string;
-  skillCategory: 'service' | 'technical' | 'management' | 'communication' | 'language' | 'certification';
-  level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
-  description: string;
-  evidence?: string; // 인증 근거 (예: "3개월간 고객 서비스 담당")
-  certifiedAt: Timestamp;
-  expiresAt?: Timestamp; // 만료일이 있는 경우
-  isVerified: boolean;
+export interface EvaluationStats {
+  userId?: string; // 추가
+  totalReviews: number;
+  averageRating: number;
+  positiveReviews: number;
+  negativeReviews: number;
+  trustLevel: 'very_high' | 'high' | 'medium' | 'low';
+  rehireRate: number;
+  lastWorkDate?: Date;
+  totalWorkCount?: number; // 추가
+  totalPositiveEvaluations?: number; // 추가
+  totalNegativeEvaluations?: number; // 추가
 }
 
+export interface WorkerStats {
+  totalWorkCount: number;
+  positiveReviews: number;
+  averageRating: number;
+  lastWorkDate: Date | null;
+  rehireRate: number;
+  trustLevel: 'very_high' | 'high' | 'medium' | 'low';
+}
+
+// CrewProfile 타입 추가
 export interface CrewProfile {
   id: string;
-  jobseekerId: string;
-  totalWorkDays: number;
-  totalWorkHours: number;
-  completedJobs: number;
-  positiveReviews: number;
-  skillCertifications: number;
-  averageRating: number;
+  name: string;
+  avatar?: string;
+  position: string;
+  department: string;
+  skills: string[];
+  experience: number;
+  rating: number;
+  reviews: PositiveReview[];
+  certifications: SkillCertification[];
   badges: Badge[];
-  skills: SkillSummary[];
-  workHistory: WorkHistoryItem[];
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  isAvailable: boolean;
+  hourlyWage?: number;
+  preferredWorkTypes: string[];
+  schedule: TimeSlot[];
+  completedJobs?: number; // 추가
+  totalWorkHours?: number; // 추가
+  positiveReviews?: number; // 추가
+  skillCertifications?: number; // 추가
 }
 
+// SkillCertification 타입 추가
+export interface SkillCertification {
+  id: string;
+  name: string;
+  skillName?: string; // 추가
+  issuer: string;
+  issueDate: Date;
+  certifiedAt?: Date; // 추가
+  expiryDate?: Date;
+  level: 'basic' | 'intermediate' | 'advanced' | 'expert' | 'beginner'; // beginner 추가
+  description?: string;
+  evidence?: string; // 추가
+}
+
+// Badge 타입 추가
 export interface Badge {
   id: string;
   name: string;
   description: string;
   icon: string;
-  category: 'service' | 'reliability' | 'skill' | 'achievement' | 'special';
-  earnedAt: Timestamp;
-  criteria: string; // 획득 조건
+  color: string;
+  earnedAt: Date;
+  category: 'performance' | 'skill' | 'attendance' | 'special';
 }
 
-export interface SkillSummary {
-  skillName: string;
-  category: string;
-  level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
-  experienceCount: number; // 해당 스킬로 일한 횟수
-  lastUsed: Timestamp;
-  certifications: number; // 인증받은 횟수
-}
-
-export interface WorkHistoryItem {
+// MutualEvaluation 타입 추가
+export interface MutualEvaluation {
   id: string;
+  evaluatorId: string;
+  evaluateeId: string;
   jobPostId: string;
-  employerName: string;
-  jobTitle: string;
-  workType: string;
-  startDate: Timestamp;
-  endDate: Timestamp;
-  totalHours: number;
-  positiveReviews: number;
-  skillsUsed: string[];
-  isCompleted: boolean;
-}
-
-export interface MatchingResult {
-  jobPostId: string;
-  workTypeId: string;
-  workTypeName: string;
-  matchScore: number;
-  detailedScore: {
-    priority1Matches: number;
-    priority2Matches: number;
-    totalPossibleMatches: number;
-    overlapHours: number;
+  rating: number;
+  comment: string;
+  categories: {
+    communication: number;
+    teamwork: number;
+    reliability: number;
+    skill: number;
+    attitude: number;
   };
-  company: {
-    id: string;
-    name: string;
-    location: string;
-  };
-  schedulePreview: TimeSlot[];
-}
-
-declare global {
-  interface Window {
-    Kakao: {
-      init: (appKey: string) => void;
-      isInitialized: () => boolean;
-      Link: {
-        sendDefault: (options: {
-          objectType: string;
-          content: {
-            title: string;
-            description: string;
-            imageUrl: string;
-            link: {
-              mobileWebUrl: string;
-              webUrl: string;
-            };
-          };
-          buttons: Array<{
-            title: string;
-            link: {
-              mobileWebUrl: string;
-              webUrl: string;
-            };
-          }>;
-        }) => void;
-        sendStory?: (options: any) => void;
-      };
-    };
-  }
+  createdAt: Date;
+  isAnonymous: boolean;
+  evaluatorName?: string; // 추가
+  evaluatorRole?: string; // 추가
+  evaluatedName?: string; // 추가
+  evaluatedRole?: string; // 추가
+  positiveReason?: string; // 추가
+  evaluationType?: string; // 추가
+  isVisible?: boolean; // 추가
 } 

@@ -14,7 +14,7 @@ const WorkTypeDetailModal: React.FC<WorkTypeDetailModalProps> = ({
   workType, 
   isOpen, 
   onClose,
-  onEdit
+  onEdit,
 }) => {
   if (!isOpen || !workType) return null;
 
@@ -22,12 +22,14 @@ const WorkTypeDetailModal: React.FC<WorkTypeDetailModalProps> = ({
   const stats = {
     totalHours: (workType.schedules || []).reduce((total, slot) => {
       // 24시간을 넘어가는 경우 처리 (예: 23:00-01:00)
-      let hours = slot.end - slot.start;
+      const start = slot.start || 0;
+      const end = slot.end || 0;
+      let hours = end - start;
       if (hours <= 0) hours += 24;
       return total + hours;
     }, 0),
     avgHoursPerDay: workType.schedules?.length ? Math.round(workType.schedules.length / 7 * 10) / 10 : 0,
-    totalTimeSlots: workType.schedules?.length || 0
+    totalTimeSlots: workType.schedules?.length || 0,
   };
 
   return (

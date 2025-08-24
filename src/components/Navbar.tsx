@@ -22,23 +22,23 @@ const Navbar: React.FC = () => {
     if (!user) return [];
 
     switch (user.role) {
-      case 'jobseeker':
-        return [
-          { path: '/dashboard', label: '대시보드', icon: Home }
-        ];
-      case 'employer':
-        return [
-          { path: '/dashboard', label: '대시보드', icon: Home }
-        ];
-      case 'admin':
-        return [
-          { path: '/dashboard', label: '대시보드', icon: Home },
-          { path: '/admin/users', label: '사용자 관리', icon: Users },
-          { path: '/admin/jobposts', label: '공고 관리', icon: FileText },
-          { path: '/admin/stats', label: '통계', icon: BarChart3 }
-        ];
-      default:
-        return [];
+    case 'jobseeker':
+      return [
+        { path: '/jobseeker-dashboard', label: '대시보드', icon: Home },
+      ];
+    case 'employer':
+      return [
+        { path: '/employer-dashboard', label: '대시보드', icon: Home },
+      ];
+    case 'admin':
+      return [
+        { path: '/dashboard', label: '대시보드', icon: Home },
+        { path: '/admin/users', label: '사용자 관리', icon: Users },
+        { path: '/admin/jobposts', label: '공고 관리', icon: FileText },
+        { path: '/admin/stats', label: '통계', icon: BarChart3 },
+      ];
+    default:
+      return [];
     }
   };
 

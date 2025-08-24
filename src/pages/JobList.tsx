@@ -13,12 +13,12 @@ interface JobListProps {
 }
 
 // '서울특별시 강남구' → '서울특별시', '경기도 수원시' → '경기도', '부산광역시 해운대구' → '부산광역시', '제주특별자치도 제주시' → '제주특별자치도'
-function getProvince(region: string = ''): string {
+function getProvince(region = ''): string {
   const match = region.match(/([\w가-힣]+도|[\w가-힣]+특별시|[\w가-힣]+광역시|[\w가-힣]+특별자치도)/);
   return match ? match[0] : '';
 }
 // '강원도 평창군' → '평창군', '부산광역시 해운대구' → '해운대구' 등으로 변환
-function getDistrict(region: string = ''): string {
+function getDistrict(region = ''): string {
   const match = region.match(/([\w가-힣]+도|[\w가-힣]+광역시)\s*([\w가-힣]+(시|군|구))/);
   return match ? match[2] : '';
 }
@@ -45,7 +45,7 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
 
   // 숙소 시설 옵션(CompanyInfoModal과 동일하게 유지)
   const dormitoryFacilityOptions = [
-    '와이파이', '에어컨', '세탁기', '개인욕실', '공용주방', 'TV', '냉장고', '책상', '옷장', '난방'
+    '와이파이', '에어컨', '세탁기', '개인욕실', '공용주방', 'TV', '냉장고', '책상', '옷장', '난방',
   ];
 
   // 이미지 미리보기 핸들러
@@ -58,7 +58,7 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
   const uniqueProvinces = Array.from(new Set(
     Object.values(companyInfoMap)
       .map((info: any) => getProvince(info.region))
-      .filter((province: string) => province && province.length > 1)
+      .filter((province: string) => province && province.length > 1),
   ));
   console.log('uniqueProvinces:', uniqueProvinces);
   // 선택된 도/광역시에 속하는 시/군/구 목록
@@ -74,7 +74,7 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
         
         // 모든 공고를 가져오기 (isActive 필터 제거)
         const jobPostsQuery = query(
-          collection(db, 'jobPosts')
+          collection(db, 'jobPosts'),
         );
         const jobPostsSnap = await getDocs(jobPostsQuery);
         console.log('활성화된 공고 수:', jobPostsSnap.size);
@@ -85,7 +85,7 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
             return { 
               id: doc.id, 
               ...data,
-              workTimeType: data.workTimeType || '무관' // 기본값 설정
+              workTimeType: data.workTimeType || '무관', // 기본값 설정
             };
           })
           .sort((a, b) => {
@@ -111,7 +111,7 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
               } catch (error) {
                 return { employerId, data: null };
               }
-            })
+            }),
           );
 
           const companyMap: { [employerId: string]: any } = {};
@@ -132,7 +132,7 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
                   console.error(`회사 정보 불러오기 실패 (${employerId}):`, error);
                   return { employerId, data: null };
                 }
-              })
+              }),
             ),
             // 기숙사 정보 병렬 로딩
             Promise.all(
@@ -144,10 +144,10 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
                   console.error(`기숙사 정보 불러오기 실패 (${employerId}):`, error);
                   return { employerId, data: null };
                 }
-              })
+              }),
             ),
             // 리뷰 정보 로딩
-            getDocs(collection(db, 'reviews'))
+            getDocs(collection(db, 'reviews')),
           ]);
 
           // 회사 정보 맵 생성
@@ -229,7 +229,7 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg font-semibold text-gray-900">{jobPost.title}</h3>
-                  <span className="text-xs text-gray-500">{jobPost.createdAt.toDate().toLocaleDateString('ko-KR')}</span>
+                  <span className="text-xs text-gray-500">{jobPost.createdAt?.toDate?.()?.toLocaleDateString('ko-KR') || '날짜 없음'}</span>
                 </div>
                 <div className="text-sm text-gray-700 mb-1">{jobPost.employerName}</div>
                 <div className="flex flex-wrap gap-2 text-xs text-gray-600 mb-2">
@@ -492,8 +492,8 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
                         <span className="mr-1">숙소 시설:</span>
                         {companyInfoMap[jobPost.employerId]?.dormitoryFacilities?.length > 0
                           ? companyInfoMap[jobPost.employerId].dormitoryFacilities.map((f: string, idx: number) => (
-                              <span key={f} className="bg-green-100 text-green-700 rounded px-2 py-0.5 mr-1 mb-1">{f}</span>
-                            ))
+                            <span key={f} className="bg-green-100 text-green-700 rounded px-2 py-0.5 mr-1 mb-1">{f}</span>
+                          ))
                           : <span className="text-gray-400">정보 없음</span>}
                       </div>
                     )}
@@ -519,25 +519,25 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
         <div className="bg-white rounded-lg shadow-sm p-8 mt-8 text-center">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">
                 더 많은 기회를 놓치지 마세요
-              </h3>
-              <p className="text-gray-600 mb-6">
+          </h3>
+          <p className="text-gray-600 mb-6">
                 회원가입하고 지원하시면 더 많은 일자리 정보를 받아보실 수 있습니다.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  to="/signup"
-                  className="bg-resort-600 hover:bg-resort-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-                >
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              to="/signup"
+              className="bg-resort-600 hover:bg-resort-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            >
                   회원가입하기
-                </Link>
-                <Link
-                  to="/login"
-                  className="border border-resort-600 text-resort-600 hover:bg-resort-50 px-6 py-3 rounded-lg font-semibold transition-colors"
-                >
+            </Link>
+            <Link
+              to="/login"
+              className="border border-resort-600 text-resort-600 hover:bg-resort-50 px-6 py-3 rounded-lg font-semibold transition-colors"
+            >
                   로그인
-                </Link>
-              </div>
-            </div>
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* 기숙사 정보 모달 */}
@@ -575,7 +575,7 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
                   </div>
                   <div>
                     <span className="text-gray-500">월세</span>
-                    <p className="text-gray-900">{selectedAccommodation.monthlyRent.toLocaleString()}원</p>
+                    <p className="text-gray-900">{selectedAccommodation.monthlyRent?.toLocaleString() || '0'}원</p>
                   </div>
                   <div>
                     <span className="text-gray-500">직장까지 거리</span>

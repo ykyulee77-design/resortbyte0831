@@ -4,7 +4,7 @@ import { Send, Paperclip, Smile } from 'lucide-react';
 const Chat: React.FC = () => {
   const [messages, setMessages] = useState([
     { id: 1, text: '안녕하세요! 리조트바이트에 오신 것을 환영합니다.', sender: 'system', timestamp: new Date() },
-    { id: 2, text: '채팅 기능이 곧 업데이트될 예정입니다.', sender: 'system', timestamp: new Date() }
+    { id: 2, text: '채팅 기능이 곧 업데이트될 예정입니다.', sender: 'system', timestamp: new Date() },
   ]);
   const [newMessage, setNewMessage] = useState('');
 
@@ -14,7 +14,7 @@ const Chat: React.FC = () => {
         id: messages.length + 1,
         text: newMessage,
         sender: 'user',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
       setMessages([...messages, message]);
       setNewMessage('');
@@ -55,7 +55,7 @@ const Chat: React.FC = () => {
                 <p className="text-xs opacity-70 mt-1">
                   {message.timestamp.toLocaleTimeString('ko-KR', {
                     hour: '2-digit',
-                    minute: '2-digit'
+                    minute: '2-digit',
                   })}
                 </p>
               </div>

@@ -24,12 +24,12 @@ const Notifications: React.FC = () => {
       const q = query(
         collection(db, 'notifications'),
         where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
       );
       const querySnapshot = await getDocs(q);
       const notificationsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       })) as Notification[];
       
       setNotifications(notificationsData);
@@ -44,7 +44,7 @@ const Notifications: React.FC = () => {
   const markAsRead = async (notificationId: string) => {
     try {
       await updateDoc(doc(db, 'notifications', notificationId), {
-        isRead: true
+        isRead: true,
       });
       
       // 로컬 상태 업데이트
@@ -52,8 +52,8 @@ const Notifications: React.FC = () => {
         prev.map(notification => 
           notification.id === notificationId 
             ? { ...notification, isRead: true }
-            : notification
-        )
+            : notification,
+        ),
       );
     } catch (error) {
       console.error('알림 읽음 처리 중 오류 발생:', error);
@@ -64,14 +64,14 @@ const Notifications: React.FC = () => {
     try {
       const unreadNotifications = notifications.filter(n => !n.isRead);
       const updatePromises = unreadNotifications.map(notification =>
-        updateDoc(doc(db, 'notifications', notification.id), { isRead: true })
+        updateDoc(doc(db, 'notifications', notification.id), { isRead: true }),
       );
       
       await Promise.all(updatePromises);
       
       // 로컬 상태 업데이트
       setNotifications(prev => 
-        prev.map(notification => ({ ...notification, isRead: true }))
+        prev.map(notification => ({ ...notification, isRead: true })),
       );
     } catch (error) {
       console.error('모든 알림 읽음 처리 중 오류 발생:', error);
@@ -80,48 +80,48 @@ const Notifications: React.FC = () => {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'application':
-        return '📝';
-      case 'application_status':
-        return '📊';
-      case 'message':
-        return '💬';
-      case 'review':
-        return '⭐';
-      case 'system':
-        return '🔔';
-      default:
-        return '📢';
+    case 'application':
+      return '📝';
+    case 'application_status':
+      return '📊';
+    case 'message':
+      return '💬';
+    case 'review':
+      return '⭐';
+    case 'system':
+      return '🔔';
+    default:
+      return '📢';
     }
   };
 
   const getNotificationColor = (type: string) => {
     switch (type) {
-      case 'application':
-        return 'bg-blue-50 border-blue-200';
-      case 'application_status':
-        return 'bg-green-50 border-green-200';
-      case 'message':
-        return 'bg-purple-50 border-purple-200';
-      case 'review':
-        return 'bg-yellow-50 border-yellow-200';
-      case 'system':
-        return 'bg-gray-50 border-gray-200';
-      default:
-        return 'bg-gray-50 border-gray-200';
+    case 'application':
+      return 'bg-blue-50 border-blue-200';
+    case 'application_status':
+      return 'bg-green-50 border-green-200';
+    case 'message':
+      return 'bg-purple-50 border-purple-200';
+    case 'review':
+      return 'bg-yellow-50 border-yellow-200';
+    case 'system':
+      return 'bg-gray-50 border-gray-200';
+    default:
+      return 'bg-gray-50 border-gray-200';
     }
   };
 
   const getStatusColor = (status?: string) => {
     switch (status) {
-      case 'accepted':
-        return 'bg-green-100 text-green-800';
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+    case 'accepted':
+      return 'bg-green-100 text-green-800';
+    case 'rejected':
+      return 'bg-red-100 text-red-800';
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -194,7 +194,7 @@ const Notifications: React.FC = () => {
                       {notification.status && (
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(notification.status)}`}>
                           {notification.status === 'accepted' ? '승인' : 
-                           notification.status === 'rejected' ? '거절' : '검토중'}
+                            notification.status === 'rejected' ? '거절' : '검토중'}
                         </span>
                       )}
                       {!notification.isRead && (
@@ -207,7 +207,7 @@ const Notifications: React.FC = () => {
                   
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-500">
-                      {notification.createdAt.toDate().toLocaleString()}
+                      {notification.createdAt?.toDate?.()?.toLocaleString() || '날짜 없음'}
                     </p>
                     
                     <div className="flex gap-2">

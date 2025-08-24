@@ -42,7 +42,7 @@ const AdminDashboard: React.FC = () => {
       employer: '평창 리조트',
       status: 'active',
       createdAt: new Date('2024-07-01'),
-      applications: 5
+      applications: 5,
     },
     {
       id: '2',
@@ -50,8 +50,8 @@ const AdminDashboard: React.FC = () => {
       employer: '용평 리조트',
       status: 'closed',
       createdAt: new Date('2024-06-15'),
-      applications: 2
-    }
+      applications: 2,
+    },
   ]);
 
   // 가상의 사용자 데이터
@@ -61,43 +61,43 @@ const AdminDashboard: React.FC = () => {
       email: 'employer1@example.com',
       role: 'employer',
       createdAt: new Date('2024-06-01'),
-      status: 'active'
+      status: 'active',
     },
     {
       id: '2',
       email: 'employer2@example.com',
       role: 'employer',
       createdAt: new Date('2024-06-15'),
-      status: 'active'
+      status: 'active',
     },
     {
       id: '3',
       email: 'jobseeker1@example.com',
       role: 'jobseeker',
       createdAt: new Date('2024-06-10'),
-      status: 'active'
+      status: 'active',
     },
     {
       id: '4',
       email: 'jobseeker2@example.com',
       role: 'jobseeker',
       createdAt: new Date('2024-06-20'),
-      status: 'active'
+      status: 'active',
     },
     {
       id: '5',
       email: 'jobseeker3@example.com',
       role: 'jobseeker',
       createdAt: new Date('2024-07-01'),
-      status: 'active'
+      status: 'active',
     },
     {
       id: '6',
       email: 'admin@resortbyte.com',
       role: 'admin',
       createdAt: new Date('2024-05-01'),
-      status: 'active'
-    }
+      status: 'active',
+    },
   ]);
 
   // 관리자 초대 코드 상태
@@ -107,7 +107,7 @@ const AdminDashboard: React.FC = () => {
       code: 'RESORT_ADMIN_2024',
       createdBy: 'admin@resortbyte.com',
       createdAt: new Date('2024-06-01'),
-      isActive: true
+      isActive: true,
     },
     {
       id: '2',
@@ -116,8 +116,8 @@ const AdminDashboard: React.FC = () => {
       createdAt: new Date('2024-07-01'),
       usedBy: 'newadmin@example.com',
       usedAt: new Date('2024-07-05'),
-      isActive: false
-    }
+      isActive: false,
+    },
   ]);
 
   // 공고 등록 폼 상태
@@ -127,7 +127,7 @@ const AdminDashboard: React.FC = () => {
     employer: '',
     status: 'active' as 'active' | 'closed' | 'pending',
     applications: 0,
-    createdAt: new Date()
+    createdAt: new Date(),
   });
 
   // 통계 계산
@@ -164,8 +164,8 @@ const AdminDashboard: React.FC = () => {
       [name]: name === 'applications'
         ? Number(value)
         : name === 'status'
-        ? value as 'active' | 'closed' | 'pending'
-        : value
+          ? value as 'active' | 'closed' | 'pending'
+          : value,
     }));
   };
 
@@ -176,8 +176,8 @@ const AdminDashboard: React.FC = () => {
       {
         ...newJob,
         id: Date.now().toString(),
-        createdAt: new Date(newJob.createdAt)
-      }
+        createdAt: new Date(newJob.createdAt),
+      },
     ]);
     setShowForm(false);
     setNewJob({ title: '', employer: '', status: 'active', applications: 0, createdAt: new Date() });
@@ -191,7 +191,7 @@ const AdminDashboard: React.FC = () => {
       code,
       createdBy: user.email,
       createdAt: new Date(),
-      isActive: true
+      isActive: true,
     };
     setAdminInvites(prev => [newInvite, ...prev]);
   };
@@ -207,8 +207,8 @@ const AdminDashboard: React.FC = () => {
   const deactivateInviteCode = (id: string) => {
     setAdminInvites(prev => 
       prev.map(invite => 
-        invite.id === id ? { ...invite, isActive: false } : invite
-      )
+        invite.id === id ? { ...invite, isActive: false } : invite,
+      ),
     );
   };
 
@@ -407,8 +407,8 @@ const AdminDashboard: React.FC = () => {
                             job.status === 'active' 
                               ? 'bg-green-100 text-green-800'
                               : job.status === 'closed'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-yellow-100 text-yellow-800'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-yellow-100 text-yellow-800'
                           }`}>
                             {job.status === 'active' ? '활성' : job.status === 'closed' ? '마감' : '대기'}
                           </span>

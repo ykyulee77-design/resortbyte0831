@@ -15,7 +15,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://newland.naver.com',
     description: '네이버에서 제공하는 종합 부동산 정보 서비스',
     features: ['매물 검색', '지도 기반 검색', '실거래가 조회', '부동산 뉴스'],
-    icon: '🏠'
+    icon: '🏠',
   },
   {
     category: 'real_estate',
@@ -23,7 +23,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://kbland.kr',
     description: 'KB국민은행에서 운영하는 부동산 정보 플랫폼',
     features: ['매물 정보', '실거래가', '부동산 시세', '대출 정보'],
-    icon: '🏢'
+    icon: '🏢',
   },
   {
     category: 'real_estate',
@@ -31,7 +31,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://www.dabangapp.com',
     description: '부동산 중개업계 1위 플랫폼',
     features: ['원룸/투룸', '오피스텔', '아파트', '빌라/연립'],
-    icon: '🏘️'
+    icon: '🏘️',
   },
   {
     category: 'real_estate',
@@ -39,7 +39,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://www.zigbang.com',
     description: '부동산 정보와 중개 서비스를 제공하는 플랫폼',
     features: ['매물 검색', '지도 검색', '실시간 알림', 'VR 투어'],
-    icon: '🏡'
+    icon: '🏡',
   },
   {
     category: 'real_estate',
@@ -47,7 +47,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://www.r114.com',
     description: '전국 부동산 정보를 제공하는 종합 플랫폼',
     features: ['매물 검색', '시세 정보', '부동산 뉴스', '중개업소 정보'],
-    icon: '📊'
+    icon: '📊',
   },
 
   // 호텔/숙박 사이트
@@ -57,7 +57,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://www.yanolja.com',
     description: '국내 최대 숙박 예약 플랫폼',
     features: ['호텔', '펜션', '리조트', '게스트하우스'],
-    icon: '🏨'
+    icon: '🏨',
   },
   {
     category: 'hotel',
@@ -65,7 +65,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://www.goodchoice.kr',
     description: '국내 숙박 예약 서비스',
     features: ['호텔', '모텔', '펜션', '게스트하우스'],
-    icon: '🏩'
+    icon: '🏩',
   },
   {
     category: 'hotel',
@@ -73,7 +73,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://www.hotels.com',
     description: '글로벌 호텔 예약 플랫폼',
     features: ['국내외 호텔', '리조트', '특가 할인', '멤버십'],
-    icon: '🌍'
+    icon: '🌍',
   },
   {
     category: 'hotel',
@@ -81,7 +81,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://www.agoda.com',
     description: '아시아 최대 호텔 예약 사이트',
     features: ['호텔', '리조트', '게스트하우스', '특가'],
-    icon: '🏖️'
+    icon: '🏖️',
   },
   {
     category: 'hotel',
@@ -89,7 +89,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://www.booking.com',
     description: '세계 최대 여행 예약 플랫폼',
     features: ['호텔', '아파트먼트', '게스트하우스', '특가'],
-    icon: '✈️'
+    icon: '✈️',
   },
 
   // 리뷰 사이트
@@ -99,7 +99,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://map.naver.com',
     description: '네이버에서 제공하는 지도 및 장소 리뷰 서비스',
     features: ['장소 검색', '리뷰', '사진', '길찾기'],
-    icon: '🗺️'
+    icon: '🗺️',
   },
   {
     category: 'review',
@@ -107,7 +107,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://map.kakao.com',
     description: '카카오에서 제공하는 지도 서비스',
     features: ['장소 검색', '리뷰', '사진', '교통정보'],
-    icon: '📍'
+    icon: '📍',
   },
   {
     category: 'review',
@@ -115,7 +115,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://www.google.com/maps',
     description: '구글 맵스의 장소 리뷰 및 평가',
     features: ['장소 검색', '리뷰', '평점', '사진'],
-    icon: '⭐'
+    icon: '⭐',
   },
 
   // 지역별 추천
@@ -125,7 +125,7 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://www.reb.or.kr',
     description: '대한부동산중개업협회 공식 사이트',
     features: ['부동산 정보', '중개업소 검색', '법령 정보', '교육'],
-    icon: '🏛️'
+    icon: '🏛️',
   },
   {
     category: 'local',
@@ -133,8 +133,8 @@ export const accommodationRecommendations: RecommendationSite[] = [
     url: 'https://www.molit.go.kr',
     description: '부동산 정책 및 정보 제공',
     features: ['부동산 정책', '법령 정보', '통계 자료', '공지사항'],
-    icon: '🏛️'
-  }
+    icon: '🏛️',
+  },
 ];
 
 export const getRecommendationsByCategory = (category: RecommendationSite['category']) => {
@@ -148,13 +148,13 @@ export const getRecommendationsByLocation = (location: string) => {
   // 기본 추천 사이트 + 지역별 사이트
   return [
     ...accommodationRecommendations.filter(site => site.category !== 'local'),
-    ...localSites
+    ...localSites,
   ];
 };
 
 export const getPopularSites = () => {
   // 가장 인기 있는 사이트들 (사용자 통계 기반으로 변경 가능)
   return accommodationRecommendations.filter(site => 
-    ['네이버 부동산', '다방', '야놀자', '여기어때'].includes(site.name)
+    ['네이버 부동산', '다방', '야놀자', '여기어때'].includes(site.name),
   );
 };

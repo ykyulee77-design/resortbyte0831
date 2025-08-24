@@ -81,51 +81,51 @@ const EmployerProfile: React.FC = () => {
         {loading ? (
           <div className="text-center py-12 text-gray-500">불러오는 중...</div>
         ) : (
-        <>
-        {/* 기본 정보 */}
-        <div className="border rounded-lg p-4">
-          <h3 className="font-semibold text-gray-900 mb-3">기본 정보</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-500">회사명</span>
-              <p className="text-gray-900 font-medium">{companyInfo?.name || companyInfo?.companyName || '미등록'}</p>
+          <>
+            {/* 기본 정보 */}
+            <div className="border rounded-lg p-4">
+              <h3 className="font-semibold text-gray-900 mb-3">기본 정보</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">회사명</span>
+                  <p className="text-gray-900 font-medium">{companyInfo?.name || companyInfo?.companyName || '미등록'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">담당자</span>
+                  <p className="text-gray-900 font-medium">{user.displayName || '미등록'}</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <span className="text-gray-500">담당자</span>
-              <p className="text-gray-900 font-medium">{user.displayName || '미등록'}</p>
-            </div>
-          </div>
-        </div>
 
-        {/* 연락처/주소 */}
-        <div className="border rounded-lg p-4">
-          <h3 className="font-semibold text-gray-900 mb-3">연락처 / 주소</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-green-600" />
-              <span>{companyInfo?.contactPhone || companyInfo?.phone || '연락처 미등록'}</span>
+            {/* 연락처/주소 */}
+            <div className="border rounded-lg p-4">
+              <h3 className="font-semibold text-gray-900 mb-3">연락처 / 주소</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-green-600" />
+                  <span>{companyInfo?.contactPhone || companyInfo?.phone || '연락처 미등록'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-blue-600" />
+                  <span>{companyInfo?.website || '웹사이트 미등록'}</span>
+                </div>
+                <div className="md:col-span-2">
+                  <span className="text-gray-500">주소</span>
+                  <p className="text-gray-900">{companyInfo?.address || '주소 미등록'}</p>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-blue-600" />
-              <span>{companyInfo?.website || '웹사이트 미등록'}</span>
-            </div>
-            <div className="md:col-span-2">
-              <span className="text-gray-500">주소</span>
-              <p className="text-gray-900">{companyInfo?.address || '주소 미등록'}</p>
-            </div>
-          </div>
-        </div>
 
-        {/* 상태 */}
-        <div className="border rounded-lg p-4">
-          <h3 className="font-semibold text-gray-900 mb-3">상태</h3>
-          <div className="text-sm text-gray-700">
-            <p>업종: {companyInfo?.industry || '미등록'}</p>
-            <p>규모: {companyInfo?.size || companyInfo?.companySize || '미등록'}</p>
-            <p>복지: {companyInfo?.benefits?.length ? companyInfo.benefits.join(', ') : '미등록'}</p>
-          </div>
-        </div>
-        </>
+            {/* 상태 */}
+            <div className="border rounded-lg p-4">
+              <h3 className="font-semibold text-gray-900 mb-3">상태</h3>
+              <div className="text-sm text-gray-700">
+                <p>업종: {companyInfo?.industry || '미등록'}</p>
+                <p>규모: {companyInfo?.size || companyInfo?.companySize || '미등록'}</p>
+                <p>복지: {companyInfo?.benefits?.length ? companyInfo.benefits.join(', ') : '미등록'}</p>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

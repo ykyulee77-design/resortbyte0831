@@ -12,7 +12,7 @@ interface WorkSchedule {
 
 export const calculateMatchingScore = (
   workerAvailabilities: WorkerAvailability[],
-  workSchedule: WorkSchedule[]
+  workSchedule: WorkSchedule[],
 ): number => {
   // Add defensive check for undefined or null inputs
   if (!workerAvailabilities || !workSchedule || !workerAvailabilities.length || !workSchedule.length) {
@@ -26,7 +26,7 @@ export const calculateMatchingScore = (
     const matchingAvailability = workerAvailabilities.find(
       availability =>
         availability.dayOfWeek === schedule.dayOfWeek &&
-        availability.timeSlot === schedule.timeSlot
+        availability.timeSlot === schedule.timeSlot,
     );
 
     if (matchingAvailability) {

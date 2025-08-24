@@ -42,7 +42,7 @@ const ReviewForm: React.FC = () => {
         content,
         user: user.displayName || user.email,
         userId: user.uid,
-        date: serverTimestamp()
+        date: serverTimestamp(),
       });
       alert('후기가 등록되었습니다!');
       setResort(''); setRating(0); setContent('');

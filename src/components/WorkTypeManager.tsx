@@ -18,7 +18,7 @@ const WorkTypeManager: React.FC<WorkTypeManagerProps> = ({
   onClose, 
   onSelectWorkType,
   isSelectionMode = false,
-  onWorkTypeCreated
+  onWorkTypeCreated,
 }) => {
   const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,7 +64,7 @@ const WorkTypeManager: React.FC<WorkTypeManagerProps> = ({
         name: newWorkTypeName.trim(),
         description: newWorkTypeDescription.trim(),
         schedules: [],
-        isActive: true
+        isActive: true,
       });
       
       // 생성 후 바로 목록 새로고침
@@ -204,49 +204,49 @@ const WorkTypeManager: React.FC<WorkTypeManagerProps> = ({
                   .filter(wt => wt.employerId === employerId)
                   .filter(wt => wt.id && wt.id.trim() !== '') // 빈 ID 제거
                   .map(wt => (
-                  <div
-                    key={wt.id}
-                    className={`border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow ${
-                      isSelectionMode ? 'cursor-pointer hover:border-blue-300' : ''
-                    }`}
-                    onClick={() => handleWorkTypeClick(wt)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h5 className="font-medium text-gray-900 mb-1">{wt.name}</h5>
-                        {wt.description && (
-                          <p className="text-sm text-gray-600 mb-2">{wt.description}</p>
-                        )}
+                    <div
+                      key={wt.id}
+                      className={`border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow ${
+                        isSelectionMode ? 'cursor-pointer hover:border-blue-300' : ''
+                      }`}
+                      onClick={() => handleWorkTypeClick(wt)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h5 className="font-medium text-gray-900 mb-1">{wt.name}</h5>
+                          {wt.description && (
+                            <p className="text-sm text-gray-600 mb-2">{wt.description}</p>
+                          )}
 
-                      </div>
+                        </div>
                       
-                      {!isSelectionMode && (
+                        {!isSelectionMode && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(wt.id);
+                            }}
+                            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                            title="삭제"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    
+                      {isSelectionMode && onSelectWorkType && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDelete(wt.id);
+                            onSelectWorkType(wt);
                           }}
-                          className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                          title="삭제"
+                          className="w-full mt-3 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
                         >
-                          <Trash2 className="h-4 w-4" />
+                        ✓ 선택하기
                         </button>
                       )}
                     </div>
-                    
-                    {isSelectionMode && onSelectWorkType && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectWorkType(wt);
-                        }}
-                        className="w-full mt-3 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
-                      >
-                        ✓ 선택하기
-                      </button>
-                    )}
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>

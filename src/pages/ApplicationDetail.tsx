@@ -4,6 +4,7 @@ import { doc, getDoc, getDocs, updateDoc, collection, addDoc } from 'firebase/fi
 import { db } from '../firebase';
 import { Application, JobPost, User, PositiveReview } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { formatDate } from '../utils/dateUtils';
 import { 
   Users, 
   Building, 
@@ -22,7 +23,7 @@ import {
   CheckCircle,
   XCircle,
   ArrowLeft,
-  Send
+  Send,
 } from 'lucide-react';
 
 const ApplicationDetail: React.FC = () => {
@@ -82,7 +83,7 @@ const ApplicationDetail: React.FC = () => {
           employerName: data.employerName,
           location: data.location,
           salary: data.salary,
-          selectedWorkTypeIds: data.selectedWorkTypeIds || []
+          selectedWorkTypeIds: data.selectedWorkTypeIds || [],
         };
         setApplication(applicationData);
 
@@ -106,7 +107,7 @@ const ApplicationDetail: React.FC = () => {
             .map(doc => ({ id: doc.id, ...doc.data() } as PositiveReview))
             .filter(review => 
               review.jobseekerId === applicationData.jobseekerId && 
-              review.isPublic
+              review.isPublic,
             );
           setEvaluations(evaluationsData);
         }
@@ -144,7 +145,7 @@ const ApplicationDetail: React.FC = () => {
         status: status,
         employerFeedback: feedback,
         employerFeedbackAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       // 알림 생성
@@ -158,7 +159,7 @@ const ApplicationDetail: React.FC = () => {
         isRead: false,
         createdAt: new Date(),
         applicationId: application.id,
-        status: status
+        status: status,
       });
 
       setShowFeedbackModal(false);
@@ -180,7 +181,7 @@ const ApplicationDetail: React.FC = () => {
       offer_sent: { color: 'bg-orange-100 text-orange-800', text: '채용제안' },
       accepted: { color: 'bg-green-100 text-green-800', text: '최종채용' },
       rejected: { color: 'bg-red-100 text-red-800', text: '거절됨' },
-      withdrawn: { color: 'bg-gray-100 text-gray-800', text: '취소됨' }
+      withdrawn: { color: 'bg-gray-100 text-gray-800', text: '취소됨' },
     };
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
@@ -236,7 +237,7 @@ const ApplicationDetail: React.FC = () => {
             <div className="flex items-center gap-3">
               {getStatusBadge(application.status)}
               <span className="text-sm text-gray-500">
-                지원일: {application.appliedAt.toLocaleDateString()}
+                지원일: {formatDate(application.appliedAt)}
               </span>
             </div>
           </div>
@@ -459,20 +460,20 @@ const ApplicationDetail: React.FC = () => {
                   
                   <div className="bg-green-50 p-4 rounded-lg">
                     <h4 className="font-medium text-green-800 mb-1">입사 가능일</h4>
-                                         <p className="text-green-700">
-                       {application.availableStartDate || jobseeker.resume?.availableStartDate ? 
-                         (() => {
-                           const date = application.availableStartDate || jobseeker.resume?.availableStartDate;
-                           if (date instanceof Date) {
-                             return date.toLocaleDateString();
-                           } else if (typeof date === 'string') {
-                             return new Date(date).toLocaleDateString();
-                           }
-                           return '미입력';
-                         })() : 
-                         '미입력'
-                       }
-                     </p>
+                    <p className="text-green-700">
+                      {application.availableStartDate || jobseeker.resume?.availableStartDate ? 
+                        (() => {
+                          const date = application.availableStartDate || jobseeker.resume?.availableStartDate;
+                          if (date instanceof Date) {
+                            return date.toLocaleDateString();
+                          } else if (typeof date === 'string') {
+                            return new Date(date).toLocaleDateString();
+                          }
+                          return '미입력';
+                        })() : 
+                        '미입력'
+                      }
+                    </p>
                   </div>
                   
                   <div className="bg-purple-50 p-4 rounded-lg">
@@ -504,7 +505,7 @@ const ApplicationDetail: React.FC = () => {
                   <Clock className="w-4 h-4 text-indigo-600" />
                   선택한 근무타입
                 </h3>
-                                {application.selectedWorkTypeIds && application.selectedWorkTypeIds.length > 0 ? (
+                {application.selectedWorkTypeIds && application.selectedWorkTypeIds.length > 0 ? (
                   <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {application.selectedWorkTypeIds.map((workTypeId, index) => {
@@ -566,7 +567,7 @@ const ApplicationDetail: React.FC = () => {
                             <p className="text-green-700 text-sm leading-relaxed">{evaluation.description}</p>
                           </div>
                           <div className="text-xs text-green-600 ml-4">
-                            {evaluation.createdAt.toDate().toLocaleDateString()}
+                            {evaluation.createdAt?.toDate?.()?.toLocaleDateString() || '날짜 없음'}
                           </div>
                         </div>
                       </div>
@@ -586,7 +587,7 @@ const ApplicationDetail: React.FC = () => {
                 <div className="bg-orange-50 p-4 rounded-lg">
                   <p className="text-orange-700 whitespace-pre-wrap leading-relaxed">{application.employerFeedback}</p>
                   <p className="text-sm text-orange-600 mt-2">
-                    작성일: {application.employerFeedbackAt?.toLocaleDateString()}
+                    작성일: {formatDate(application.employerFeedbackAt)}
                   </p>
                 </div>
               </div>

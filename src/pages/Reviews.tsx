@@ -4,6 +4,8 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import HomeLayout from '../components/HomeLayout';
 import VideoPreviewModal from '../components/VideoPreviewModal';
+import ShareModal from '../components/ShareModal';
+import { Share2, Heart, MessageCircle } from 'lucide-react';
 
 const Reviews: React.FC = () => {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -18,7 +20,23 @@ const Reviews: React.FC = () => {
   }>({
     isOpen: false,
     videoUrl: '',
-    videoName: ''
+    videoName: '',
+  });
+
+  const [shareModal, setShareModal] = useState<{
+    isOpen: boolean;
+    mediaUrl: string;
+    mediaType: 'image' | 'video';
+    title: string;
+    description: string;
+    resortName: string;
+  }>({
+    isOpen: false,
+    mediaUrl: '',
+    mediaType: 'image',
+    title: '',
+    description: '',
+    resortName: '',
   });
 
   useEffect(() => {
@@ -26,7 +44,7 @@ const Reviews: React.FC = () => {
       const snapshot = await getDocs(collection(db, 'companyInfo'));
       const list = snapshot.docs.map(doc => ({
         id: doc.id,
-        name: doc.data().name
+        name: doc.data().name,
       })).filter(r => r.name);
       setResorts(list);
     };
@@ -82,7 +100,7 @@ const Reviews: React.FC = () => {
     setVideoModal({
       isOpen: true,
       videoUrl,
-      videoName
+      videoName,
     });
   };
 
@@ -91,7 +109,31 @@ const Reviews: React.FC = () => {
     setVideoModal({
       isOpen: false,
       videoUrl: '',
-      videoName: ''
+      videoName: '',
+    });
+  };
+
+  // 공유 모달 열기
+  const handleShareModalOpen = (item: any) => {
+    setShareModal({
+      isOpen: true,
+      mediaUrl: item.fileUrl,
+      mediaType: item.fileType?.startsWith('image') ? 'image' : 'video',
+      title: item.description,
+      description: item.description,
+      resortName: companyMap[item.resort] || '알 수 없는 리조트',
+    });
+  };
+
+  // 공유 모달 닫기
+  const handleShareModalClose = () => {
+    setShareModal({
+      isOpen: false,
+      mediaUrl: '',
+      mediaType: 'image',
+      title: '',
+      description: '',
+      resortName: '',
     });
   };
 
@@ -118,36 +160,53 @@ const Reviews: React.FC = () => {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {filteredMedia.slice(0, 8).map((item) => (
-                <div key={item.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
-                  {item.fileType && item.fileType.startsWith('image') ? (
-                    <img 
-                      src={item.fileUrl} 
-                      alt={item.description}
-                      className="w-full h-32 object-cover"
-                    />
-                  ) : (
-                                         <div 
-                       className="relative w-full h-32 bg-gray-900 cursor-pointer"
-                       onClick={() => handleVideoPreview(item.fileUrl, item.description)}
-                     >
-                       <video 
-                         src={item.fileUrl} 
-                         className="w-full h-full object-cover"
-                         preload="metadata"
-                         onError={(e) => {
-                           console.error('동영상 로드 실패:', item.fileUrl);
-                           e.currentTarget.style.display = 'none';
-                         }}
-                       />
-                       <div className="absolute inset-0 flex items-center justify-center">
-                         <div className="bg-black bg-opacity-50 text-white rounded-full p-3 hover:bg-opacity-70 transition-all">
-                           <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                           </svg>
-                         </div>
-                       </div>
-                     </div>
-                  )}
+                <div key={item.id} className="bg-white rounded-lg shadow-sm border overflow-hidden group hover:shadow-md transition-shadow">
+                  <div className="relative">
+                    {item.fileType && item.fileType.startsWith('image') ? (
+                      <img 
+                        src={item.fileUrl} 
+                        alt={item.description}
+                        className="w-full h-32 object-cover"
+                      />
+                    ) : (
+                      <div 
+                        className="relative w-full h-32 bg-gray-900 cursor-pointer"
+                        onClick={() => handleVideoPreview(item.fileUrl, item.description)}
+                      >
+                        <video 
+                          src={item.fileUrl} 
+                          className="w-full h-full object-cover"
+                          preload="metadata"
+                          onError={(e) => {
+                            console.error('동영상 로드 실패:', item.fileUrl);
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="bg-black bg-opacity-50 text-white rounded-full p-3 hover:bg-opacity-70 transition-all">
+                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* 공유 버튼 */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShareModalOpen(item);
+                        }}
+                        className="bg-white bg-opacity-90 hover:bg-opacity-100 text-gray-700 hover:text-blue-600 rounded-full p-2 shadow-md transition-colors"
+                        title="공유하기"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  
                   <div className="p-3">
                     <p className="text-xs text-gray-600 mb-1">
                       {companyMap[item.resort] || '알 수 없는 리조트'}
@@ -155,9 +214,23 @@ const Reviews: React.FC = () => {
                     <p className="text-sm text-gray-900 line-clamp-2">
                       {item.description}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {item.createdAt?.toDate?.()?.toLocaleDateString() || '날짜 없음'}
-                    </p>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-gray-400">
+                        {item.createdAt?.toDate?.()?.toLocaleDateString() || '날짜 없음'}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShareModalOpen(item);
+                          }}
+                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                          title="공유하기"
+                        >
+                          <Share2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -197,18 +270,29 @@ const Reviews: React.FC = () => {
               <div className="text-gray-800 text-sm">{r.content}</div>
             </div>
           ))}
-                 </div>
-       </div>
+        </div>
+      </div>
 
-       {/* 동영상 모달 */}
-       <VideoPreviewModal
-         isOpen={videoModal.isOpen}
-         onClose={handleVideoModalClose}
-         videoUrl={videoModal.videoUrl}
-         videoName={videoModal.videoName}
-       />
-     </HomeLayout>
-   );
- };
+      {/* 동영상 모달 */}
+      <VideoPreviewModal
+        isOpen={videoModal.isOpen}
+        onClose={handleVideoModalClose}
+        videoUrl={videoModal.videoUrl}
+        videoName={videoModal.videoName}
+      />
+
+      {/* 공유 모달 */}
+      <ShareModal
+        isOpen={shareModal.isOpen}
+        onClose={handleShareModalClose}
+        mediaUrl={shareModal.mediaUrl}
+        mediaType={shareModal.mediaType}
+        title={shareModal.title}
+        description={shareModal.description}
+        resortName={shareModal.resortName}
+      />
+    </HomeLayout>
+  );
+};
 
 export default Reviews; 
