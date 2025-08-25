@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import AddressSearch, { Address } from '../components/AddressSearch';
 
 const Register: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -15,6 +16,7 @@ const Register: React.FC = () => {
     // 구인자 직장정보 필드들
     companyName: '',
     companyAddress: '',
+    companyDetailAddress: '', // 상세주소 필드 추가
     companyPhone: '',
     companyWebsite: '',
     businessNumber: '',
@@ -104,6 +106,7 @@ const Register: React.FC = () => {
           contactPerson: formData.contactPerson || '',
           companyName: formData.companyName,
           companyAddress: formData.companyAddress,
+          companyDetailAddress: formData.companyDetailAddress, // 상세주소 추가
           companyPhone: formData.companyPhone,
           companyWebsite: formData.companyWebsite,
           businessNumber: formData.businessNumber,
@@ -302,15 +305,18 @@ const Register: React.FC = () => {
                   <label htmlFor="companyAddress" className="block text-sm font-medium text-gray-700">
                     회사 주소 <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    id="companyAddress"
-                    name="companyAddress"
-                    type="text"
-                    required
+                  <AddressSearch
+                    onAddressSelect={(address: Address) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        companyAddress: address.address,
+                        companyDetailAddress: address.detailAddress || ''
+                      }));
+                    }}
+                    placeholder="회사 주소를 검색하세요 (예: 서울특별시 강남구 테헤란로 427)"
                     value={formData.companyAddress}
-                    onChange={handleInputChange}
-                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-resort-500 focus:border-resort-500 focus:z-10 sm:text-sm"
-                    placeholder="회사 주소를 입력하세요 (예: 서울특별시 강남구 테헤란로 427)"
+                    showDetailAddress={true}
+                    detailAddressPlaceholder="사무실 번호 또는 층수 (예: 3층 301호, A동 2층)"
                   />
                 </div>
 

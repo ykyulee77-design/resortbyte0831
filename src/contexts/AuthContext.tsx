@@ -23,6 +23,7 @@ interface User {
   // 구인자 추가 정보
   companyName?: string;
   companyAddress?: string;
+  companyDetailAddress?: string; // 상세주소 필드 추가
   companyPhone?: string;
   companyWebsite?: string;
   businessNumber?: string;
@@ -38,6 +39,7 @@ interface EmployerInfo {
   // 구인자 추가 정보
   companyName: string;
   companyAddress: string;
+  companyDetailAddress?: string; // 상세주소 필드 추가
   companyPhone: string;
   companyWebsite?: string;
   businessNumber?: string;
@@ -97,6 +99,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               // 구인자 추가 정보
               companyName: userData.companyName,
               companyAddress: userData.companyAddress,
+              companyDetailAddress: userData.companyDetailAddress,
               companyPhone: userData.companyPhone,
               companyWebsite: userData.companyWebsite,
               businessNumber: userData.businessNumber,
@@ -159,6 +162,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // 구인자 추가 정보
         userData.companyName = employerInfo.companyName;
         userData.companyAddress = employerInfo.companyAddress;
+        userData.companyDetailAddress = employerInfo.companyDetailAddress;
         userData.companyPhone = employerInfo.companyPhone;
         userData.companyWebsite = employerInfo.companyWebsite;
         userData.businessNumber = employerInfo.businessNumber;
@@ -171,6 +175,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           employerId: firebaseUser.uid, // employerId 필드 추가
           name: employerInfo.companyName,
           address: employerInfo.companyAddress,
+          detailAddress: employerInfo.companyDetailAddress, // 상세주소 추가
           phone: employerInfo.companyPhone,
           website: employerInfo.companyWebsite,
           businessNumber: employerInfo.businessNumber,
