@@ -6,6 +6,7 @@ import HomeLayout from '../components/HomeLayout';
 import VideoPreviewModal from '../components/VideoPreviewModal';
 import ShareModal from '../components/ShareModal';
 import { Share2, Heart, MessageCircle } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Reviews: React.FC = () => {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -13,6 +14,7 @@ const Reviews: React.FC = () => {
   const [resorts, setResorts] = useState<{ id: string; name: string }[]>([]);
   const [selectedResort, setSelectedResort] = useState('');
   const [companyMap, setCompanyMap] = useState<{ [id: string]: string }>({});
+  const { user } = useAuth();
   const [videoModal, setVideoModal] = useState<{
     isOpen: boolean;
     videoUrl: string;
@@ -91,8 +93,12 @@ const Reviews: React.FC = () => {
     : media;
 
   // 평균 별점 계산
-  const avgRating = filteredReviews.length > 0
-    ? (filteredReviews.reduce((sum, r) => sum + (r.rating || 0), 0) / filteredReviews.length).toFixed(1)
+  const avgOverallRating = filteredReviews.length > 0
+    ? (filteredReviews.reduce((sum, r) => sum + (r.overallRating || 0), 0) / filteredReviews.length).toFixed(1)
+    : null;
+    
+  const avgAccommodationRating = filteredReviews.length > 0
+    ? (filteredReviews.reduce((sum, r) => sum + (r.accommodationRating || 0), 0) / filteredReviews.length).toFixed(1)
     : null;
 
   // 동영상 모달 열기
@@ -146,16 +152,26 @@ const Reviews: React.FC = () => {
             <h2 className="text-xl font-bold text-resort-600 flex items-center gap-2">
               <span role="img" aria-label="camera">📸</span> 리조트바이트 사진 & 쇼츠
             </h2>
-            <Link to="/reviews/media/new" className="bg-resort-500 text-white px-3 py-1 rounded hover:bg-resort-700 text-sm font-semibold">사진/쇼츠 올리기</Link>
+            {user ? (
+              <Link to="/reviews/media/new" className="bg-resort-500 text-white px-3 py-1 rounded hover:bg-resort-700 text-sm font-semibold">사진/쇼츠 올리기</Link>
+            ) : (
+              <Link to="/login" className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 text-sm font-semibold">로그인 후 업로드</Link>
+            )}
           </div>
           {/* 실제 업로드된 미디어 표시 */}
           {filteredMedia.length === 0 ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg">
               <span className="text-4xl">📸</span>
               <p className="text-gray-500 mt-2">아직 업로드된 사진/쇼츠가 없습니다</p>
-              <Link to="/reviews/media/new" className="text-resort-600 hover:underline text-sm">
-                첫 번째 사진/쇼츠를 업로드해보세요
-              </Link>
+              {user ? (
+                <Link to="/reviews/media/new" className="text-resort-600 hover:underline text-sm">
+                  첫 번째 사진/쇼츠를 업로드해보세요
+                </Link>
+              ) : (
+                <Link to="/login" className="text-gray-600 hover:underline text-sm">
+                  로그인 후 업로드할 수 있습니다
+                </Link>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -179,7 +195,7 @@ const Reviews: React.FC = () => {
                           preload="metadata"
                           onError={(e) => {
                             console.error('동영상 로드 실패:', item.fileUrl);
-                            e.currentTarget.style.display = 'none';
+                            (e as any).currentTarget.style.display = 'none';
                           }}
                         />
                         <div className="absolute inset-0 flex items-center justify-center">
@@ -238,12 +254,19 @@ const Reviews: React.FC = () => {
           )}
         </div>
         <h1 className="text-2xl font-bold text-resort-600 mb-2">리조트바이트 이용자 후기</h1>
-        <p className="text-gray-600 mb-6">실제 경험자들의 솔직한 후기와 리조트별 평가를 확인해보세요.</p>
-        {avgRating && (
-          <div className="mb-4 text-yellow-600 font-bold">
-            평균 별점: {avgRating} / 5
-          </div>
-        )}
+        <p className="text-gray-600 mb-4">실제 경험자들의 솔직한 후기와 리조트별 평가를 확인해보세요.</p>
+        <div className="mb-4 flex gap-6">
+          {avgOverallRating && (
+            <div className="text-yellow-600 font-bold">
+              전체 평균 별점: {avgOverallRating} / 5
+            </div>
+          )}
+          {avgAccommodationRating && (
+            <div className="text-green-600 font-bold">
+              기숙사 평균 별점: {avgAccommodationRating} / 5
+            </div>
+          )}
+        </div>
         <div className="flex justify-between items-center mb-6">
           <select className="border rounded px-3 py-2 text-sm" value={selectedResort} onChange={e => setSelectedResort(e.target.value)}>
             <option value="">전체 리조트</option>
@@ -252,7 +275,11 @@ const Reviews: React.FC = () => {
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
-          <Link to="/reviews/new" className="bg-resort-600 text-white px-4 py-2 rounded hover:bg-resort-700 text-sm font-semibold">후기 작성</Link>
+          {user ? (
+            <Link to="/reviews/new" className="bg-resort-600 text-white px-4 py-2 rounded hover:bg-resort-700 text-sm font-semibold">후기 작성</Link>
+          ) : (
+            <Link to="/login" className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 text-sm font-semibold">로그인 후 후기 작성</Link>
+          )}
         </div>
         <div className="space-y-6">
           {filteredReviews.length === 0 ? (
@@ -265,7 +292,10 @@ const Reviews: React.FC = () => {
                 <span className="ml-4 text-xs text-gray-500">
                   {companyMap[r.resort] || r.resort}
                 </span>
-                <span className="ml-4 text-yellow-400">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
+                <span className="ml-4 text-yellow-400">{'★'.repeat(r.overallRating || 0)}{'☆'.repeat(5 - (r.overallRating || 0))}</span>
+                {r.accommodationRating && (
+                  <span className="ml-2 text-green-400">{'★'.repeat(r.accommodationRating)}{'☆'.repeat(5 - r.accommodationRating)} (기숙사)</span>
+                )}
               </div>
               <div className="text-gray-800 text-sm">{r.content}</div>
             </div>
@@ -273,24 +303,28 @@ const Reviews: React.FC = () => {
         </div>
       </div>
 
-      {/* 동영상 모달 */}
-      <VideoPreviewModal
-        isOpen={videoModal.isOpen}
-        onClose={handleVideoModalClose}
-        videoUrl={videoModal.videoUrl}
-        videoName={videoModal.videoName}
-      />
+      {/* 비디오 미리보기 모달 */}
+      {videoModal.isOpen && (
+        <VideoPreviewModal
+          isOpen={videoModal.isOpen}
+          onClose={handleVideoModalClose}
+          videoUrl={videoModal.videoUrl}
+          videoName={videoModal.videoName}
+        />
+      )}
 
       {/* 공유 모달 */}
-      <ShareModal
-        isOpen={shareModal.isOpen}
-        onClose={handleShareModalClose}
-        mediaUrl={shareModal.mediaUrl}
-        mediaType={shareModal.mediaType}
-        title={shareModal.title}
-        description={shareModal.description}
-        resortName={shareModal.resortName}
-      />
+      {shareModal.isOpen && (
+        <ShareModal
+          isOpen={shareModal.isOpen}
+          onClose={handleShareModalClose}
+          mediaUrl={shareModal.mediaUrl}
+          mediaType={shareModal.mediaType}
+          title={shareModal.title}
+          description={shareModal.description}
+          resortName={shareModal.resortName}
+        />
+      )}
     </HomeLayout>
   );
 };

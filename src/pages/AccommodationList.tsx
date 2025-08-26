@@ -46,6 +46,7 @@ interface Accommodation {
   isPublic?: boolean;
   createdAt: any;
   companyInfo?: CompanyInfo; // 회사 정보 추가
+  avgRating?: number; // 평균 평점 추가
 }
 
 const AccommodationList: React.FC = () => {
@@ -89,8 +90,33 @@ const AccommodationList: React.FC = () => {
             companyInfo,
           };
         });
+
+        // 평점 정보 가져오기
+        const reviewsQuery = query(collection(db, 'reviews'));
+        const reviewsSnapshot = await getDocs(reviewsQuery);
+        const reviewsData = reviewsSnapshot.docs.map(doc => doc.data());
         
-        setAccommodations(accommodationsWithCompanyInfo);
+        // 각 기숙사별 평균 평점 계산
+        const accommodationsWithRatings = accommodationsWithCompanyInfo.map(accommodation => {
+          const accommodationReviews = reviewsData.filter((review: any) => 
+            review.resort === accommodation.employerId && review.accommodationRating > 0
+          );
+          
+          let avgRating: number | undefined;
+          if (accommodationReviews.length > 0) {
+            const totalRating = accommodationReviews.reduce((sum: number, review: any) => 
+              sum + review.accommodationRating, 0
+            );
+            avgRating = parseFloat((totalRating / accommodationReviews.length).toFixed(1));
+          }
+          
+          return {
+            ...accommodation,
+            avgRating,
+          };
+        });
+        
+        setAccommodations(accommodationsWithRatings);
       } catch (error) {
         console.error('기숙사 정보 로딩 실패:', error);
       } finally {
@@ -101,53 +127,45 @@ const AccommodationList: React.FC = () => {
     fetchAccommodations();
   }, []);
 
+  // 가격 포맷팅 함수
+  const formatPrice = (price: number): string => {
+    if (!price || price === 0) return '무료';
+    return `${price.toLocaleString()}원`;
+  };
+
+  // 필터링된 기숙사 목록
   const filteredAccommodations = accommodations.filter(accommodation => {
-    // 검색: 회사명, 구인 공고명, 지역
+    // 검색어 필터
     const matchesSearch = searchTerm === '' || 
-                         (accommodation.companyInfo?.name && accommodation.companyInfo.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         accommodation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         accommodation.address.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // 비용: 무료/유료
+      accommodation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      accommodation.companyInfo?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      accommodation.address.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // 가격 필터
     const matchesPrice = priceFilter === 'all' || 
-                        (priceFilter === 'free' && (accommodation.monthlyRent || 0) === 0) ||
-                        (priceFilter === 'paid' && (accommodation.monthlyRent || 0) > 0);
-    
-    // 기숙사 유형
-    const matchesType = typeFilter === 'all' || 
-                       accommodation.type === typeFilter;
-    
+      (priceFilter === 'free' && (!accommodation.monthlyRent || accommodation.monthlyRent === 0)) ||
+      (priceFilter === 'paid' && accommodation.monthlyRent && accommodation.monthlyRent > 0);
+
+    // 유형 필터
+    const matchesType = typeFilter === 'all' || accommodation.type === typeFilter;
+
     // 지역 필터
     const matchesRegion = regionFilter === 'all' || 
-                         (accommodation.address && accommodation.address.includes(regionFilter));
-    
+      accommodation.address.includes(regionFilter);
+
     // 편의시설 필터
     const matchesFacility = facilityFilter === 'all' || 
-                           (accommodation.facilities && accommodation.facilities.some(facility => 
-                             facility.toLowerCase().includes(facilityFilter.toLowerCase()),
-                           ));
+      (accommodation.facilities && accommodation.facilities.includes(facilityFilter));
 
     return matchesSearch && matchesPrice && matchesType && matchesRegion && matchesFacility;
   });
 
-  const formatPrice = (price: number | undefined) => {
-    if (price === undefined || price === null) {
-      return '가격 정보 없음';
-    }
-    if (price === 0) {
-      return '무료';
-    }
-    return `${price.toLocaleString()}원/월`;
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-resort-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">기숙사 정보를 불러오는 중...</p>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-resort-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">기숙사 정보를 불러오는 중...</p>
         </div>
       </div>
     );
@@ -155,46 +173,39 @@ const AccommodationList: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 헤더 */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              🏠 기숙사 정보
-            </h1>
-            <p className="text-lg text-gray-600">
-              구인자들이 제공하는 기숙사 정보를 한눈에 확인하세요
-            </p>
-          </div>
+      <div className="max-w-7xl mx-auto py-8 px-4">
+        {/* 헤더 */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">기숙사 목록</h1>
+          <p className="text-gray-600">리조트 근무자를 위한 다양한 기숙사 옵션을 확인해보세요</p>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 필터 섹션 */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-            {/* 검색 */}
-            <div className="lg:col-span-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="회사명, 기숙사명, 지역으로 검색..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-transparent"
-                />
-              </div>
+        {/* 검색 및 필터 */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          {/* 검색바 */}
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="기숙사명, 회사명, 주소로 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-transparent"
+              />
             </div>
+          </div>
 
-            {/* 비용 필터 */}
+          {/* 필터 옵션 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* 가격 필터 */}
             <div>
               <select
                 value={priceFilter}
                 onChange={(e) => setPriceFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-transparent"
               >
-                <option value="all">비용 전체</option>
+                <option value="all">가격 전체</option>
                 <option value="free">무료</option>
                 <option value="paid">유료</option>
               </select>
@@ -346,6 +357,15 @@ const AccommodationList: React.FC = () => {
                       {(accommodation.monthlyRent || 0) === 0 ? '무료' : '유료'}
                     </span>
                   </div>
+                  {/* 평점 배지 */}
+                  {accommodation.avgRating && (
+                    <div className="absolute top-3 left-3">
+                      <span className="inline-flex items-center px-2 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full text-xs font-medium">
+                        <Star className="w-3 h-3 mr-1" />
+                        {accommodation.avgRating}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* 정보 */}

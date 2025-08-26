@@ -134,7 +134,9 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     setError(null);
     
     try {
-      const url = `http://localhost:4000/api/geocode?query=${encodeURIComponent(keyword)}`;
+      // 환경 변수에서 API URL 가져오기 (개발/프로덕션 환경 대응)
+      const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+      const url = `${apiBaseUrl}/api/geocode?query=${encodeURIComponent(keyword)}`;
       console.log('🌐 API 호출 URL:', url);
       
       const response = await fetch(url, {
@@ -254,8 +256,9 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     console.log('📍 선택된 주소:', address);
     setSelectedAddress(address);
     setSearchTerm(address.address);
-    setShowDropdown(false);
+    setShowDropdown(false); // 드롭다운 즉시 숨김
     setIsEditing(false);
+    setAddresses([]); // 검색 결과도 초기화
     
     // 상세주소가 표시되지 않는 경우 바로 콜백 호출
     if (!showDetailAddress) {
@@ -336,12 +339,12 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         
         {/* 주소 검색 결과 드롭다운 */}
         {showDropdown && addresses.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+          <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-y-auto">
             {addresses.map((address, index) => (
               <div
                 key={index}
                 onClick={() => handleAddressSelect(address)}
-                className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                className="px-3 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
               >
                 <div className="font-medium text-gray-900">
                   {address.roadAddress}
@@ -350,8 +353,8 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
                   {address.jibunAddress}
                 </div>
                 {address.buildingName && (
-                  <div className="text-xs text-blue-600">
-                    {address.buildingName}
+                  <div className="text-xs text-blue-600 font-medium">
+                    🏢 {address.buildingName}
                   </div>
                 )}
               </div>
@@ -361,8 +364,8 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         
         {/* 검색 결과 없음 */}
         {showDropdown && !isLoading && addresses.length === 0 && searchTerm.length >= minSearchLength && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-            <div className="px-3 py-2 text-gray-500 text-center">
+          <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl">
+            <div className="px-3 py-3 text-gray-500 text-center">
               검색 결과가 없습니다.
             </div>
           </div>
@@ -371,7 +374,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
 
       {/* 상세주소 입력 필드 */}
       {showDetailAddress && selectedAddress && (
-        <div className="space-y-2">
+        <div className="space-y-2 mt-2">
           <input
             type="text"
             value={detailAddress}
@@ -379,15 +382,16 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
             placeholder={detailAddressPlaceholder}
             disabled={disabled}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+            autoFocus // 상세주소 입력필드에 자동 포커스
           />
           
           {/* 선택된 주소 미리보기 */}
-          <div className="p-3 bg-gray-50 rounded-md">
-            <div className="text-sm text-gray-600 mb-1">선택된 주소:</div>
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="text-sm text-blue-700 mb-1 font-medium">✅ 선택된 주소:</div>
             <div className="text-sm font-medium text-gray-900">
               {selectedAddress.address}
               {detailAddress.trim() && (
-                <span className="text-blue-600"> {detailAddress.trim()}</span>
+                <span className="text-blue-600 font-semibold"> {detailAddress.trim()}</span>
               )}
             </div>
             <div className="text-xs text-gray-500 mt-1">
@@ -399,7 +403,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
           <button
             onClick={handleFinalAddressSelect}
             disabled={disabled}
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
           >
             주소 확인
           </button>

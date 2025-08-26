@@ -57,6 +57,7 @@ const JobseekerDashboard: React.FC = () => {
     rehireRate: 0,
     trustLevel: 'low' as 'very_high' | 'high' | 'medium' | 'low',
   });
+  const [myReviewCount, setMyReviewCount] = useState(0);
 
   // 공유 기능
   const handleShareJob = async (jobPost: JobPost) => {
@@ -91,7 +92,17 @@ const JobseekerDashboard: React.FC = () => {
       try {
         setLoading(true);
 
-        // 1. 지원서 로딩 (먼저 지원한 공고 ID들을 가져옴)
+        // 1. 내 리뷰 수 로딩
+        try {
+          const myReviewsQuery = query(collection(db, 'reviews'), where('userId', '==', user.uid));
+          const myReviewsSnap = await getDocs(myReviewsQuery);
+          setMyReviewCount(myReviewsSnap.size);
+        } catch (e) {
+          console.log('내 리뷰 수 로딩 실패:', e);
+          setMyReviewCount(0);
+        }
+
+        // 2. 지원서 로딩 (먼저 지원한 공고 ID들을 가져옴)
         const applicationsQuery = query(
           collection(db, 'applications'),
           where('jobseekerId', '==', user.uid),
@@ -178,128 +189,40 @@ const JobseekerDashboard: React.FC = () => {
           activitiesData.push({
             id: `app_${app.id}`,
             type: 'application',
-            title: `${jobPost?.title || '알 수 없는 공고'}에 지원`,
+            title: `${jobPost ? jobPost.title : '공고'}에 지원함`,
             description: `지원 상태: ${getStatusText(app.status)}`,
-            date: app.createdAt,
+            date: app.createdAt || new Date(),
             icon: 'Send',
             color: 'green',
-            link: `/application-detail/${app.id}`
+            link: `/application-detail/${app.id}`,
           });
         });
 
-        // 평가 활동 추가 (최근 5개)
-        if (user?.uid) {
-          try {
-            const evaluationsQuery = query(
-              collection(db, 'mutualEvaluations'),
-              where('evaluatorId', '==', user.uid),
-            );
-            const evaluationsSnapshot = await getDocs(evaluationsQuery);
-            const evaluationsData = evaluationsSnapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data(),
-            }));
-
-            evaluationsData.slice(0, 5).forEach(evaluation => {
-              activitiesData.push({
-                id: `eval_${evaluation.id}`,
-                type: 'evaluation',
-                title: `${(evaluation as any).evaluatedName || '동료'}에 대한 평가 작성`,
-                description: `평점: ${(evaluation as any).rating}점`,
-                date: (evaluation as any).createdAt,
-                icon: 'ThumbsUp',
-                color: 'blue',
-                link: `/mutual-evaluation`
-              });
+        // 리뷰 활동 추가
+        try {
+          const myReviewsQuery2 = query(collection(db, 'reviews'), where('userId', '==', user.uid));
+          const myReviewsSnap2 = await getDocs(myReviewsQuery2);
+          myReviewsSnap2.docs.slice(0, 5).forEach(docSnap => {
+            const r = docSnap.data() as any;
+            activitiesData.push({
+              id: `review_${docSnap.id}`,
+              type: 'review',
+              title: `${(r.reviewType === 'accommodation' ? '기숙사' : '회사')} 리뷰 작성`,
+              description: `${(r.overallRating || 0)}점 · ${r.content?.slice(0, 30) || ''}`,
+              date: r.date || new Date(),
+              icon: 'Star',
+              color: 'yellow',
+              link: '/reviews',
             });
-          } catch (error) {
-            console.log('평가 데이터 로딩 실패:', error);
-          }
-        }
-
-        // 리조트바이트 생활 활동 추가 (리뷰 및 미디어)
-        if (user?.uid) {
-          try {
-            // 회사 정보 매핑 생성
-            const companySnapshot = await getDocs(collection(db, 'companyInfo'));
-            const companyMap: { [id: string]: string } = {};
-            companySnapshot.docs.forEach(doc => {
-              companyMap[doc.id] = doc.data().name;
-            });
-
-            // 리뷰 활동 추가
-            const reviewsQuery = query(
-              collection(db, 'reviews'),
-              where('userId', '==', user.uid),
-            );
-            const reviewsSnapshot = await getDocs(reviewsQuery);
-            const reviewsData = reviewsSnapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data(),
-            }));
-
-            reviewsData.slice(0, 3).forEach(review => {
-              const resortName = companyMap[(review as any).resort] || '알 수 없는 리조트';
-              activitiesData.push({
-                id: `review_${review.id}`,
-                type: 'review',
-                title: `${resortName}에 대한 리뷰 작성`,
-                description: `평점: ${(review as any).rating}점 - ${(review as any).content?.substring(0, 50)}${(review as any).content?.length > 50 ? '...' : ''}`,
-                date: (review as any).date || (review as any).createdAt,
-                icon: 'Star',
-                color: 'yellow',
-                link: `/reviews`
-              });
-            });
-
-            // 미디어 공유 활동 추가
-            const mediaQuery = query(
-              collection(db, 'media'),
-              where('userId', '==', user.uid),
-            );
-            const mediaSnapshot = await getDocs(mediaQuery);
-            const mediaData = mediaSnapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data(),
-            }));
-
-            mediaData.slice(0, 3).forEach(media => {
-              const mediaType = (media as any).fileType?.startsWith('image') ? '사진' : '쇼츠';
-              const resortName = companyMap[(media as any).resort] || '알 수 없는 리조트';
-              activitiesData.push({
-                id: `media_${media.id}`,
-                type: 'media',
-                title: `${resortName}에서 ${mediaType} 공유`,
-                description: `${(media as any).description?.substring(0, 50)}${(media as any).description?.length > 50 ? '...' : ''}`,
-                date: (media as any).createdAt,
-                icon: 'Camera',
-                color: 'pink',
-                link: `/reviews`
-              });
-            });
-          } catch (error) {
-            console.log('리조트바이트 생활 데이터 로딩 실패:', error);
-          }
-        }
-
-        // 프로필 업데이트 활동 추가
-        if (user?.resume) {
-          activitiesData.push({
-            id: 'profile_update',
-            type: 'profile',
-            title: '이력서 업데이트',
-            description: '프로필 정보가 업데이트되었습니다',
-            date: new Date(), // 현재 시간으로 설정
-            icon: 'FileText',
-            color: 'purple',
-            link: '/profile'
           });
+        } catch (e) {
+          console.log('리뷰 활동 로딩 실패:', e);
         }
 
         // 날짜순으로 정렬 (최신순)
         activitiesData.sort((a, b) => {
-          const dateA = a.date?.toDate?.() || a.date;
-          const dateB = b.date?.toDate?.() || b.date;
+          const dateA = (a.date as any)?.toDate?.() || a.date;
+          const dateB = (b.date as any)?.toDate?.() || b.date;
           return new Date(dateB).getTime() - new Date(dateA).getTime();
         });
 
@@ -317,12 +240,11 @@ const JobseekerDashboard: React.FC = () => {
     }
   }, [user?.uid]);
 
-  const filteredApplications = applications.filter(app => {
+  const filteredApplications = applications.filter((app) => {
     if (statusFilter === 'all') return true;
     return app.status === statusFilter;
   });
 
-  // 상태 텍스트 변환 함수
   const getStatusText = (status: string) => {
     switch (status) {
     case 'pending': return '대기중';
@@ -337,14 +259,7 @@ const JobseekerDashboard: React.FC = () => {
     }
   };
 
-  // 이력서 존재 여부 확인 함수
-  const hasResume = () => {
-    if (!user?.resume) return false;
-    if (typeof user.resume === 'object' && Object.keys(user.resume).length === 0) return false;
-    return true;
-  };
-
-
+  const hasResume = () => !!user?.resume;
 
   if (loading) {
     return (

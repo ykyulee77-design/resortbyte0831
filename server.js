@@ -3,13 +3,28 @@ const axios = require('axios');
 const cors = require('cors');
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
-// CORS 설정
-app.use(cors());
+// 성능 최적화를 위한 설정
+app.set('trust proxy', 1);
 
-// JSON 파싱 미들웨어
-app.use(express.json());
+// CORS 설정 (더 구체적으로)
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// JSON 파싱 미들웨어 (크기 제한 설정)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 정적 파일 캐싱
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  next();
+});
 
 // 환경 변수 설정
 const PUBLIC_DATA_API_KEY = process.env.PUBLIC_DATA_API_KEY || 'U01TX0FVVEgyMDI1MDgyNTIzNDUzNjExNjEwODc=';
@@ -170,11 +185,62 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 서버 시작
-app.listen(PORT, () => {
-  console.log(`🚀 주소 검색 API 서버가 http://localhost:${PORT}에서 실행 중입니다.`);
-  console.log(`📋 사용 가능한 엔드포인트:`);
-  console.log(`   - GET /api/geocode?query=<검색어> - 주소 검색`);
-  console.log(`   - GET /api/geocode/coordinates?address=<주소> - 지오코딩 (향후 구현)`);
-  console.log(`   - GET /api/health - 서버 상태 확인`);
-});
+// 사용 가능한 포트 찾기 함수
+const findAvailablePort = async (startPort) => {
+  const net = require('net');
+  
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    
+    server.listen(startPort, () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+    
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        resolve(findAvailablePort(startPort + 1));
+      } else {
+        reject(err);
+      }
+    });
+  });
+};
+
+// 서버 시작 (포트 충돌 처리 포함)
+const startServer = async () => {
+  try {
+    const availablePort = await findAvailablePort(PORT);
+    
+    const server = app.listen(availablePort, () => {
+      console.log(`🚀 주소 검색 API 서버가 http://localhost:${availablePort}에서 실행 중입니다.`);
+      console.log(`📋 사용 가능한 엔드포인트:`);
+      console.log(`   - GET /api/geocode?query=<검색어> - 주소 검색`);
+      console.log(`   - GET /api/geocode/coordinates?address=<주소> - 지오코딩 (향후 구현)`);
+      console.log(`   - GET /api/health - 서버 상태 확인`);
+    });
+
+    // Graceful shutdown
+    process.on('SIGTERM', () => {
+      console.log('🛑 서버를 종료합니다...');
+      server.close(() => {
+        console.log('✅ 서버가 안전하게 종료되었습니다.');
+        process.exit(0);
+      });
+    });
+    
+    process.on('SIGINT', () => {
+      console.log('🛑 서버를 종료합니다...');
+      server.close(() => {
+        console.log('✅ 서버가 안전하게 종료되었습니다.');
+        process.exit(0);
+      });
+    });
+    
+  } catch (error) {
+    console.error('❌ 서버 시작 오류:', error);
+    process.exit(1);
+  }
+};
+
+startServer();

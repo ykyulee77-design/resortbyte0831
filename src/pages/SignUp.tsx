@@ -44,10 +44,24 @@ const SignUp: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [name]: value,
+      };
+      
+      // 구인자인 경우 담당자명을 가입회원명으로 자동 설정
+      if (name === 'displayName' && prev.role === 'employer') {
+        newData.contactPerson = value;
+      }
+      
+      // 역할이 구인자로 변경될 때 담당자명을 가입회원명으로 자동 설정
+      if (name === 'role' && value === 'employer' && prev.displayName) {
+        newData.contactPerson = prev.displayName;
+      }
+      
+      return newData;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,11 +122,29 @@ const SignUp: React.FC = () => {
         contactPhone: formData.contactPhone,
       } : undefined;
 
+      // 디버깅: 회원가입 정보 로그
+      console.log('📝 회원가입 정보:', {
+        email: formData.email,
+        displayName: formData.displayName,
+        role: formData.role,
+        employerInfo: employerInfo
+      });
+
       // 구직자는 기본 정보만으로 회원가입 (이력서는 별도 페이지에서 작성)
       const resume = formData.role === 'jobseeker' ? {} : undefined;
 
       await signUp(formData.email, formData.password, formData.displayName, formData.role, employerInfo, resume);
-      navigate(redirectTo);
+      
+      // 회원가입 후 역할에 따른 리다이렉트
+      if (formData.role === 'employer') {
+        navigate('/employer-dashboard');
+      } else if (formData.role === 'jobseeker') {
+        navigate('/jobseeker-dashboard');
+      } else if (formData.role === 'admin') {
+        navigate('/admin-dashboard');
+      } else {
+        navigate(redirectTo);
+      }
     } catch (error: any) {
       console.error('회원가입 실패:', error);
       if (error.code === 'auth/email-already-in-use') {
@@ -394,9 +426,18 @@ const SignUp: React.FC = () => {
                       type="text"
                       value={formData.contactPerson}
                       onChange={handleInputChange}
-                      className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-resort-500 focus:border-resort-500 focus:z-10 sm:text-sm"
+                      className={`mt-1 appearance-none relative block w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-resort-500 focus:border-resort-500 focus:z-10 sm:text-sm ${
+                        formData.contactPerson === formData.displayName 
+                          ? 'border-blue-300 bg-blue-50 placeholder-blue-400 text-blue-900' 
+                          : 'border-gray-300 placeholder-gray-500 text-gray-900'
+                      }`}
                       placeholder="담당자명을 입력하세요"
                     />
+                    {formData.contactPerson === formData.displayName && (
+                      <p className="mt-1 text-xs text-blue-600">
+                        💡 담당자명이 가입회원명으로 자동 설정되었습니다. 필요시 수정하세요.
+                      </p>
+                    )}
                   </div>
 
                   <div>

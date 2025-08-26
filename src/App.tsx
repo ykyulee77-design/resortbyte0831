@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 import VersionInfo from './components/VersionInfo';
 
@@ -10,7 +11,7 @@ import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import Register from './pages/Register';
 import JobseekerDashboard from './pages/JobseekerDashboard';
-import CompanyDashboard from './pages/CompanyDashboard';
+import EmployerDashboard from './pages/EmployerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminJobPosts from './pages/AdminJobPosts';
@@ -38,6 +39,7 @@ import WorkTypesPage from './pages/WorkTypesPage';
 import JobPostForm from './pages/JobPostForm';
 import GatePage from './pages/GatePage';
 import MutualEvaluationPage from './pages/MutualEvaluationPage';
+import UserDebug from './pages/UserDebug';
 
 
 // 레이아웃 컴포넌트
@@ -116,7 +118,7 @@ const ProtectedRoute: React.FC<{
 //     case 'jobseeker':
 //       return <JobseekerDashboard />;
 //     case 'employer':
-//       return <CompanyDashboard />;
+//       return <EmployerDashboard />;
 //     case 'admin':
 //       return <AdminDashboard />;
 //     default:
@@ -144,8 +146,9 @@ const DashboardRedirect: React.FC = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div className="App">
           <Routes>
             {/* 공개 라우트 - HomeLayout 사용 */}
@@ -193,10 +196,18 @@ function App() {
               </HomeLayout>
             } />
             
-            {/* 리뷰 관련 라우트 */}
+            {/* 리뷰 관련 라우트 - 조회는 공개, 등록은 로그인 필요 */}
             <Route path="/reviews" element={<Reviews />} />
-            <Route path="/reviews/new" element={<ReviewForm />} />
-            <Route path="/reviews/media/new" element={<ReviewsMediaForm />} />
+            <Route path="/reviews/new" element={
+              <ProtectedRoute>
+                <ReviewForm />
+              </ProtectedRoute>
+            } />
+            <Route path="/reviews/media/new" element={
+              <ProtectedRoute>
+                <ReviewsMediaForm />
+              </ProtectedRoute>
+            } />
             <Route path="/resort/:id/reviews" element={<ResortReview />} />
 
             {/* 기숙사 관련 라우트 */}
@@ -226,7 +237,7 @@ function App() {
             <Route path="/employer-dashboard" element={
               <ProtectedRoute allowedRoles={['employer']}>
                 <Layout>
-                  <CompanyDashboard />
+                  <EmployerDashboard />
                 </Layout>
               </ProtectedRoute>
             } />
@@ -399,6 +410,13 @@ function App() {
               </ProtectedRoute>
             } />
 
+            {/* 디버그 페이지 (개발용) */}
+            <Route path="/debug" element={
+              <ProtectedRoute>
+                <UserDebug />
+              </ProtectedRoute>
+            } />
+
             {/* 404 페이지 */}
             <Route path="*" element={<ErrorPage />} />
           </Routes>
@@ -410,6 +428,7 @@ function App() {
         </div>
       </Router>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

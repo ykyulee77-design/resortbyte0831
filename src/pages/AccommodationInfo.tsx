@@ -1,1675 +1,1158 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
-import { AccommodationInfo, ExternalLink } from '../types';
+import React, { useState, useEffect } from 'react';
+import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { 
-  Home, MapPin, Phone, Users, DollarSign, CheckCircle, Star, Edit, Save, X,
-  Upload, Trash2, Plus, ExternalLink as ExternalLinkIcon, Camera, Wifi, Car, Utensils,
-  Shield, Clock, Users as UsersIcon, Bed, Bath, Tv, AirVent,
-  ParkingCircle, Dog, Wrench, AlertTriangle, Heart, ThumbsUp, MessageCircle,
-  Briefcase, Globe,
+  Home, 
+  Building, 
+  MapPin, 
+  Camera, 
+  Upload, 
+  Trash2, 
+  Save, 
+  X, 
+  Edit3,
+  Users,
+  Clock,
+  DollarSign,
+  FileText,
+  ArrowLeft,
+  Star
 } from 'lucide-react';
-import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
-import ImagePreviewModal from '../components/ImagePreviewModal';
+import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../firebase';
 import { uploadImage, deleteImage, compressImage } from '../utils/imageUpload';
+import AddressSearch from '../components/AddressSearch';
 
-interface CompanyInfo {
-  id: string;
+interface AccommodationData {
   name: string;
-  industry?: string;
-  size?: string;
-  website?: string;
-  phone?: string;
-  description?: string;
-  location?: string;
+  type: string;
+  address: string;
+  detailAddress: string;
+
+
+  capacity: string;
+  monthlyRent: string;
+  other: string;
+  utilities: string;
+  facilities: string[];
+  amenities: string[]; // 부대시설
+  roomTypes: { [key: string]: boolean }; // 객실 타입
+  roomPrices: { [key: string]: string }; // 객실별 가격
+  roomFacilities: { [key: string]: string[] }; // 객실별 시설
+  paymentType: string; // 결제 방식
+  rules: string;
+  images: string[];
+  imageDescriptions: string[];
+  isPublic: boolean;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
-
-const AccommodationInfoPage: React.FC = () => {
+const AccommodationInfo: React.FC = () => {
   const { employerId } = useParams<{ employerId: string }>();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const [accommodationInfo, setAccommodationInfo] = useState<AccommodationInfo | null>(null);
-  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  
+  // 객실 타입 옵션 (1~4인실 + 기타)
+  const ROOM_TYPE_OPTIONS = ['1인실', '2인실', '3인실', '4인실', '기타'];
+
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<Partial<AccommodationInfo>>({});
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadingImages, setUploadingImages] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [previewImageName, setPreviewImageName] = useState<string>('');
+  const [accommodationInfo, setAccommodationInfo] = useState<AccommodationData | null>(null);
+  const [avgAccommodationRating, setAvgAccommodationRating] = useState<number | null>(null);
+  const [editData, setEditData] = useState<AccommodationData>({
+    name: '',
+    type: 'dormitory',
+    address: '',
+    detailAddress: '',
 
-  const fetchAccommodationInfo = async () => {
-    if (!employerId) return;
-    setLoading(true);
-    try {
-      // 기숙사 정보 가져오기
-      const accommodationRef = doc(db, 'accommodationInfo', employerId);
-      const accommodationSnap = await getDoc(accommodationRef);
-      
-      if (accommodationSnap.exists()) {
-        const data = { id: accommodationSnap.id, ...accommodationSnap.data() } as AccommodationInfo;
-        console.log('기숙사 정보 로드:', data);
-        console.log('이미지 배열:', data.images);
-        console.log('기본정보:', {
-          name: data.name,
-          type: data.type,
-          address: data.address,
-          contactPerson: data.contactPerson,
-          contactPhone: data.contactPhone,
-        });
-        setAccommodationInfo(data);
-        setEditForm(data);
-      }
-      
-      // 회사 정보 가져오기
-      try {
-        const companyRef = doc(db, 'companyInfo', employerId);
-        const companySnap = await getDoc(companyRef);
-        if (companySnap.exists()) {
-          const companyData = { id: companySnap.id, ...companySnap.data() } as CompanyInfo;
-          console.log('회사 정보 로드:', companyData);
-          setCompanyInfo(companyData);
-        }
-      } catch (companyError) {
-        console.log('회사 정보가 없습니다:', companyError);
-      }
-    } catch (error) {
-      console.error('기숙사 정보 불러오기 실패:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
+    capacity: '',
+    monthlyRent: '',
+    other: '',
+    utilities: '',
+    facilities: [],
+    amenities: [],
+    roomTypes: {
+      '1인실': false,
+      '2인실': false,
+      '3인실': false,
+      '4인실': false,
+      '기타': false
+    },
+    roomPrices: {
+      '1인실': '',
+      '2인실': '',
+      '3인실': '',
+      '4인실': '',
+      '기타': ''
+    },
+    roomFacilities: {
+      '1인실': [],
+      '2인실': [],
+      '3인실': [],
+      '4인실': [],
+      '기타': []
+    },
+    paymentType: 'monthly',
+    rules: '',
+    images: [],
+    imageDescriptions: [],
+    isPublic: true
+  });
+
+  const isOwner = user?.uid === employerId;
+
+  // URL 파라미터로 edit 모드 감지
   useEffect(() => {
-    fetchAccommodationInfo();
+    const mode = searchParams.get('mode');
+    if (mode === 'edit' && isOwner) {
+      setIsEditing(true);
+    }
+  }, [searchParams, isOwner]);
+
+  // 기숙사 정보 로딩
+  useEffect(() => {
+    const loadAccommodationInfo = async () => {
+      if (!employerId) return;
+
+      try {
+        setLoading(true);
+        
+        // 1. 회사 정보를 먼저 가져와서 기본 기숙사명 설정
+        let defaultName = '기숙사';
+        try {
+          const companyRef = doc(db, 'companyInfo', employerId);
+          const companySnap = await getDoc(companyRef);
+          
+          if (companySnap.exists()) {
+            const companyData = companySnap.data();
+            defaultName = `${companyData.name || '회사'} 기숙사`;
+          }
+        } catch (companyError) {
+          console.error('회사 정보 로딩 실패:', companyError);
+        }
+        
+        // 2. 기숙사 정보 로딩
+        const accommodationRef = doc(db, 'accommodationInfo', employerId);
+        const accommodationSnap = await getDoc(accommodationRef);
+
+        if (accommodationSnap.exists()) {
+          const data = accommodationSnap.data() as AccommodationData;
+          setAccommodationInfo(data);
+          
+          // 기존 데이터에 새로운 필드들이 없을 수 있으므로 기본값으로 채움
+          const finalData = {
+            name: data.name && data.name.trim() !== '' ? data.name : defaultName,
+            type: data.type || 'dormitory',
+            address: data.address || '',
+            detailAddress: data.detailAddress || '',
+      
+      
+            capacity: data.capacity || '',
+            monthlyRent: data.monthlyRent || '',
+            other: data.other || '',
+            utilities: data.utilities || '',
+            facilities: data.facilities || [],
+            amenities: data.amenities || [],
+            roomTypes: data.roomTypes || {
+              '1인실': false,
+              '2인실': false,
+              '3인실': false,
+              '4인실': false,
+              '기타': false
+            },
+            roomPrices: data.roomPrices || {
+              '1인실': '',
+              '2인실': '',
+              '3인실': '',
+              '4인실': '',
+              '기타': ''
+            },
+            roomFacilities: data.roomFacilities || {
+              '1인실': [],
+              '2인실': [],
+              '3인실': [],
+              '4인실': [],
+              '기타': []
+            },
+            paymentType: data.paymentType || 'monthly',
+            rules: data.rules || '',
+            images: data.images || [],
+            imageDescriptions: data.imageDescriptions || [],
+            isPublic: data.isPublic !== undefined ? data.isPublic : true,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt
+          };
+          
+          setEditData(finalData);
+        } else {
+          // 기숙사 정보가 없으면 기본값으로 설정
+          setEditData(prev => ({
+            ...prev,
+            name: defaultName
+          }));
+        }
+      } catch (error) {
+        console.error('기숙사 정보 로딩 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAccommodationInfo();
   }, [employerId]);
 
-  const handleEdit = () => {
-    setIsEditing(true);
-    if (accommodationInfo) {
-      setEditForm({
-        ...accommodationInfo,
-        roomTypes: accommodationInfo.roomTypes || [],
-        facilities: accommodationInfo.facilities || [],
-        utilities: accommodationInfo.utilities || [],
-        rules: accommodationInfo.rules || [],
-        externalLinks: accommodationInfo.externalLinks || [],
-        images: accommodationInfo.images || [],
-      });
-    } else {
-      // 새로운 기숙사 정보 생성 시 "갈멍의 집"과 동일한 기본값 설정
-      setEditForm({
-        name: '갈멍의 집',
-        description: '신축',
-        type: 'apartment' as const,
-        address: '주소 미등록',
-        distanceFromWorkplace: '거리 정보 미등록',
-        capacity: 0,
-        currentOccupancy: 0,
-        roomTypes: [
-          {
-            id: '1',
-            name: 'twin',
-            capacity: 2,
-            price: 0,
-            available: 21,
-            description: '무료이나 선착순',
-            facilities: [],
-            images: [],
-            isAvailable: true,
-          },
-        ],
-        facilities: ['공용 목욕탕 무료', '워터파크', '체련실'],
-        monthlyRent: 0,
-        utilities: ['사용료 실비 계산'],
-        images: [],
-        rules: [],
-        contactPerson: '아무개',
-        contactPhone: '011111111111',
-        isAvailable: false,
-        // deposit: 0, // 주석 처리
-        // contractPeriod: '', // 주석 처리
-        wifi: false,
-        tv: false,
-        refrigerator: false,
-        airConditioning: false,
-        laundry: false,
-        kitchen: false,
-        parkingAvailable: false,
-        petAllowed: false,
-        smokingAllowed: false,
-        // averageRating: 0, // 주석 처리
-        // totalReviews: 0, // 주석 처리
-        externalLinks: [],
-        // isPublic: true // 주석 처리
-      });
-    }
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setEditForm(accommodationInfo || {});
-  };
-
-  const handleSave = async () => {
-    if (!employerId) return;
-    
-    console.log('저장 시작 - editForm:', editForm);
-    console.log('저장할 이미지 배열:', editForm.images);
-    
-    setSaving(true);
-    try {
-      const ref = doc(db, 'accommodationInfo', employerId);
-      
-      // 기존 데이터가 있는지 확인
-      const docSnap = await getDoc(ref);
-      
-      if (docSnap.exists()) {
-        // 기존 데이터 업데이트
-        console.log('기존 문서 업데이트 중...');
-        await updateDoc(ref, {
-          ...editForm,
-          updatedAt: new Date(),
-        });
-        console.log('기존 문서 업데이트 완료');
-      } else {
-        // 새 데이터 생성
-        console.log('새 문서 생성 중...');
-        await setDoc(ref, {
-          ...editForm,
-          id: employerId,
-          employerId: employerId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-        console.log('새 문서 생성 완료');
+  // 평균 평점 로딩
+  useEffect(() => {
+    const loadRating = async () => {
+      if (!employerId) return;
+      try {
+        const snap = await getDocs(query(collection(db, 'reviews'), where('resort', '==', employerId)));
+        const ratings = snap.docs
+          .map(d => (d.data() as any).accommodationRating || 0)
+          .filter((n: number) => typeof n === 'number' && n > 0);
+        if (ratings.length > 0) {
+          const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+          setAvgAccommodationRating(parseFloat(avg.toFixed(1)));
+        } else {
+          setAvgAccommodationRating(null);
+        }
+      } catch (e) {
+        console.log('평점 로딩 실패:', e);
+        setAvgAccommodationRating(null);
       }
-      
-      await fetchAccommodationInfo();
-      setIsEditing(false);
-      console.log('저장 완료 - accommodationInfo:', accommodationInfo);
-      console.log('저장 완료 - editForm:', editForm);
-    } catch (error) {
-      console.error('기숙사 정보 저장 실패:', error);
-      alert('저장에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    };
+    loadRating();
+  }, [employerId]);
 
-  const handleInputChange = (field: keyof AccommodationInfo, value: any) => {
-    setEditForm(prev => ({
+  // 입력 필드 변경 핸들러
+  const handleInputChange = (field: keyof AccommodationData, value: any) => {
+    setEditData(prev => ({
       ...prev,
-      [field]: value,
+      [field]: value
     }));
   };
 
+  // 주소 검색 핸들러
+  const handleAddressSelect = (addressData: any) => {
+    setEditData(prev => ({
+      ...prev,
+      address: addressData.address || addressData.roadAddress || '',
+      detailAddress: addressData.detailAddress || ''
+    }));
+  };
+
+  // 배열 필드 변경 핸들러
+  const handleArrayChange = (field: keyof AccommodationData, index: number, value: string) => {
+    setEditData(prev => {
+      const newArray = [...(prev[field] as string[])];
+      newArray[index] = value;
+      return {
+        ...prev,
+        [field]: newArray
+      };
+    });
+  };
+
+  // 배열 항목 추가
+  const addArrayItem = (field: keyof AccommodationData) => {
+    setEditData(prev => ({
+      ...prev,
+      [field]: [...(prev[field] as string[]), '']
+    }));
+  };
+
+  // 배열 항목 제거
+  const removeArrayItem = (field: keyof AccommodationData, index: number) => {
+    setEditData(prev => {
+      const newArray = [...(prev[field] as string[])];
+      newArray.splice(index, 1);
+      return {
+        ...prev,
+        [field]: newArray
+      };
+    });
+  };
+
+  // 객실 타입 변경 핸들러
+  const handleRoomTypeChange = (roomType: string, checked: boolean) => {
+    setEditData(prev => ({
+      ...prev,
+      roomTypes: {
+        ...prev.roomTypes,
+        [roomType]: checked
+      }
+    }));
+  };
+
+  // 객실별 가격 변경 핸들러
+  const handleRoomPriceChange = (roomType: string, price: string) => {
+    setEditData(prev => ({
+      ...prev,
+      roomPrices: {
+        ...prev.roomPrices,
+        [roomType]: price
+      }
+    }));
+  };
+
+  // 객실별 시설 변경 핸들러
+  const handleRoomFacilityChange = (roomType: string, facility: string, checked: boolean) => {
+    setEditData(prev => {
+      const currentFacilities = prev.roomFacilities[roomType] || [];
+      const newFacilities = checked 
+        ? [...currentFacilities, facility]
+        : currentFacilities.filter(f => f !== facility);
+      
+      return {
+        ...prev,
+        roomFacilities: {
+          ...prev.roomFacilities,
+          [roomType]: newFacilities
+        }
+      };
+    });
+  };
+
+  // 결제 방식 변경 핸들러
+  const handlePaymentTypeChange = (paymentType: string) => {
+    setEditData(prev => ({
+      ...prev,
+      paymentType
+    }));
+  };
+
+  // 이미지 업로드 핸들러
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0 || !employerId) return;
+    if (!files || files.length === 0) return;
 
-    setUploadingImages(true);
     try {
-      const compressedFiles = await Promise.all(
-        Array.from(files).map(file => compressImage(file)),
-      );
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const compressedFile = await compressImage(file);
+        const result = await uploadImage(compressedFile, { folder: 'accommodation' });
+        return result.success ? result.url : null;
+      });
 
-      const uploadResults = await Promise.all(
-        compressedFiles.map(file => uploadImage(file, {
-          folder: 'accommodation-images',
-          metadata: {
-            uploadedBy: employerId,
-            uploadType: 'accommodation-image',
-          },
-        })),
-      );
-
-      const newImages = uploadResults
-        .filter(result => result.success)
-        .map(result => result.url!)
-        .filter(Boolean);
+      const uploadedUrls = await Promise.all(uploadPromises);
+      const validUrls = uploadedUrls.filter(url => url !== null) as string[];
       
-      console.log('업로드된 이미지 URLs:', newImages);
-      
-      const updatedImages = [...(editForm.images || []), ...newImages];
-      console.log('업데이트된 이미지 배열:', updatedImages);
-      
-      setEditForm(prev => ({
+      setEditData(prev => ({
         ...prev,
-        images: updatedImages,
+        images: [...prev.images, ...validUrls],
+        imageDescriptions: [...prev.imageDescriptions, ...Array(validUrls.length).fill('')]
       }));
-
-      // 이미지 업로드 후 자동 저장
-      console.log('이미지 업로드 후 자동 저장 시작...');
-      const updatedForm = {
-        ...editForm,
-        images: updatedImages,
-      };
-      
-      try {
-        const ref = doc(db, 'accommodationInfo', employerId!);
-        const docSnap = await getDoc(ref);
-        
-        if (docSnap.exists()) {
-          await updateDoc(ref, {
-            ...updatedForm,
-            images: updatedImages,
-            updatedAt: new Date(),
-          });
-          console.log('이미지 자동 저장 성공');
-        } else {
-          await setDoc(ref, {
-            ...updatedForm,
-            id: employerId,
-            employerId: employerId,
-            images: updatedImages,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
-          console.log('이미지 자동 저장 성공 (새 문서)');
-        }
-        
-        // 저장 후 데이터 다시 로드
-        await fetchAccommodationInfo();
-      } catch (error) {
-        console.error('이미지 자동 저장 실패:', error);
-        alert('이미지 저장에 실패했습니다. 수동으로 저장 버튼을 눌러주세요.');
-      }
     } catch (error) {
       console.error('이미지 업로드 실패:', error);
       alert('이미지 업로드에 실패했습니다.');
-    } finally {
-      setUploadingImages(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     }
   };
 
-  const handleImageDelete = async (imageUrl: string, index: number) => {
-    if (!window.confirm('이 이미지를 삭제하시겠습니까?')) return;
-
+  // 이미지 삭제 핸들러
+  const handleImageDelete = async (index: number) => {
     try {
-      // 이미지 삭제
-      const result = await deleteImage(imageUrl);
+      const imageUrl = editData.images[index];
+      await deleteImage(imageUrl);
       
-      if (result.success) {
-        const updatedImages = (editForm.images || []).filter((_, i) => i !== index);
-        setEditForm(prev => ({
+      setEditData(prev => {
+        const newImages = [...prev.images];
+        const newDescriptions = [...prev.imageDescriptions];
+        newImages.splice(index, 1);
+        newDescriptions.splice(index, 1);
+        return {
           ...prev,
-          images: updatedImages,
-        }));
-      } else {
-        alert('이미지 삭제에 실패했습니다: ' + result.error);
-      }
+          images: newImages,
+          imageDescriptions: newDescriptions
+        };
+      });
     } catch (error) {
       console.error('이미지 삭제 실패:', error);
       alert('이미지 삭제에 실패했습니다.');
     }
   };
 
-  // 이미지 미리보기
-  const handleImagePreview = (imageUrl: string, imageName?: string) => {
-    setPreviewImage(imageUrl);
-    setPreviewImageName(imageName || '기숙사 이미지');
-  };
+  // 저장 핸들러
+  const handleSave = async () => {
+    if (!employerId) return;
 
-  const handleExternalLinkAdd = () => {
-    const newLink: ExternalLink = {
-      type: 'real_estate',
-      title: '',
-      url: '',
-      description: '',
-    };
-    
-    setEditForm(prev => ({
-      ...prev,
-      externalLinks: [...(prev.externalLinks || []), newLink],
-    }));
-  };
+    try {
+      setSaving(true);
+      
+      // 기숙사명이 비어있으면 회사명 + "기숙사"로 자동 설정
+      let finalEditData = { ...editData };
+      if (!finalEditData.name || finalEditData.name.trim() === '') {
+        try {
+          const companyRef = doc(db, 'companyInfo', employerId);
+          const companySnap = await getDoc(companyRef);
+          
+          if (companySnap.exists()) {
+            const companyData = companySnap.data();
+            finalEditData.name = `${companyData.name || '회사'} 기숙사`;
+          } else {
+            finalEditData.name = '기숙사';
+          }
+        } catch (companyError) {
+          console.error('회사 정보 로딩 실패:', companyError);
+          finalEditData.name = '기숙사';
+        }
+      }
 
-  const handleExternalLinkUpdate = (index: number, field: keyof ExternalLink, value: string) => {
-    const updatedLinks = [...(editForm.externalLinks || [])];
-    updatedLinks[index] = { ...updatedLinks[index], [field]: value };
-    
-    setEditForm(prev => ({
-      ...prev,
-      externalLinks: updatedLinks,
-    }));
-  };
+      // 데이터 정규화: 트림 및 키 보정
+      const ROOM_KEYS = ['1인실', '2인실', '3인실', '4인실', '기타'];
+      finalEditData = {
+        ...finalEditData,
+        name: (finalEditData.name || '').trim(),
+        type: (finalEditData.type || 'dormitory').trim(),
+        address: (finalEditData.address || '').trim(),
+        detailAddress: (finalEditData.detailAddress || '').trim(),
+        capacity: (finalEditData.capacity || '').toString().trim(),
+        monthlyRent: (finalEditData.monthlyRent || '').toString().trim(),
+        utilities: (finalEditData.utilities || '').toString().trim(),
+        other: (finalEditData.other || '').toString().trim(),
+        rules: (finalEditData.rules || '').toString().trim(),
+        facilities: Array.isArray(finalEditData.facilities) ? finalEditData.facilities : [],
+        amenities: Array.isArray(finalEditData.amenities) ? finalEditData.amenities : [],
+        roomTypes: ROOM_KEYS.reduce((acc: any, key) => {
+          acc[key] = !!(finalEditData.roomTypes && (finalEditData.roomTypes as any)[key]);
+          return acc;
+        }, {} as Record<string, boolean>),
+        roomPrices: ROOM_KEYS.reduce((acc: any, key) => {
+          acc[key] = ((finalEditData.roomPrices && (finalEditData.roomPrices as any)[key]) || '').toString();
+          return acc;
+        }, {} as Record<string, string>),
+        roomFacilities: ROOM_KEYS.reduce((acc: any, key) => {
+          const list = finalEditData.roomFacilities && (finalEditData.roomFacilities as any)[key];
+          acc[key] = Array.isArray(list) ? list : [];
+          return acc;
+        }, {} as Record<string, string[]>),
+        images: Array.isArray(finalEditData.images) ? finalEditData.images : [],
+        imageDescriptions: (() => {
+          const images = Array.isArray(finalEditData.images) ? finalEditData.images : [];
+          const desc = Array.isArray(finalEditData.imageDescriptions) ? finalEditData.imageDescriptions : [];
+          if (desc.length < images.length) {
+            return [...desc, ...Array(images.length - desc.length).fill('')];
+          }
+          return desc.slice(0, images.length);
+        })(),
+      } as AccommodationData;
 
-  const handleExternalLinkDelete = (index: number) => {
-    const updatedLinks = (editForm.externalLinks || []).filter((_, i) => i !== index);
-    setEditForm(prev => ({
-      ...prev,
-      externalLinks: updatedLinks,
-    }));
-  };
+      // 디버그: 저장 데이터 로깅
+      console.log('[AccommodationInfo] Saving data:', finalEditData);
 
-  // 편집 모드일 때는 editForm을, 표시 모드일 때는 accommodationInfo를 사용
-  const displayInfo = useMemo(() => {
-    return isEditing ? editForm : (accommodationInfo || {
-      id: '',
-      employerId: employerId || '',
-      name: '갈멍의 집', // 기본값을 "갈멍의 집"으로 설정
-      description: '신축', // 기본값을 "신축"으로 설정
-      type: 'apartment' as const, // 기본값을 아파트로 변경
-      address: '주소 미등록',
-      distanceFromWorkplace: '거리 정보 미등록',
-      capacity: 0,
-      currentOccupancy: 0,
-      roomTypes: [
-        {
-          type: 'twin',
-          capacity: 2,
-          price: 0,
-          available: 21, // 기본값을 21개로 설정
-          description: '무료이나 선착순',
+      // 구형 스키마 호환 필드 동시 저장 (대시보드의 잔여 참조 대비)
+      const legacyRoomTypeOptions = {
+        singleRoom: !!finalEditData.roomTypes['1인실'],
+        doubleRoom: !!finalEditData.roomTypes['2인실'],
+        tripleRoom: !!finalEditData.roomTypes['3인실'],
+        quadRoom: !!finalEditData.roomTypes['4인실'],
+        otherRoom: !!finalEditData.roomTypes['기타'],
+      } as any;
+      const legacyRoomPrices = {
+        singleRoom: finalEditData.roomPrices['1인실'] || '',
+        doubleRoom: finalEditData.roomPrices['2인실'] || '',
+        tripleRoom: finalEditData.roomPrices['3인실'] || '',
+        quadRoom: finalEditData.roomPrices['4인실'] || '',
+        otherRoom: finalEditData.roomPrices['기타'] || '',
+      } as any;
+      const otherRoomType = '';
+      
+      const docRef = doc(db, 'accommodationInfo', employerId);
+      
+      await setDoc(docRef, {
+        ...finalEditData,
+        // 호환 필드 병행 저장
+        roomTypeOptions: legacyRoomTypeOptions,
+        roomPrices: {
+          ...finalEditData.roomPrices,
+          ...legacyRoomPrices,
         },
-      ],
-      facilities: ['공용 목욕탕 무료', '워터파크', '체련실'],
-      monthlyRent: 0,
-      utilities: ['사용료 실비 계산'],
-      images: [],
-      rules: [],
-      contactPerson: '아무개', // 기본값을 "아무개"로 설정
-      contactPhone: '011111111111', // 기본값을 "011111111111"로 설정
-      isAvailable: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      // 새로운 필드들 추가
-      deposit: 0,
-      contractPeriod: '',
-      contractStartDate: '',
-      contractEndDate: '',
-      wifi: false,
-      tv: false,
-      refrigerator: false,
-      airConditioning: false,
-      laundry: false,
-      kitchen: false,
-      parkingAvailable: false,
-      petAllowed: false,
-      smokingAllowed: false,
-      averageRating: 0,
-      totalReviews: 0,
-      externalLinks: [],
-      roomTypeOptions: {
-        singleRoom: false,
-        doubleRoom: false,
-        tripleRoom: false,
-        quadRoom: false,
-        otherRoom: false,
-      },
-      paymentType: 'free',
-      roomPrices: {
-        singleRoom: 0,
-        doubleRoom: 0,
-        tripleRoom: 0,
-        quadRoom: 0,
-        otherRoom: 0,
-      },
-      otherRoomType: '',
-      facilityOptions: {
-        parking: false,
-        laundry: false,
-        kitchen: false,
-        gym: false,
-        studyRoom: false,
-        lounge: false,
-        wifi: false,
-        security: false,
-        elevator: false,
-        other: false,
-      },
-      otherFacilities: false,
-      otherFacilitiesText: '',
-      otherFacilityText: '',
-    });
-  }, [isEditing, editForm, accommodationInfo, employerId]);
+        otherRoomType,
+        updatedAt: serverTimestamp(),
+        createdAt: accommodationInfo?.createdAt || serverTimestamp()
+      });
 
-  if (loading) return <LoadingSpinner />;
+      // 저장 직후 최신 데이터 재조회하여 반영
+      const savedSnap = await getDoc(docRef);
+      const savedData = savedSnap.exists() ? (savedSnap.data() as AccommodationData) : finalEditData;
 
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-    case 'dormitory': return '기숙사';
-    case 'apartment': return '아파트';
-    case 'house': return '주택';
-    default: return '기타';
+      setAccommodationInfo(savedData);
+      setEditData(savedData);
+      setIsEditing(false);
+      alert('기숙사 정보가 저장되었습니다.');
+    } catch (error) {
+      console.error('저장 실패:', error);
+      alert('저장에 실패했습니다.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const getExternalLinkTypeLabel = (type: string) => {
-    switch (type) {
-    case 'real_estate': return '부동산';
-    case 'hotel': return '호텔';
-    case 'booking': return '예약';
-    case 'review': return '리뷰';
-    default: return '기타';
+  // 취소 핸들러
+  const handleCancel = () => {
+    if (accommodationInfo) {
+      setEditData(accommodationInfo);
     }
+    setIsEditing(false);
   };
 
-  // 현재 사용자가 이 기숙사의 소유자인지 확인
-  const isOwner = user?.uid === employerId;
-
-  return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* 헤더 */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {isEditing ? (
-              <input
-                type="text"
-                value={editForm.name || ''}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                className="w-full text-3xl font-bold text-gray-900 bg-transparent border-b-2 border-orange-500 focus:outline-none"
-                placeholder="기숙사명을 입력하세요"
-              />
-            ) : (
-              editForm.name || '기숙사명 미등록'
-            )}
-          </h1>
-
-        </div>
-        <div className="flex space-x-2">
-          {isOwner && (
-            <>
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {saving ? '저장 중...' : '저장'}
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    취소
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={handleEdit}
-                  className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  수정
-                </button>
-              )}
-            </>
-          )}
-          <Link to="/employer-dashboard" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-            대시보드로
-          </Link>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">기숙사 정보를 불러오는 중...</p>
         </div>
       </div>
+    );
+  }
 
-      <div className="space-y-6">
-        {/* 기본정보 */}
-        <div className="bg-white rounded-lg border p-4">
-          <h3 className="font-semibold text-gray-900 mb-2">기본정보</h3>
-          <div className="space-y-2 text-sm">
+  const displayInfo = isEditing ? editData : accommodationInfo;
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* 헤더 */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+          <div className="px-6 py-4 border-b border-green-100 bg-green-50 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-gray-500">기숙사명</span>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={editForm.name || ''}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  className="text-right bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none"
-                  placeholder="기숙사명"
-                />
-              ) : (
-                <span className="text-gray-900">{displayInfo.name}</span>
-              )}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">유형</span>
-              {isEditing ? (
-                <select
-                  value={editForm.type || 'apartment'}
-                  onChange={(e) => handleInputChange('type', e.target.value)}
-                  className="text-right bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none"
+              <div className="flex items-center gap-4">
+                <Link
+                  to="/employer-dashboard"
+                  className="inline-flex items-center px-3 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
                 >
-                  <option value="dormitory">기숙사</option>
-                  <option value="apartment">아파트</option>
-                  <option value="house">단독주택</option>
-                  <option value="other">기타</option>
-                </select>
-              ) : (
-                <span className="text-gray-900">
-                  {displayInfo.type === 'dormitory' && '기숙사'}
-                  {displayInfo.type === 'apartment' && '아파트'}
-                  {displayInfo.type === 'house' && '단독주택'}
-                  {displayInfo.type === 'other' && '기타'}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">주소</span>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={editForm.address || ''}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  className="text-right bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none"
-                  placeholder="주소를 입력하세요 (번지, 호수 포함)"
-                />
-              ) : (
-                <span className="text-gray-900">{displayInfo.address}</span>
-              )}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-500">직장까지 거리</span>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={editForm.distanceFromWorkplace || ''}
-                  onChange={(e) => handleInputChange('distanceFromWorkplace', e.target.value)}
-                  className="text-right bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none"
-                  placeholder="거리 정보를 입력하세요"
-                />
-              ) : (
-                <span className="text-gray-900">{displayInfo.distanceFromWorkplace}</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 회사 정보 */}
-        {companyInfo && (
-          <div className="bg-white rounded-lg border p-4">
-            <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-gray-500" />
-              회사 정보
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-500">회사명</span>
-                <span className="text-gray-900 font-medium">{companyInfo.name}</span>
-              </div>
-              {companyInfo.industry && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">업종</span>
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                    {companyInfo.industry}
-                  </span>
-                </div>
-              )}
-              {companyInfo.size && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">회사 규모</span>
-                  <span className="text-gray-900">{companyInfo.size}</span>
-                </div>
-              )}
-              {companyInfo.location && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">회사 위치</span>
-                  <span className="text-gray-900">{companyInfo.location}</span>
-                </div>
-              )}
-              {companyInfo.website && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">웹사이트</span>
-                  <a 
-                    href={companyInfo.website.startsWith('http') ? companyInfo.website : `https://${companyInfo.website}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                  >
-                    <Globe className="w-3 h-3" />
-                    방문
-                  </a>
-                </div>
-              )}
-              {companyInfo.description && (
-                <div className="flex items-start justify-between">
-                  <span className="text-gray-500">회사 소개</span>
-                  <span className="text-gray-900 text-right max-w-xs">{companyInfo.description}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 연락처 */}
-        {(isEditing || displayInfo.contactPerson || displayInfo.contactPhone) && (
-          <div className="bg-white rounded-lg border p-4">
-            <h3 className="font-semibold text-gray-900 mb-2">연락처</h3>
-            <div className="space-y-1 text-sm">
-              {isEditing || displayInfo.contactPerson ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">담당자</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={editForm.contactPerson || ''}
-                      onChange={(e) => handleInputChange('contactPerson', e.target.value)}
-                      className="text-right bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none"
-                      placeholder="담당자명을 입력하세요"
-                    />
-                  ) : (
-                    <span className="text-gray-900">{displayInfo.contactPerson}</span>
-                  )}
-                </div>
-              ) : null}
-              {isEditing || displayInfo.contactPhone ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">연락처</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={editForm.contactPhone || ''}
-                      onChange={(e) => handleInputChange('contactPhone', e.target.value)}
-                      className="text-right bg-transparent border-b border-gray-300 focus:border-orange-500 focus:outline-none"
-                      placeholder="연락처를 입력하세요"
-                    />
-                  ) : (
-                    <span className="text-gray-900">{displayInfo.contactPhone}</span>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        )}
-
-        {/* 기숙사 이미지 갤러리 */}
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 flex items-center">
-              <Camera className="h-5 w-5 mr-2" />
-                기숙사 이미지
-            </h3>
-            {isOwner && isEditing && (
-              <div className="flex items-center space-x-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImages}
-                  className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
-                >
-                  <Upload className="h-4 w-4 mr-1" />
-                  {uploadingImages ? '업로드 중...' : '이미지 추가'}
-                </button>
-              </div>
-            )}
-          </div>
-            
-          {((isEditing ? editForm.images : displayInfo.images) || []).length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {(isEditing ? (editForm.images || []) : (displayInfo.images || [])).map((image, index) => (
-                <div key={index} className="relative group aspect-video bg-gray-100 rounded-lg overflow-hidden cursor-pointer">
-                  <img
-                    src={image}
-                    alt={`기숙사 이미지 ${index + 1}`}
-                    className="w-full h-full object-cover hover:opacity-80 transition-opacity"
-                    onClick={() => handleImagePreview(image, `기숙사 이미지 ${index + 1}`)}
-                    onError={(e) => {
-                      console.error('이미지 로드 실패:', image);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                    onLoad={() => {
-                      console.log('이미지 로드 성공:', image);
-                    }}
-                  />
-                  {isOwner && isEditing && (
-                    <button
-                      onClick={() => handleImageDelete(image, index)}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
-                        클릭하여 크게 보기
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  대시보드로
+                </Link>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                    <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center shadow-sm mr-3">
+                      <Home className="w-5 h-5 text-green-600" />
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-gray-500">
-              <Camera className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>등록된 기숙사 이미지가 없습니다.</p>
-              {isOwner && isEditing && (
-                <p className="text-sm mt-2">이미지를 추가해보세요.</p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* 객실 유형 */}
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">객실 Type</h3>
-            {isEditing ? (
-              <div className="flex items-center space-x-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="paymentType"
-                    value="free"
-                    checked={editForm.paymentType === 'free'}
-                    onChange={(e) => {
-                      setEditForm(prev => ({
-                        ...prev,
-                        paymentType: e.target.value as 'free' | 'paid',
-                      }));
-                    }}
-                    className="mr-2"
-                  />
-                  <span>무료</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="paymentType"
-                    value="paid"
-                    checked={editForm.paymentType === 'paid'}
-                    onChange={(e) => {
-                      setEditForm(prev => ({
-                        ...prev,
-                        paymentType: e.target.value as 'free' | 'paid',
-                      }));
-                    }}
-                    className="mr-2"
-                  />
-                  <span>유료</span>
-                </label>
-                
-
-              </div>
-            ) : (
-              <div className="flex items-center space-x-4">
-                {displayInfo.paymentType === 'free' ? (
-                  <div className="flex items-center text-green-600">
-                    <span>✓ 무료</span>
-                  </div>
-                ) : displayInfo.paymentType === 'paid' ? (
-                  <div className="flex items-center">
-                    <span className="text-green-600">✓ 유료</span>
-                  </div>
-                ) : (
-                  <div className="text-gray-500">요금 정보 미등록</div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* 객실 유형 선택 */}
-          {isEditing ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="flex items-center space-x-2">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.roomTypeOptions?.singleRoom || false}
-                    onChange={(e) => {
-                      setEditForm(prev => ({
-                        ...prev,
-                        roomTypeOptions: {
-                          ...prev.roomTypeOptions,
-                          singleRoom: e.target.checked,
-                        },
-                      }));
-                    }}
-                    className="mr-2"
-                  />
-                  <span>1인실</span>
-                </label>
-                {editForm.paymentType === 'paid' && editForm.roomTypeOptions?.singleRoom && (
-                  <div className="flex items-center space-x-1">
-                    <input
-                      type="number"
-                      value={editForm.roomPrices?.singleRoom || ''}
-                      onChange={(e) => {
-                        setEditForm(prev => ({
-                          ...prev,
-                          roomPrices: {
-                            ...prev.roomPrices,
-                            singleRoom: parseInt(e.target.value) || 0,
-                          },
-                        }));
-                      }}
-                      className="w-20 p-1 border border-gray-300 rounded text-sm focus:border-orange-500 focus:outline-none"
-                      placeholder="월세"
-                    />
-                    <span className="text-gray-600 text-sm">천원</span>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.roomTypeOptions?.doubleRoom || false}
-                    onChange={(e) => {
-                      setEditForm(prev => ({
-                        ...prev,
-                        roomTypeOptions: {
-                          ...prev.roomTypeOptions,
-                          doubleRoom: e.target.checked,
-                        },
-                      }));
-                    }}
-                    className="mr-2"
-                  />
-                  <span>2인실</span>
-                </label>
-                {editForm.paymentType === 'paid' && editForm.roomTypeOptions?.doubleRoom && (
-                  <div className="flex items-center space-x-1">
-                    <input
-                      type="number"
-                      value={editForm.roomPrices?.doubleRoom || ''}
-                      onChange={(e) => {
-                        setEditForm(prev => ({
-                          ...prev,
-                          roomPrices: {
-                            ...prev.roomPrices,
-                            doubleRoom: parseInt(e.target.value) || 0,
-                          },
-                        }));
-                      }}
-                      className="w-20 p-1 border border-gray-300 rounded text-sm focus:border-orange-500 focus:outline-none"
-                      placeholder="월세"
-                    />
-                    <span className="text-gray-600 text-sm">천원</span>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.roomTypeOptions?.tripleRoom || false}
-                    onChange={(e) => {
-                      setEditForm(prev => ({
-                        ...prev,
-                        roomTypeOptions: {
-                          ...prev.roomTypeOptions,
-                          tripleRoom: e.target.checked,
-                        },
-                      }));
-                    }}
-                    className="mr-2"
-                  />
-                  <span>3인실</span>
-                </label>
-                {editForm.paymentType === 'paid' && editForm.roomTypeOptions?.tripleRoom && (
-                  <div className="flex items-center space-x-1">
-                    <input
-                      type="number"
-                      value={editForm.roomPrices?.tripleRoom || ''}
-                      onChange={(e) => {
-                        setEditForm(prev => ({
-                          ...prev,
-                          roomPrices: {
-                            ...prev.roomPrices,
-                            tripleRoom: parseInt(e.target.value) || 0,
-                          },
-                        }));
-                      }}
-                      className="w-20 p-1 border border-gray-300 rounded text-sm focus:border-orange-500 focus:outline-none"
-                      placeholder="월세"
-                    />
-                    <span className="text-gray-600 text-sm">천원</span>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.roomTypeOptions?.quadRoom || false}
-                    onChange={(e) => {
-                      setEditForm(prev => ({
-                        ...prev,
-                        roomTypeOptions: {
-                          ...prev.roomTypeOptions,
-                          quadRoom: e.target.checked,
-                        },
-                      }));
-                    }}
-                    className="mr-2"
-                  />
-                  <span>4인실</span>
-                </label>
-                {editForm.paymentType === 'paid' && editForm.roomTypeOptions?.quadRoom && (
-                  <div className="flex items-center space-x-1">
-                    <input
-                      type="number"
-                      value={editForm.roomPrices?.quadRoom || ''}
-                      onChange={(e) => {
-                        setEditForm(prev => ({
-                          ...prev,
-                          roomPrices: {
-                            ...prev.roomPrices,
-                            quadRoom: parseInt(e.target.value) || 0,
-                          },
-                        }));
-                      }}
-                      className="w-20 p-1 border border-gray-300 rounded text-sm focus:border-orange-500 focus:outline-none"
-                      placeholder="월세"
-                    />
-                    <span className="text-gray-600 text-sm">천원</span>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.roomTypeOptions?.otherRoom || false}
-                    onChange={(e) => {
-                      setEditForm(prev => ({
-                        ...prev,
-                        roomTypeOptions: {
-                          ...prev.roomTypeOptions,
-                          otherRoom: e.target.checked,
-                        },
-                      }));
-                    }}
-                    className="mr-2"
-                  />
-                  <span>기타</span>
-                </label>
-                {editForm.roomTypeOptions?.otherRoom && (
-                  <input
-                    type="text"
-                    value={editForm.otherRoomType || ''}
-                    onChange={(e) => {
-                      setEditForm(prev => ({
-                        ...prev,
-                        otherRoomType: e.target.value,
-                      }));
-                    }}
-                    className="w-24 p-1 border border-gray-300 rounded text-sm focus:border-orange-500 focus:outline-none"
-                    placeholder="기타 유형"
-                  />
-                )}
-                {editForm.paymentType === 'paid' && editForm.roomTypeOptions?.otherRoom && (
-                  <div className="flex items-center space-x-1">
-                    <input
-                      type="number"
-                      value={editForm.roomPrices?.otherRoom || ''}
-                      onChange={(e) => {
-                        setEditForm(prev => ({
-                          ...prev,
-                          roomPrices: {
-                            ...prev.roomPrices,
-                            otherRoom: parseInt(e.target.value) || 0,
-                          },
-                        }));
-                      }}
-                      className="w-20 p-1 border border-gray-300 rounded text-sm focus:border-orange-500 focus:outline-none"
-                      placeholder="월세"
-                    />
-                    <span className="text-gray-600 text-sm">천원</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {displayInfo.roomTypeOptions?.singleRoom && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-green-600">✓ 1인실</span>
-                  {displayInfo.paymentType === 'paid' && displayInfo.roomPrices?.singleRoom && (
-                    <span className="text-gray-700 text-sm">
-                      {displayInfo.roomPrices.singleRoom}천원
-                    </span>
-                  )}
-                </div>
-              )}
-              {displayInfo.roomTypeOptions?.doubleRoom && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-green-600">✓ 2인실</span>
-                  {displayInfo.paymentType === 'paid' && displayInfo.roomPrices?.doubleRoom && (
-                    <span className="text-gray-700 text-sm">
-                      {displayInfo.roomPrices.doubleRoom}천원
-                    </span>
-                  )}
-                </div>
-              )}
-              {displayInfo.roomTypeOptions?.tripleRoom && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-green-600">✓ 3인실</span>
-                  {displayInfo.paymentType === 'paid' && displayInfo.roomPrices?.tripleRoom && (
-                    <span className="text-gray-700 text-sm">
-                      {displayInfo.roomPrices.tripleRoom}천원
-                    </span>
-                  )}
-                </div>
-              )}
-              {displayInfo.roomTypeOptions?.quadRoom && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-green-600">✓ 4인실</span>
-                  {displayInfo.paymentType === 'paid' && displayInfo.roomPrices?.quadRoom && (
-                    <span className="text-gray-700 text-sm">
-                      {displayInfo.roomPrices.quadRoom}천원
-                    </span>
-                  )}
-                </div>
-              )}
-              {displayInfo.roomTypeOptions?.otherRoom && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-green-600">✓ 기타</span>
-                  {displayInfo.otherRoomType && (
-                    <span className="text-gray-700 text-sm">
-                      ({displayInfo.otherRoomType})
-                    </span>
-                  )}
-                  {displayInfo.paymentType === 'paid' && displayInfo.roomPrices?.otherRoom && (
-                    <span className="text-gray-700 text-sm">
-                      {displayInfo.roomPrices.otherRoom}천원
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* 객실 시설 */}
-        <div className="bg-white rounded-lg border p-4">
-          <h3 className="font-semibold text-gray-900 mb-4">객실 시설</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {isEditing ? (
-              <>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.wifi || false}
-                    onChange={(e) => handleInputChange('wifi', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <Wifi className="h-4 w-4 mr-2" />
-                        와이파이
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.tv || false}
-                    onChange={(e) => handleInputChange('tv', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <Tv className="h-4 w-4 mr-2" />
-                        TV
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.refrigerator || false}
-                    onChange={(e) => handleInputChange('refrigerator', e.target.checked)}
-                    className="mr-2"
-                  />
-                        냉장고
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.airConditioning || false}
-                    onChange={(e) => handleInputChange('airConditioning', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <AirVent className="h-4 w-4 mr-2" />
-                        에어컨
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.laundry || false}
-                    onChange={(e) => handleInputChange('laundry', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <span className="mr-2">🧺</span>
-                          세탁기
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.kitchen || false}
-                    onChange={(e) => handleInputChange('kitchen', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <span className="mr-2">🍳</span>
-                          주방
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.parkingAvailable || false}
-                    onChange={(e) => handleInputChange('parkingAvailable', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <ParkingCircle className="h-4 w-4 mr-2" />
-                        주차 가능
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.petAllowed || false}
-                    onChange={(e) => handleInputChange('petAllowed', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <Dog className="h-4 w-4 mr-2" />
-                  반려동물 허용
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.smokingAllowed || false}
-                    onChange={(e) => handleInputChange('smokingAllowed', e.target.checked)}
-                    className="mr-2"
-                  />
-                  <span className="mr-2">🚬</span>
-                   흡연 허용
-                </label>
-                <div className="flex items-center space-x-2">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(editForm.otherFacilities)}
-                      onChange={(e) => handleInputChange('otherFacilities', e.target.checked)}
-                      className="mr-2"
-                    />
-                    <span>기타</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.otherFacilityText || ''}
-                    onChange={(e) => handleInputChange('otherFacilityText', e.target.value)}
-                    className="w-32 p-1 border border-gray-300 rounded text-sm focus:border-orange-500 focus:outline-none"
-                    placeholder="기타 시설"
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                {displayInfo.wifi && (
-                  <div className="flex items-center text-green-600">
-                    <Wifi className="h-4 w-4 mr-2" />
-                    <span>와이파이</span>
-                  </div>
-                )}
-                {displayInfo.tv && (
-                  <div className="flex items-center text-green-600">
-                    <Tv className="h-4 w-4 mr-2" />
-                    <span>TV</span>
-                  </div>
-                )}
-                {displayInfo.refrigerator && (
-                  <div className="flex items-center text-green-600">
-                    <span>냉장고</span>
-                  </div>
-                )}
-                {displayInfo.airConditioning && (
-                  <div className="flex items-center text-green-600">
-                    <AirVent className="h-4 w-4 mr-2" />
-                    <span>에어컨</span>
-                  </div>
-                )}
-                {displayInfo.laundry && (
-                  <div className="flex items-center text-green-600">
-                    <span>🧺 세탁기</span>
-                  </div>
-                )}
-                {displayInfo.kitchen && (
-                  <div className="flex items-center text-green-600">
-                    <span>🍳 주방</span>
-                  </div>
-                )}
-                {displayInfo.parkingAvailable && (
-                  <div className="flex items-center text-green-600">
-                    <ParkingCircle className="h-4 w-4 mr-2" />
-                    <span>주차 가능</span>
-                  </div>
-                )}
-                {displayInfo.petAllowed && (
-                  <div className="flex items-center text-green-600">
-                    <Dog className="h-4 w-4 mr-2" />
-                    <span>반려동물 허용</span>
-                  </div>
-                )}
-                {displayInfo.smokingAllowed && (
-                  <div className="flex items-center text-green-600">
-                    <span>🚬 흡연 허용</span>
-                  </div>
-                )}
-                {displayInfo.otherFacilities && (
-                  <div className="flex items-center text-green-600">
-                    <span>✓ 기타</span>
-                    {displayInfo.otherFacilityText && (
-                      <span className="text-gray-700 text-sm ml-1">
-                         ({displayInfo.otherFacilityText})
+                    {displayInfo?.name || '기숙사 정보'}
+                  </h1>
+                  <div className="flex items-center gap-4 text-sm text-gray-600 mt-2 ml-13">
+                    {avgAccommodationRating !== null ? (
+                      <span className="inline-flex items-center px-2 py-0.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full">
+                        <Star className="w-3 h-3 mr-1" />
+                        {avgAccommodationRating}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 bg-gray-50 text-gray-500 border border-gray-200 rounded-full">
+                        <Star className="w-3 h-3 mr-1" />
+                        평점 없음
+                      </span>
+                    )}
+                    {displayInfo?.type && (
+                      <span className="flex items-center">
+                        <Building className="w-4 h-4 mr-1" />
+                        {displayInfo.type === 'dormitory' && '기숙사'}
+                        {displayInfo.type === 'apartment' && '아파트'}
+                        {displayInfo.type === 'house' && '단독주택'}
+                        {displayInfo.type === 'other' && '기타'}
+                      </span>
+                    )}
+                    {displayInfo?.capacity && (
+                      <span className="flex items-center">
+                        <Users className="w-4 h-4 mr-1" />
+                        객실 수: {displayInfo.capacity}
+                      </span>
+                    )}
+                    {displayInfo?.monthlyRent && (
+                      <span className="flex items-center">
+                        <DollarSign className="w-4 h-4 mr-1" />
+                        월세: {displayInfo.monthlyRent}
                       </span>
                     )}
                   </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-
-
-        {/* 부대 시설 */}
-        <div className="bg-white rounded-lg border p-4">
-          <h3 className="font-semibold text-gray-900 mb-4">부대 시설</h3>
-          {isEditing ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={editForm.facilityOptions?.parking || false}
-                  onChange={(e) => {
-                    setEditForm(prev => ({
-                      ...prev,
-                      facilityOptions: {
-                        ...prev.facilityOptions,
-                        parking: e.target.checked,
-                      },
-                    }));
-                  }}
-                  className="mr-2"
-                />
-                <span>주차장</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={editForm.facilityOptions?.laundry || false}
-                  onChange={(e) => {
-                    setEditForm(prev => ({
-                      ...prev,
-                      facilityOptions: {
-                        ...prev.facilityOptions,
-                        laundry: e.target.checked,
-                      },
-                    }));
-                  }}
-                  className="mr-2"
-                />
-                <span>세탁실</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={editForm.facilityOptions?.kitchen || false}
-                  onChange={(e) => {
-                    setEditForm(prev => ({
-                      ...prev,
-                      facilityOptions: {
-                        ...prev.facilityOptions,
-                        kitchen: e.target.checked,
-                      },
-                    }));
-                  }}
-                  className="mr-2"
-                />
-                <span>공용주방</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={editForm.facilityOptions?.gym || false}
-                  onChange={(e) => {
-                    setEditForm(prev => ({
-                      ...prev,
-                      facilityOptions: {
-                        ...prev.facilityOptions,
-                        gym: e.target.checked,
-                      },
-                    }));
-                  }}
-                  className="mr-2"
-                />
-                <span>체육관</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={editForm.facilityOptions?.studyRoom || false}
-                  onChange={(e) => {
-                    setEditForm(prev => ({
-                      ...prev,
-                      facilityOptions: {
-                        ...prev.facilityOptions,
-                        studyRoom: e.target.checked,
-                      },
-                    }));
-                  }}
-                  className="mr-2"
-                />
-                <span>스터디룸</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={editForm.facilityOptions?.lounge || false}
-                  onChange={(e) => {
-                    setEditForm(prev => ({
-                      ...prev,
-                      facilityOptions: {
-                        ...prev.facilityOptions,
-                        lounge: e.target.checked,
-                      },
-                    }));
-                  }}
-                  className="mr-2"
-                />
-                <span>휴게실</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={editForm.facilityOptions?.wifi || false}
-                  onChange={(e) => {
-                    setEditForm(prev => ({
-                      ...prev,
-                      facilityOptions: {
-                        ...prev.facilityOptions,
-                        wifi: e.target.checked,
-                      },
-                    }));
-                  }}
-                  className="mr-2"
-                />
-                <span>와이파이</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={editForm.facilityOptions?.security || false}
-                  onChange={(e) => {
-                    setEditForm(prev => ({
-                      ...prev,
-                      facilityOptions: {
-                        ...prev.facilityOptions,
-                        security: e.target.checked,
-                      },
-                    }));
-                  }}
-                  className="mr-2"
-                />
-                <span>보안시설</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={editForm.facilityOptions?.elevator || false}
-                  onChange={(e) => {
-                    setEditForm(prev => ({
-                      ...prev,
-                      facilityOptions: {
-                        ...prev.facilityOptions,
-                        elevator: e.target.checked,
-                      },
-                    }));
-                  }}
-                  className="mr-2"
-                />
-                <span>엘리베이터</span>
-              </label>
-              <div className="flex items-center space-x-2">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={editForm.facilityOptions?.other || false}
-                    onChange={(e) => {
-                      setEditForm(prev => ({
-                        ...prev,
-                        facilityOptions: {
-                          ...prev.facilityOptions,
-                          other: e.target.checked,
-                        },
-                      }));
-                    }}
-                    className="mr-2"
-                  />
-                  <span>기타</span>
-                </label>
-                <input
-                  type="text"
-                  value={editForm.otherFacilityText || ''}
-                  onChange={(e) => handleInputChange('otherFacilityText', e.target.value)}
-                  className="w-32 p-1 border border-gray-300 rounded text-sm focus:border-orange-500 focus:outline-none"
-                  placeholder="기타 시설"
-                />
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {displayInfo.facilityOptions?.parking && (
-                <div className="flex items-center text-green-600">
-                  <span>✓ 주차장</span>
-                </div>
-              )}
-              {displayInfo.facilityOptions?.laundry && (
-                <div className="flex items-center text-green-600">
-                  <span>✓ 세탁실</span>
-                </div>
-              )}
-              {displayInfo.facilityOptions?.kitchen && (
-                <div className="flex items-center text-green-600">
-                  <span>✓ 공용주방</span>
-                </div>
-              )}
-              {displayInfo.facilityOptions?.gym && (
-                <div className="flex items-center text-green-600">
-                  <span>✓ 체육관</span>
-                </div>
-              )}
-              {displayInfo.facilityOptions?.studyRoom && (
-                <div className="flex items-center text-green-600">
-                  <span>✓ 스터디룸</span>
-                </div>
-              )}
-              {displayInfo.facilityOptions?.lounge && (
-                <div className="flex items-center text-green-600">
-                  <span>✓ 휴게실</span>
-                </div>
-              )}
-              {displayInfo.facilityOptions?.wifi && (
-                <div className="flex items-center text-green-600">
-                  <span>✓ 와이파이</span>
-                </div>
-              )}
-              {displayInfo.facilityOptions?.security && (
-                <div className="flex items-center text-green-600">
-                  <span>✓ 보안시설</span>
-                </div>
-              )}
-              {displayInfo.facilityOptions?.elevator && (
-                <div className="flex items-center text-green-600">
-                  <span>✓ 엘리베이터</span>
-                </div>
-              )}
-              {displayInfo.facilityOptions?.other && (
-                <div className="flex items-center text-green-600">
-                  <span>✓ 기타</span>
-                  {displayInfo.otherFacilityText && (
-                    <span className="text-gray-700 text-sm ml-1">
-                      ({displayInfo.otherFacilityText})
-                    </span>
+              
+              {isOwner && (
+                <div className="flex items-center gap-2">
+                  {isEditing ? (
+                    <>
+                      <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        {saving ? '저장 중...' : '저장'}
+                      </button>
+                      <button
+                        onClick={handleCancel}
+                        className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        취소
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    >
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      수정
+                    </button>
                   )}
                 </div>
               )}
             </div>
+          </div>
+          
+          {/* 통합된 기숙사 정보 헤더 */}
+          {displayInfo?.address && (
+            <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm mx-4 mb-4">
+              <div className="flex items-start gap-2 text-gray-700">
+                <MapPin className="w-4 h-4 mt-0.5 text-gray-500" />
+                <span className="text-sm">
+                  {displayInfo.address}
+                </span>
+              </div>
+            </div>
           )}
         </div>
 
-
-
-        {/* 기숙사 규칙 */}
-        {isEditing || (displayInfo.rules && displayInfo.rules.length > 0) ? (
-          <div className="bg-white rounded-lg border p-4">
-            <h3 className="font-semibold text-gray-900 mb-2">기숙사 규칙</h3>
-            {isEditing ? (
-              <textarea
-                value={editForm.rules?.join('\n') || ''}
-                onChange={(e) => handleInputChange('rules', e.target.value.split('\n').filter(item => item.trim()))}
-                className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none"
-                placeholder="기숙사 규칙을 한 줄에 하나씩 입력하세요"
-              />
-            ) : (
-              <ul className="list-disc list-inside text-sm text-gray-800 space-y-1">
-                {(displayInfo.rules || []).map((rule: string, i: number) => (
-                  <li key={i}>{rule}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : null}
-
-
-
-
-
-        {/* 기숙사 소개 */}
-        {isEditing || displayInfo.description ? (
-          <div className="bg-white rounded-lg border p-4">
-            <h3 className="font-semibold text-gray-900 mb-2">기숙사 소개</h3>
-            {isEditing ? (
-              <textarea
-                value={editForm.description || ''}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none"
-                placeholder="기숙사 소개를 입력하세요"
-              />
-            ) : (
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{displayInfo.description}</p>
-            )}
-          </div>
-        ) : null}
-
-        {/* 관련 링크 */}
-        {isEditing || (displayInfo.externalLinks && displayInfo.externalLinks.length > 0) ? (
-          <div className="bg-white rounded-lg border p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">관련 링크</h3>
-              {isOwner && isEditing && (
-                <button
-                  onClick={handleExternalLinkAdd}
-                  className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  링크 추가
-                </button>
-              )}
-            </div>
-            
-            {editForm.externalLinks && editForm.externalLinks.length > 0 ? (
-              <div className="space-y-4">
-                {editForm.externalLinks.map((link, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    {isEditing ? (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <select
-                            value={link.type}
-                            onChange={(e) => handleExternalLinkUpdate(index, 'type', e.target.value)}
-                            className="border border-gray-300 rounded px-3 py-2"
-                          >
-                            <option value="real_estate">부동산</option>
-                            <option value="hotel">호텔</option>
-                            <option value="booking">예약</option>
-                            <option value="review">리뷰</option>
-                            <option value="other">기타</option>
-                          </select>
+        {/* 메인 콘텐츠 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* 기본 정보 (2/3) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* 기본 정보 */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                <Building className="w-5 h-5 mr-2 text-green-600" />
+                기본 정보
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    기숙사명
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="기숙사명을 입력하세요 (비워두면 회사명 + '기숙사'로 자동 설정)"
+                    />
+                  ) : (
+                    <p className="text-gray-900 font-medium">{displayInfo?.name || '미등록'}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    유형
+                  </label>
+                  {isEditing ? (
+                    <select
+                      value={editData.type}
+                      onChange={(e) => handleInputChange('type', e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="dormitory">기숙사</option>
+                      <option value="apartment">아파트</option>
+                      <option value="house">단독주택</option>
+                      <option value="other">기타</option>
+                    </select>
+                  ) : (
+                    <p className="text-gray-900 font-medium">
+                      {displayInfo?.type === 'dormitory' && '기숙사'}
+                      {displayInfo?.type === 'apartment' && '아파트'}
+                      {displayInfo?.type === 'house' && '단독주택'}
+                      {displayInfo?.type === 'other' && '기타'}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    객실 수
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editData.capacity}
+                      onChange={(e) => handleInputChange('capacity', e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="예: 10실"
+                    />
+                  ) : (
+                    <p className="text-gray-900 font-medium">{displayInfo?.capacity || '미등록'}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    주소
+                  </label>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <AddressSearch
+                        onAddressSelect={handleAddressSelect}
+                        placeholder="기숙사 주소를 검색하세요"
+                        showDetailAddress={false}
+                      />
+                      {editData.address && (
+                        <div className="mt-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            상세 주소
+                          </label>
                           <input
                             type="text"
-                            value={link.title}
-                            onChange={(e) => handleExternalLinkUpdate(index, 'title', e.target.value)}
-                            placeholder="링크 제목"
-                            className="border border-gray-300 rounded px-3 py-2"
+                            value={editData.detailAddress}
+                            onChange={(e) => handleInputChange('detailAddress', e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            placeholder="상세 주소를 입력하세요 (동, 호수 등)"
                           />
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleExternalLinkDelete(index)}
-                              className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
                         </div>
-                        <input
-                          type="url"
-                          value={link.url}
-                          onChange={(e) => handleExternalLinkUpdate(index, 'url', e.target.value)}
-                          placeholder="URL"
-                          className="w-full border border-gray-300 rounded px-3 py-2"
-                        />
-                        <input
-                          type="text"
-                          value={link.description || ''}
-                          onChange={(e) => handleExternalLinkUpdate(index, 'description', e.target.value)}
-                          placeholder="설명 (선택사항)"
-                          className="w-full border border-gray-300 rounded px-3 py-2"
-                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-gray-900 font-medium">{displayInfo?.address || '미등록'}</p>
+                      {displayInfo?.detailAddress && (
+                        <p className="text-gray-600 text-sm">{displayInfo.detailAddress}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+
+
+
+
+            {/* 시설 정보 */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                <Users className="w-5 h-5 mr-2 text-purple-600" />
+                시설 정보
+              </h2>
+              
+              {isEditing ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {['에어컨', '냉장고', 'TV', '인터넷', '옷장', '책상', '침대', '욕실', '주방', '세탁기', '건조기', '전자레인지'].map((facility) => (
+                    <label key={facility} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={editData.facilities?.includes(facility) || false}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEditData(prev => ({
+                              ...prev,
+                              facilities: [...(prev.facilities || []), facility]
+                            }));
+                          } else {
+                            setEditData(prev => ({
+                              ...prev,
+                              facilities: (prev.facilities || []).filter(f => f !== facility)
+                            }));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">{facility}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {(displayInfo?.facilities || []).map((facility, index) => (
+                    <span key={index} className="inline-flex items-center px-3 py-2 rounded-full text-sm bg-green-100 text-green-800 font-medium">
+                      {facility}
+                    </span>
+                  ))}
+                  {(!displayInfo?.facilities || displayInfo.facilities.length === 0) && (
+                    <div className="text-center py-6 text-gray-500">
+                      <Users className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">등록된 시설 정보가 없습니다</p>
+                      <p className="text-xs mt-1">구직자들이 관심을 가질 수 있는 시설을 등록해보세요</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 부대시설 */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                <Building className="w-5 h-5 mr-2 text-blue-600" />
+                부대시설
+              </h2>
+              
+              {isEditing ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {['공용 주방', '세탁실', '휴게실', '주차장', '운동시설', '독서실', '컴퓨터실', '게임룸', 'BBQ시설', '정원', '테라스', '엘리베이터'].map((amenity) => (
+                    <label key={amenity} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={editData.amenities?.includes(amenity) || false}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEditData(prev => ({
+                              ...prev,
+                              amenities: [...(prev.amenities || []), amenity]
+                            }));
+                          } else {
+                            setEditData(prev => ({
+                              ...prev,
+                              amenities: (prev.amenities || []).filter(a => a !== amenity)
+                            }));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">{amenity}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {(displayInfo?.amenities || []).map((amenity, index) => (
+                    <span key={index} className="inline-flex items-center px-3 py-2 rounded-full text-sm bg-blue-100 text-blue-800 font-medium">
+                      {amenity}
+                    </span>
+                  ))}
+                  {(!displayInfo?.amenities || displayInfo.amenities.length === 0) && (
+                    <div className="text-center py-6 text-gray-500">
+                      <Building className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">등록된 부대시설이 없습니다</p>
+                      <p className="text-xs mt-1">공용 시설이나 편의시설을 등록해보세요</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 객실 타입 및 가격 */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                <Home className="w-5 h-5 mr-2 text-indigo-600" />
+                객실 타입 및 가격
+              </h2>
+              
+              {isEditing ? (
+                <div className="space-y-4">
+                  {/* 결제 방식 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      결제 방식
+                    </label>
+                    <select
+                      value={editData.paymentType}
+                      onChange={(e) => handlePaymentTypeChange(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="monthly">월세</option>
+                      <option value="daily">일세</option>
+                      <option value="weekly">주세</option>
+                      <option value="free">무료</option>
+                    </select>
+                  </div>
+
+                  {/* 객실 타입 선택 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      제공 객실 타입
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {Object.keys(editData.roomTypes).map((roomType) => (
+                        <label key={roomType} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={editData.roomTypes[roomType]}
+                            onChange={(e) => handleRoomTypeChange(roomType, e.target.checked)}
+                            className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">{roomType}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 객실별 가격 */}
+                  {Object.keys(editData.roomTypes).some(type => editData.roomTypes[type]) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        객실별 가격
+                      </label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {Object.keys(editData.roomTypes).map((roomType) => (
+                          editData.roomTypes[roomType] && (
+                            <div key={roomType} className="flex items-center space-x-2">
+                              <span className="text-sm text-gray-600 w-16">{roomType}</span>
+                              <input
+                                type="text"
+                                value={editData.roomPrices[roomType]}
+                                onChange={(e) => handleRoomPriceChange(roomType, e.target.value)}
+                                className="flex-1 bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                placeholder="가격 입력"
+                              />
+                            </div>
+                          )
+                        ))}
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">{getExternalLinkTypeLabel(link.type)}</span>
-                          <span className="text-sm font-medium text-gray-900">{link.title}</span>
-                          {link.description && (
-                            <span className="text-sm text-gray-600">{link.description}</span>
+                    </div>
+                  )}
+
+                  {/* 객실별 시설 입력은 사용하지 않음 (단일 시설 체크박스로 통일) */}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* 결제 방식 표시 */}
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">결제 방식: </span>
+                    <span className="text-sm text-gray-900">
+                      {displayInfo?.paymentType === 'monthly' && '월세'}
+                      {displayInfo?.paymentType === 'daily' && '일세'}
+                      {displayInfo?.paymentType === 'weekly' && '주세'}
+                      {displayInfo?.paymentType === 'free' && '무료'}
+                    </span>
+                  </div>
+
+                  {/* 객실 타입 및 가격 표시 */}
+                  {displayInfo?.roomTypes && Object.keys(displayInfo.roomTypes || {}).some(type => displayInfo.roomTypes[type]) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                              {Object.keys(displayInfo.roomTypes || {}).map((roomType) => (
+                        displayInfo.roomTypes[roomType] && (
+                          <div key={roomType} className="border border-gray-200 rounded-lg p-3">
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="font-medium text-gray-900">{roomType}</span>
+                              {displayInfo.roomPrices && displayInfo.roomPrices[roomType] && (
+                                <span className="text-sm text-green-600 font-medium">
+                                  {displayInfo.roomPrices[roomType]}
+                                </span>
+                              )}
+                            </div>
+                                                         {displayInfo.roomFacilities && displayInfo.roomFacilities[roomType] && displayInfo.roomFacilities[roomType].length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {displayInfo.roomFacilities[roomType].map((facility, index) => (
+                                  <span key={index} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                                    {facility}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  )}
+
+                  {(!displayInfo?.roomTypes || !Object.keys(displayInfo.roomTypes || {}).some(type => displayInfo.roomTypes[type])) && (
+                    <div className="text-center py-6 text-gray-500">
+                      <Home className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">등록된 객실 정보가 없습니다</p>
+                      <p className="text-xs mt-1">제공하는 객실 타입과 가격을 등록해보세요</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 비용 정보 */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                <DollarSign className="w-5 h-5 mr-2 text-green-600" />
+                비용 정보
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    관리비
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editData.utilities}
+                      onChange={(e) => handleInputChange('utilities', e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="예: 5만원 (전기, 수도 포함)"
+                    />
+                  ) : (
+                    <p className="text-gray-900 font-medium">{displayInfo?.utilities || '미등록'}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    기타
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editData.other}
+                      onChange={(e) => handleInputChange('other', e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="기타 비용이나 특이사항을 입력하세요"
+                    />
+                  ) : (
+                    <p className="text-gray-900 font-medium">{displayInfo?.other || '미등록'}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 이용 규칙 */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                <FileText className="w-5 h-5 mr-2 text-blue-600" />
+                이용 규칙
+              </h2>
+              
+              {isEditing ? (
+                <textarea
+                  value={editData.rules}
+                  onChange={(e) => handleInputChange('rules', e.target.value)}
+                  rows={4}
+                  className="w-full bg-gray-50 border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="기숙사 이용 규칙을 입력하세요"
+                />
+              ) : (
+                displayInfo?.rules ? (
+                  <p className="text-gray-900 whitespace-pre-wrap">{displayInfo.rules}</p>
+                ) : (
+                  <div className="text-center py-6 text-gray-500">
+                    <FileText className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">등록된 이용 규칙이 없습니다</p>
+                    <p className="text-xs mt-1">기숙사 이용 시 주의사항을 등록해보세요</p>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* 사이드바 (1/3) */}
+          <div className="space-y-6">
+            {/* 기숙사 이미지 */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                <Camera className="w-5 h-5 mr-2 text-green-600" />
+                기숙사 이미지
+                {(displayInfo?.images || []).length > 0 && (
+                  <span className="ml-2 text-sm text-gray-500">
+                    ({(displayInfo?.images || []).length}장)
+                  </span>
+                )}
+              </h2>
+              
+              {isEditing && (
+                <div className="mb-4">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="accommodation-image-upload"
+                  />
+                  <label
+                    htmlFor="accommodation-image-upload"
+                    className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    이미지 추가
+                  </label>
+                </div>
+              )}
+              
+              {(displayInfo?.images || []).length > 0 ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {(displayInfo?.images || []).map((image, index) => {
+                    const description = (displayInfo?.imageDescriptions || [])[index] || '';
+                    
+                    return (
+                      <div key={index} className="group">
+                        <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                          <img
+                            src={image}
+                            alt={`기숙사 이미지 ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          {isEditing && (
+                            <button
+                              onClick={() => handleImageDelete(index)}
+                              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="이미지 삭제"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
                           )}
                         </div>
-                        {link.url && (
-                          <a href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm">
-                          방문
-                          </a>
+                        {isEditing && (
+                          <input
+                            type="text"
+                            value={description}
+                            onChange={(e) => handleArrayChange('imageDescriptions', index, e.target.value)}
+                            className="w-full mt-2 text-xs bg-gray-50 border border-gray-300 rounded p-1 focus:outline-none focus:ring-1 focus:ring-green-500"
+                            placeholder="이미지 설명"
+                          />
+                        )}
+                        {!isEditing && description && (
+                          <p className="text-xs text-gray-600 mt-1 text-center truncate px-1">
+                            {description}
+                          </p>
                         )}
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p>등록된 관련 링크가 없습니다.</p>
-                {isOwner && isEditing && (
-                  <p className="text-sm mt-2">부동산 사이트, 호텔 예약 사이트 등을 추가해보세요.</p>
-                )}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <Camera className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium mb-2">등록된 기숙사 이미지가 없습니다</p>
+                  <p className="text-sm">기숙사 이미지를 등록하여 구직자들에게 더 나은 인상을 남겨보세요</p>
+                </div>
+              )}
+            </div>
+
+            {/* 공개 설정 */}
+            {isOwner && (
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                  <Clock className="w-5 h-5 mr-2 text-blue-600" />
+                  공개 설정
+                </h2>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">구직자에게 공개</span>
+                  {isEditing ? (
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editData.isPublic}
+                        onChange={(e) => handleInputChange('isPublic', e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  ) : (
+                    <span className={`text-sm font-medium ${displayInfo?.isPublic ? 'text-green-600' : 'text-gray-500'}`}>
+                      {displayInfo?.isPublic ? '공개' : '비공개'}
+                    </span>
+                  )}
+                </div>
+                
+                <p className="text-xs text-gray-500 mt-2">
+                  비공개로 설정하면 구직자들이 기숙사 목록에서 해당 정보를 볼 수 없습니다.
+                </p>
               </div>
             )}
           </div>
-        ) : null}
+        </div>
       </div>
-
-      {/* 이미지 미리보기 모달 */}
-      <ImagePreviewModal
-        isOpen={!!previewImage}
-        onClose={() => setPreviewImage(null)}
-        imageUrl={previewImage || ''}
-        imageName={previewImageName}
-      />
     </div>
   );
 };
 
-export default AccommodationInfoPage;
+export default AccommodationInfo;
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
@@ -10,6 +10,7 @@ import {
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { Resume } from '../types';
+import { withErrorHandling, createUserFriendlyError } from '../utils/errorHandler';
 
 interface User {
   uid: string;
@@ -87,11 +88,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            setUser({
+            const userRole = userData.role || 'jobseeker';
+            
+            // 디버깅: 사용자 역할 로그
+            console.log('🔍 사용자 역할 확인:', {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              role: userRole,
+              userData: userData
+            });
+            
+            const userInfo = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
               displayName: userData.displayName || firebaseUser.displayName || '',
-              role: userData.role || 'jobseeker',
+              role: userRole,
               workplaceName: userData.workplaceName,
               workplaceLocation: userData.workplaceLocation,
               contactPerson: userData.contactPerson,
@@ -106,25 +117,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               industry: userData.industry,
               companySize: userData.companySize,
               contactPhone: userData.contactPhone,
-            });
+            };
+            
+            setUser(userInfo);
+            
+            // localStorage에 사용자 정보 저장 (로그인 후 리다이렉트를 위해)
+            localStorage.setItem('user', JSON.stringify(userInfo));
           } else {
             // Firestore에 사용자 정보가 없으면 기본값으로 설정
-            setUser({
+            const defaultUserInfo = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
               displayName: firebaseUser.displayName || '',
-              role: 'jobseeker',
+              role: 'jobseeker', // 기본값은 구직자로 유지
               resume: undefined,
-            });
+            };
+            
+            setUser(defaultUserInfo);
+            localStorage.setItem('user', JSON.stringify(defaultUserInfo));
           }
         } catch (error) {
           console.error('사용자 정보 가져오기 실패:', error);
-          setUser({
+          const errorUserInfo = {
             uid: firebaseUser.uid,
             email: firebaseUser.email || '',
             displayName: firebaseUser.displayName || '',
-            role: 'jobseeker',
-          });
+            role: 'jobseeker', // 에러 시에도 기본값은 구직자로 유지
+          };
+          
+          setUser(errorUserInfo);
+          localStorage.setItem('user', JSON.stringify(errorUserInfo));
         }
       } else {
         setUser(null);
@@ -156,33 +178,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // 구인자인 경우 직장 정보 추가
       if (role === 'employer' && employerInfo) {
-        userData.workplaceName = employerInfo.workplaceName;
-        userData.workplaceLocation = employerInfo.workplaceLocation;
-        userData.contactPerson = employerInfo.contactPerson;
+        userData.workplaceName = employerInfo.workplaceName || '';
+        userData.workplaceLocation = employerInfo.workplaceLocation || '';
+        userData.contactPerson = employerInfo.contactPerson || '';
         // 구인자 추가 정보
-        userData.companyName = employerInfo.companyName;
-        userData.companyAddress = employerInfo.companyAddress;
-        userData.companyDetailAddress = employerInfo.companyDetailAddress;
-        userData.companyPhone = employerInfo.companyPhone;
-        userData.companyWebsite = employerInfo.companyWebsite;
-        userData.businessNumber = employerInfo.businessNumber;
-        userData.industry = employerInfo.industry;
-        userData.companySize = employerInfo.companySize;
-        userData.contactPhone = employerInfo.contactPhone;
+        userData.companyName = employerInfo.companyName || '';
+        userData.companyAddress = employerInfo.companyAddress || '';
+        userData.companyDetailAddress = employerInfo.companyDetailAddress || '';
+        userData.companyPhone = employerInfo.companyPhone || '';
+        userData.companyWebsite = employerInfo.companyWebsite || '';
+        userData.businessNumber = employerInfo.businessNumber || '';
+        userData.industry = employerInfo.industry || '';
+        userData.companySize = employerInfo.companySize || '';
+        userData.contactPhone = employerInfo.contactPhone || '';
         
         // 회사 정보 companyInfo 컬렉션에도 저장
         await setDoc(doc(db, 'companyInfo', firebaseUser.uid), {
           employerId: firebaseUser.uid, // employerId 필드 추가
-          name: employerInfo.companyName,
-          address: employerInfo.companyAddress,
-          detailAddress: employerInfo.companyDetailAddress, // 상세주소 추가
-          phone: employerInfo.companyPhone,
-          website: employerInfo.companyWebsite,
-          businessNumber: employerInfo.businessNumber,
-          industry: employerInfo.industry,
-          companySize: employerInfo.companySize,
-          contactPerson: employerInfo.contactPerson,
-          contactPhone: employerInfo.contactPhone,
+          name: employerInfo.companyName || '',
+          address: employerInfo.companyAddress || '',
+          detailAddress: employerInfo.companyDetailAddress || '', // 상세주소 추가 (기본값 설정)
+          phone: employerInfo.companyPhone || '',
+          website: employerInfo.companyWebsite || '',
+          businessNumber: employerInfo.businessNumber || '',
+          industry: employerInfo.industry || '',
+          companySize: employerInfo.companySize || '',
+          contactPerson: employerInfo.contactPerson || '',
+          contactPhone: employerInfo.contactPhone || '',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
@@ -195,26 +217,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       await setDoc(doc(db, 'users', firebaseUser.uid), userData);
 
-      // 로컬 상태 업데이트
-      setUser({
+      // 회원가입 후 즉시 로그인 상태로 설정
+      const userInfo = {
         uid: firebaseUser.uid,
         email: email,
         displayName: displayName,
         role: role,
-        workplaceName: employerInfo?.workplaceName,
-        workplaceLocation: employerInfo?.workplaceLocation,
-        contactPerson: employerInfo?.contactPerson,
+        workplaceName: employerInfo?.workplaceName || '',
+        workplaceLocation: employerInfo?.workplaceLocation || '',
+        contactPerson: employerInfo?.contactPerson || '',
         resume: resume,
         // 구인자 추가 정보
-        companyName: employerInfo?.companyName,
-        companyAddress: employerInfo?.companyAddress,
-        companyPhone: employerInfo?.companyPhone,
-        companyWebsite: employerInfo?.companyWebsite,
-        businessNumber: employerInfo?.businessNumber,
-        industry: employerInfo?.industry,
-        companySize: employerInfo?.companySize,
-        contactPhone: employerInfo?.contactPhone,
+        companyName: employerInfo?.companyName || '',
+        companyAddress: employerInfo?.companyAddress || '',
+        companyPhone: employerInfo?.companyPhone || '',
+        companyWebsite: employerInfo?.companyWebsite || '',
+        businessNumber: employerInfo?.businessNumber || '',
+        industry: employerInfo?.industry || '',
+        companySize: employerInfo?.companySize || '',
+        contactPhone: employerInfo?.contactPhone || '',
+      };
+      
+      // 디버깅: 회원가입 완료 로그
+      console.log('🎉 회원가입 완료:', {
+        uid: firebaseUser.uid,
+        email: email,
+        role: role,
+        userInfo: userInfo
       });
+      
+      setUser(userInfo);
+      localStorage.setItem('user', JSON.stringify(userInfo));
     } catch (error: any) {
       console.error('회원가입 실패:', error);
       throw error;
@@ -234,6 +267,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await signOut(auth);
       setUser(null);
+      // localStorage에서 사용자 정보 제거
+      localStorage.removeItem('user');
       // 로그아웃 후 소개페이지로 리다이렉트
       window.location.href = '/';
     } catch (error: any) {
@@ -254,19 +289,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: userData.email || user.email,
           displayName: userData.displayName || user.displayName,
           role: userData.role || user.role,
-          workplaceName: userData.workplaceName,
-          workplaceLocation: userData.workplaceLocation,
-          contactPerson: userData.contactPerson,
+          workplaceName: userData.workplaceName || '',
+          workplaceLocation: userData.workplaceLocation || '',
+          contactPerson: userData.contactPerson || '',
           resume: userData.resume || user.resume,
           // 구인자 추가 정보
-          companyName: userData.companyName,
-          companyAddress: userData.companyAddress,
-          companyPhone: userData.companyPhone,
-          companyWebsite: userData.companyWebsite,
-          businessNumber: userData.businessNumber,
-          industry: userData.industry,
-          companySize: userData.companySize,
-          contactPhone: userData.contactPhone,
+          companyName: userData.companyName || '',
+          companyAddress: userData.companyAddress || '',
+          companyPhone: userData.companyPhone || '',
+          companyWebsite: userData.companyWebsite || '',
+          businessNumber: userData.businessNumber || '',
+          industry: userData.industry || '',
+          companySize: userData.companySize || '',
+          contactPhone: userData.contactPhone || '',
         });
       }
     } catch (error) {

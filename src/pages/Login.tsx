@@ -41,15 +41,25 @@ const Login: React.FC = () => {
       await signIn(formData.email, formData.password);
       // 로그인 후 사용자 정보 확인
       const user = JSON.parse(localStorage.getItem('user') || 'null');
+      
+      // 디버깅: 로그인 후 사용자 정보 로그
+      console.log('🔍 로그인 후 사용자 정보:', user);
+      
       if (user && user.role === 'employer') {
-        // companyInfo 컬렉션에서 회사 정보 확인
-        const docRef = doc(db, 'companyInfo', user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          navigate(`/company/${user.uid}/dashboard`);
-          return;
-        }
+        console.log('🎯 구인자로 인식, employer-dashboard로 리다이렉트');
+        navigate('/employer-dashboard');
+        return;
+      } else if (user && user.role === 'jobseeker') {
+        console.log('🎯 구직자로 인식, jobseeker-dashboard로 리다이렉트');
+        navigate('/jobseeker-dashboard');
+        return;
+      } else if (user && user.role === 'admin') {
+        console.log('🎯 관리자로 인식, admin-dashboard로 리다이렉트');
+        navigate('/admin-dashboard');
+        return;
       }
+      
+      console.log('⚠️ 사용자 역할을 확인할 수 없음, 기본 리다이렉트:', redirectTo);
       navigate(redirectTo);
     } catch (error: any) {
       console.error('로그인 실패:', error);
