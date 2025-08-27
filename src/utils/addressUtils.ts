@@ -1,56 +1,6 @@
 import { Address } from '../components/AddressSearch';
 
 /**
- * 주소를 지도 좌표로 변환하는 함수 (향후 지오코딩 API 연동)
- * @param address 주소 객체
- * @returns Promise<{latitude: number, longitude: number}>
- */
-export const geocodeAddress = async (address: Address): Promise<{latitude: number, longitude: number} | null> => {
-  try {
-    // TODO: 실제 지오코딩 API 연동 (Naver, Google, Kakao 등)
-    // 현재는 임시로 서울 시청 좌표 반환
-    console.log('🗺️ 지오코딩 요청:', address.address);
-    
-    // 실제 구현 시에는 다음과 같은 API 호출
-    // const response = await fetch(`/api/geocode?address=${encodeURIComponent(address.address)}`);
-    // const data = await response.json();
-    // return { latitude: data.lat, longitude: data.lng };
-    
-    // 임시 반환값 (서울 시청 좌표)
-    return {
-      latitude: 37.5665,
-      longitude: 126.9780
-    };
-  } catch (error) {
-    console.error('지오코딩 오류:', error);
-    return null;
-  }
-};
-
-/**
- * 주소 객체를 지도 마커용 데이터로 변환
- * @param address 주소 객체
- * @returns 지도 마커 데이터
- */
-export const addressToMarkerData = (address: Address) => {
-  return {
-    position: {
-      lat: address.latitude || 37.5665,
-      lng: address.longitude || 126.9780
-    },
-    title: address.buildingName || address.address,
-    address: address.address,
-    roadAddress: address.roadAddress,
-    jibunAddress: address.jibunAddress,
-    zipCode: address.zipCode,
-    region: address.region,
-    sido: address.sido,
-    sigungu: address.sigungu,
-    emdNm: address.emdNm
-  };
-};
-
-/**
  * 주소 검증 함수
  * @param address 주소 문자열
  * @returns 검증 결과
@@ -183,7 +133,5 @@ export const normalizeAddressData = (rawAddress: any): Address => {
     buildingNumber: rawAddress.buldMnnm || '',
     admCd: rawAddress.admCd || '',
     engAddress: rawAddress.engAddr || '',
-    latitude: rawAddress.latitude || undefined,
-    longitude: rawAddress.longitude || undefined,
   };
 };

@@ -7,6 +7,7 @@ import { db } from '../firebase';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import { workTypeService } from '../utils/scheduleMatchingService';
 import { uploadImage, deleteImage, compressImage } from '../utils/imageUpload';
+import NaverMap from '../components/NaverMap';
 
 interface JobPost {
   id: string;
@@ -150,9 +151,9 @@ const EmployerDashboard: React.FC = () => {
         return;
       }
 
-      try {
-        setLoading(true);
-
+    try {
+      setLoading(true);
+      
         // 1. 회사 정보 로딩
         let companyData = null;
         
@@ -338,15 +339,15 @@ const EmployerDashboard: React.FC = () => {
         // 3. 구인공고 로딩
         try {
           const jobPostsQuery = query(
-            collection(db, 'jobPosts'),
+        collection(db, 'jobPosts'),
             where('employerId', '==', user.uid),
-          );
+      );
           const jobPostsSnapshot = await getDocs(jobPostsQuery);
           const jobPostsData = jobPostsSnapshot.docs.map(doc => ({
-            id: doc.id,
+        id: doc.id,
             ...doc.data(),
-          })) as JobPost[];
-          
+      })) as JobPost[];
+      
           setJobPosts(jobPostsData);
         } catch (error) {
           console.error('jobPosts 로딩 오류:', error);
@@ -377,12 +378,12 @@ const EmployerDashboard: React.FC = () => {
           console.error('workTypes 로딩 오류:', error);
         }
 
-      } catch (error) {
+    } catch (error) {
         console.error('전체 데이터 로딩 오류:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
     if (user?.uid) {
       loadData();
@@ -439,7 +440,7 @@ const EmployerDashboard: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
                     <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center shadow-sm">
                       <Building className="w-5 h-5 text-blue-600" />
-                    </div>
+              </div>
                       회사
                     <button
                       onClick={() => setIsCompanySectionCollapsed(!isCompanySectionCollapsed)}
@@ -455,7 +456,7 @@ const EmployerDashboard: React.FC = () => {
                       >
                       {companyInfo ? '수정' : '등록'}
                       </button>
-                </div>
+              </div>
               </div>
               
                 {/* 통합된 회사 정보 헤더 */}
@@ -499,25 +500,25 @@ const EmployerDashboard: React.FC = () => {
                             웹사이트
                           </a>
                         ) : null}
-                      </div>
-                    </div>
-                    
+            </div>
+          </div>
+
                     {companyInfo?.address || companyInfo?.companyAddress ? (
                       <div className="flex items-start gap-2 text-gray-700">
                         <MapPin className="w-4 h-4 mt-0.5 text-gray-500" />
                         <span className="text-sm">
                             {companyInfo.address || companyInfo.companyAddress}
                         </span>
-                      </div>
+              </div>
                         ) : (
                       <div className="flex items-center gap-2 text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
                         <span className="text-sm font-medium">주소 정보가 등록되지 않았습니다</span>
-                          </div>
+              </div>
                         )}
-                          </div>
+            </div>
                         )}
-                      </div>
-              
+          </div>
+
               {!isCompanySectionCollapsed && (
                 <div className="p-6 space-y-6">
 
@@ -541,9 +542,9 @@ const EmployerDashboard: React.FC = () => {
                             <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                             <p className="text-sm">회사 소개가 등록되지 않았습니다</p>
                             <p className="text-xs mt-1">구직자들이 회사를 더 잘 이해할 수 있도록 소개를 작성해주세요</p>
-                          </div>
+              </div>
                         )}
-                      </div>
+              </div>
 
                       {/* 복리후생 */}
                       <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -559,7 +560,7 @@ const EmployerDashboard: React.FC = () => {
                                 {benefit}
                               </span>
                             ))}
-                          </div>
+            </div>
                         ) : (
                           <div className="text-center py-6 text-gray-500">
                             <Star className="w-10 h-10 mx-auto mb-2 text-gray-300" />
@@ -567,7 +568,7 @@ const EmployerDashboard: React.FC = () => {
                             <p className="text-xs mt-1">구직자들이 관심을 가질 수 있는 복리후생을 등록해보세요</p>
                           </div>
                         )}
-                      </div>
+          </div>
 
                       {/* 회사 문화 */}
                       <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -582,10 +583,10 @@ const EmployerDashboard: React.FC = () => {
                           <div className="text-center py-6 text-gray-500">
                             <Users className="w-10 h-10 mx-auto mb-2 text-gray-300" />
                             <p className="text-sm">등록된 회사 문화 정보가 없습니다</p>
-                          </div>
+              </div>
                         )}
-                    </div>
-                  </div>
+              </div>
+            </div>
 
                     {/* 사이드바 정보 */}
                     <div className="space-y-4">
@@ -609,8 +610,8 @@ const EmployerDashboard: React.FC = () => {
                               <p className="text-sm">전화번호 미등록</p>
                           </div>
                         )}
-                      </div>
-                      </div>
+          </div>
+        </div>
 
 
                     </div>
@@ -653,10 +654,10 @@ const EmployerDashboard: React.FC = () => {
                                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
                                   <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded">
                                     {index + 1}
-                              </div>
+              </div>
                                   <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                     클릭하여 크게 보기
-                                  </div>
+            </div>
                                 </div>
                                 {description && (
                                   <p className="text-xs text-gray-600 mt-1 text-center truncate px-1">
@@ -670,15 +671,15 @@ const EmployerDashboard: React.FC = () => {
                         <p className="text-xs text-gray-500 mt-3 text-center">
                           썸네일을 클릭하면 크게 볼 수 있습니다
                         </p>
-                      </div>
-                    ) : (
+                </div>
+              ) : (
                       <div className="text-center py-12 text-gray-500">
                         <Camera className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                         <p className="text-lg font-medium mb-2">등록된 회사 이미지가 없습니다</p>
                         <p className="text-sm">회사 이미지를 등록하여 구직자들에게 더 나은 인상을 남겨보세요</p>
-                      </div>
+                          </div>
                     )}
-                  </div>
+                        </div>
 
                   {/* 담당자 목록 */}
                   {companyRegistrants.length > 0 && (
@@ -731,9 +732,9 @@ const EmployerDashboard: React.FC = () => {
                                   {registrant.id === user?.uid && (
                                     <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
                                       나
-                                    </span>
+                          </span>
                                   )}
-                                </div>
+                        </div>
                                 <div className="text-xs text-gray-500 space-y-1">
                                   <p className="truncate flex items-center gap-1">
                                     <Mail className="w-3 h-3" />
@@ -750,9 +751,9 @@ const EmployerDashboard: React.FC = () => {
                               <p className="text-xs text-gray-400">
                                 등록일: {registrant.createdAt ? new Date(registrant.createdAt.toDate()).toLocaleDateString() : '미상'}
                               </p>
-                            </div>
-                          </div>
-                        ))}
+                      </div>
+                    </div>
+                  ))}
                       </div>
                       <p className="text-xs text-gray-500 mt-4 text-center">
                         * 같은 회사에 등록된 모든 담당자 목록입니다. 클릭하면 상세 정보를 볼 수 있습니다.
@@ -765,7 +766,7 @@ const EmployerDashboard: React.FC = () => {
 
                 </div>
               )}
-            </div>
+          </div>
 
             {/* 2. 기숙사 상세 정보 */}
             {accommodationInfo ? (
@@ -813,8 +814,8 @@ const EmployerDashboard: React.FC = () => {
                         <Edit3 className="h-4 w-4 mr-2" />
                           수정
                         </button>
-                    </div>
-                  </div>
+              </div>
+            </div>
                   
                   {/* 통합된 기숙사 정보 헤더 */}
                   {!isAccommodationSectionCollapsed && (
@@ -859,256 +860,130 @@ const EmployerDashboard: React.FC = () => {
                           <MapPin className="w-4 h-4 mt-0.5 text-gray-500" />
                           <span className="text-sm">
                             {accommodationInfo.address}
-                          </span>
-                  </div>
-                      ) : (
+                      </span>
+                    </div>
+              ) : (
                         <div className="flex items-center gap-2 text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
                           <span className="text-sm font-medium">주소 정보가 등록되지 않았습니다</span>
                         </div>
                       )}
                     </div>
                   )}
-                </div>
-                  
+                  </div>
+
                 {!isAccommodationSectionCollapsed && (
-                  <div className="p-5 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-white rounded-lg border p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">상세 정보</h3>
-                        <div className="space-y-2 text-base">
+                  <div className="p-4 space-y-3">
+                    
 
-
-                          {accommodationInfo.utilities && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">관리비:</span>
-                              <span className="font-medium">{accommodationInfo.utilities}</span>
-                            </div>
-                          )}
-                          {accommodationInfo.other && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">기타:</span>
-                              <span className="font-medium">{accommodationInfo.other}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
+                    
+                    {/* 지도 */}
+                    {accommodationInfo?.address && (
+                      <div className="bg-white rounded-lg border p-3">
+                        <h3 className="font-semibold text-gray-900 mb-2 text-sm">위치</h3>
+                      <NaverMap
+                        address={accommodationInfo.address}
+                          latitude={(accommodationInfo as any)?.latitude}
+                          longitude={(accommodationInfo as any)?.longitude}
+                          zoom={15}
+                          height="220px"
+                      />
                     </div>
-                    
+                  )}
 
-                    
                     {/* 기숙사 이미지 */}
-                    <div className="bg-white rounded-lg border p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-gray-900 flex items-center">
-                          <Camera className="h-5 w-5 mr-2" />
+                    {(accommodationInfo?.images || []).length > 0 && (
+                      <div className="bg-white rounded-xl border border-gray-200 p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                          <Camera className="w-5 h-5 mr-2 text-green-600" />
                           기숙사 이미지
-                          {(accommodationInfo?.images || []).length > 0 && (
-                            <span className="ml-2 text-sm text-gray-500">
-                              ({(accommodationInfo?.images || []).length}장)
-                            </span>
-                          )}
+                          <span className="ml-2 text-sm text-gray-500">({(accommodationInfo?.images || []).length}장)</span>
                         </h3>
-                      </div>
-                      
-                      {(accommodationInfo?.images || []).length > 0 ? (
                         <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                          {(() => {
-                            const images: string[] = accommodationInfo?.images || [];
-                            const displayImages = images.slice(0, 4);
-                            const remaining = images.length - displayImages.length;
-                            return displayImages.map((image: string, index: number) => {
-                              const isLast = index === displayImages.length - 1 && remaining > 0;
-                            return (
-                                <div key={index} className="group">
-                                  <div 
-                                    className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:scale-110 transition-transform duration-200"
-                                    onClick={() => isLast ? navigate(`/accommodation-info/${user?.uid}`) : handleImagePreview(image, `기숙사 이미지 ${index + 1}`)}
-                                  >
-                                  <img
-                                    src={image}
-                                    alt={`기숙사 이미지 ${index + 1}`}
-                                      className="w-full h-full object-cover"
-                                    />
-                                    {isLast ? (
-                                      <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                                        <span className="text-white text-sm font-semibold">+{remaining}</span>
+                          {(accommodationInfo?.images || []).map((image: string, index: number) => (
+                            <div key={index} className="group">
+                              <div
+                                className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer shadow-sm hover:shadow-lg transition-all duration-200"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleImagePreview(image, `기숙사 이미지 ${index + 1}`);
+                                }}
+                              >
+                                <img
+                                  src={image}
+                                  alt={`기숙사 이미지 ${index + 1}`}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                />
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200"></div>
+                                <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded">{index + 1}</div>
+                                <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                  클릭하여 크게 보기
                                 </div>
-                                    ) : (
-                                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium text-center px-2">
-                                          클릭하여 크게 보기
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
                               </div>
-                            );
-                            });
-                          })()}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <Camera className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                          <p className="text-sm">등록된 이미지가 없습니다</p>
-                        </div>
-                      )}
-                    </div>
+                            </div>
+                        ))}
+                      </div>
+                        <p className="text-xs text-gray-500 mt-3 text-center">썸네일을 클릭하면 크게 볼 수 있습니다</p>
+                      </div>
+                    )}
+
+                    {/* 이용규칙 */}
+                    {accommodationInfo?.rules && (
+                      <div className="bg-white rounded-lg border p-3">
+                        <h3 className="font-semibold text-gray-900 mb-2 text-sm">이용규칙</h3>
+                        <p className="text-xs text-gray-700 line-clamp-3 whitespace-pre-wrap">{accommodationInfo.rules}</p>
+                      </div>
+                    )}
 
 
 
                     {/* 객실 유형 */}
-                    <div className="bg-white rounded-lg border p-4">
-                      <h3 className="font-semibold text-gray-900 mb-2">객실 Type</h3>
-                      {isAccommodationEditing ? (
-                        // 편집 모드
-                        <div className="space-y-4">
-                          {/* 요금 유형 선택 */}
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-500">요금 유형</span>
-                            <div className="flex space-x-2">
-                              <label className="flex items-center">
-                                <input
-                                  type="radio"
-                                  name="paymentType"
-                                  value="free"
-                                  checked={(accommodationEditData.paymentType || accommodationInfo?.paymentType) === 'free'}
-                                  onChange={(e) => handlePaymentTypeChange(e.target.value)}
-                                  className="mr-1"
-                                />
-                                <span className="text-sm">무료</span>
-                              </label>
-                              <label className="flex items-center">
-                                <input
-                                  type="radio"
-                                  name="paymentType"
-                                  value="paid"
-                                  checked={(accommodationEditData.paymentType || accommodationInfo?.paymentType) === 'paid'}
-                                  onChange={(e) => handlePaymentTypeChange(e.target.value)}
-                                  className="mr-1"
-                                />
-                                <span className="text-sm">유료</span>
-                              </label>
-                            </div>
-                          </div>
-
-                          {/* 객실 타입 선택 */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {[
-                              { key: 'singleRoom', label: '1인실' },
-                              { key: 'doubleRoom', label: '2인실' },
-                              { key: 'tripleRoom', label: '3인실' },
-                              { key: 'quadRoom', label: '4인실' },
-                              { key: 'otherRoom', label: '기타' },
-                            ].map((room) => (
-                              <div key={room.key} className="border rounded-lg p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                  <label className="flex items-center">
-                                    <input
-                                      type="checkbox"
-                                      checked={(accommodationEditData.roomTypeOptions?.[room.key] || accommodationInfo?.roomTypeOptions?.[room.key]) || false}
-                                      onChange={(e) => handleRoomTypeOptionChange(room.key, e.target.checked)}
-                                      className="mr-2"
-                                    />
-                                    <span className="text-sm font-medium">{room.label}</span>
-                                  </label>
-                                </div>
-                                {(accommodationEditData.paymentType || accommodationInfo?.paymentType) === 'paid' && 
-                                 (accommodationEditData.roomTypeOptions?.[room.key] || accommodationInfo?.roomTypeOptions?.[room.key]) && (
-                                  <input
-                                    type="text"
-                                    placeholder="가격 (천원)"
-                                    value={accommodationEditData.roomPrices?.[room.key] || accommodationInfo?.roomPrices?.[room.key] || ''}
-                                    onChange={(e) => handleRoomPriceChange(room.key, e.target.value)}
-                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent"
-                                  />
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        // 표시 모드
-                        (accommodationInfo?.roomTypeOptions || accommodationInfo?.roomTypes) ? (
-                          accommodationInfo.roomTypeOptions ? (
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">요금 유형</span>
-                                <span className="text-gray-900">
-                                  {accommodationInfo.paymentType === 'free' ? '무료' : '유료'}
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {accommodationInfo.roomTypeOptions.singleRoom && (
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-600">1인실</span>
-                                    {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.singleRoom && (
-                                      <span className="text-gray-900">{accommodationInfo.roomPrices.singleRoom}천원</span>
-                                    )}
-                                  </div>
-                                )}
-                                {accommodationInfo.roomTypeOptions.doubleRoom && (
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-600">2인실</span>
-                                    {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.doubleRoom && (
-                                      <span className="text-gray-900">{accommodationInfo.roomPrices.doubleRoom}천원</span>
-                                    )}
-                                  </div>
-                                )}
-                                {accommodationInfo.roomTypeOptions.tripleRoom && (
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-600">3인실</span>
-                                    {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.tripleRoom && (
-                                      <span className="text-gray-900">{accommodationInfo.roomPrices.tripleRoom}천원</span>
-                                    )}
-                                  </div>
-                                )}
-                                {accommodationInfo.roomTypeOptions.quadRoom && (
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-600">4인실</span>
-                                    {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.quadRoom && (
-                                      <span className="text-gray-900">{accommodationInfo.roomPrices.quadRoom}천원</span>
-                                    )}
-                                  </div>
-                                )}
-                                {accommodationInfo.roomTypeOptions.otherRoom && (
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-600">
-                                      기타{accommodationInfo.otherRoomType && ` (${accommodationInfo.otherRoomType})`}
-                                    </span>
-                                    {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.otherRoom && (
-                                      <span className="text-gray-900">{accommodationInfo.roomPrices.otherRoom}천원</span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              {(
-                                Array.isArray(accommodationInfo.roomTypes)
-                                  ? accommodationInfo.roomTypes
-                                  : Object.keys(accommodationInfo.roomTypes || {}).map((key) => ({
-                                      type: key,
-                                      ...(accommodationInfo.roomTypes || {})[key],
-                                    }))
-                              ).map((room: any, idx: number) => (
-                                <div key={idx} className="border rounded-lg p-3">
-                                  <h4 className="font-semibold text-gray-900 mb-1">{room.type}</h4>
-                                  <div className="text-sm text-gray-700 space-y-0.5">
-                                    {room.description && <div className="text-gray-600">{room.description}</div>}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )
-                        ) : (
-                          <div className="text-center py-4 text-gray-500">
-                            <p className="text-sm">등록된 객실 타입이 없습니다.</p>
-                          </div>
-                        )
-                      )}
+                    {accommodationInfo?.roomTypeOptions && (
+                      <div className="bg-white rounded-lg border p-3">
+                        <h3 className="font-semibold text-gray-900 mb-2 text-sm">객실 유형</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {accommodationInfo.roomTypeOptions.singleRoom && (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                              1인실
+                              {accommodationInfo.roomPrices?.singleRoom && Number(accommodationInfo.roomPrices.singleRoom) > 0 && (
+                                <span className="ml-1 font-medium">{Number(accommodationInfo.roomPrices.singleRoom).toLocaleString()}원</span>
+                              )}
+                      </span>
+                          )}
+                          {accommodationInfo.roomTypeOptions.doubleRoom && (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                              2인실
+                              {accommodationInfo.roomPrices?.doubleRoom && Number(accommodationInfo.roomPrices.doubleRoom) > 0 && (
+                                <span className="ml-1 font-medium">{Number(accommodationInfo.roomPrices.doubleRoom).toLocaleString()}원</span>
+                              )}
+                            </span>
+                          )}
+                          {accommodationInfo.roomTypeOptions.tripleRoom && (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                              3인실
+                              {accommodationInfo.roomPrices?.tripleRoom && Number(accommodationInfo.roomPrices.tripleRoom) > 0 && (
+                                <span className="ml-1 font-medium">{Number(accommodationInfo.roomPrices.tripleRoom).toLocaleString()}원</span>
+                              )}
+                            </span>
+                          )}
+                          {accommodationInfo.roomTypeOptions.quadRoom && (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                              4인실
+                              {accommodationInfo.roomPrices?.quadRoom && Number(accommodationInfo.roomPrices.quadRoom) > 0 && (
+                                <span className="ml-1 font-medium">{Number(accommodationInfo.roomPrices.quadRoom).toLocaleString()}원</span>
+                              )}
+                            </span>
+                          )}
+                          {accommodationInfo.roomTypeOptions.otherRoom && (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                              기타{accommodationInfo.otherRoomType && ` (${accommodationInfo.otherRoomType})`}
+                              {accommodationInfo.roomPrices?.otherRoom && Number(accommodationInfo.roomPrices.otherRoom) > 0 && (
+                                <span className="ml-1 font-medium">{Number(accommodationInfo.roomPrices.otherRoom).toLocaleString()}원</span>
+                              )}
+                            </span>
+                          )}
                     </div>
+                  </div>
+                    )}
 
                     {/* 객실 시설 */}
                     <div className="bg-white rounded-lg border p-4">
@@ -1118,14 +993,14 @@ const EmployerDashboard: React.FC = () => {
                           {accommodationInfo.facilities.map((f: string, i: number) => (
                             <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
                               {f}
-                            </span>
-                          ))}
+                        </span>
+                      ))}
                             </div>
                           ) : (
                             <div className="text-center py-4 text-gray-500">
                               <p className="text-sm">등록된 객실 시설이 없습니다.</p>
-                            </div>
-                      )}
+                    </div>
+                  )}
                     </div>
 
                     {/* 부대 시설 */}
@@ -1136,8 +1011,8 @@ const EmployerDashboard: React.FC = () => {
                           {accommodationInfo.amenities.map((a: string, i: number) => (
                             <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
                               {a}
-                                </span>
-                              ))}
+                        </span>
+                      ))}
                             </div>
                         ) : (
                           <div className="text-center py-4 text-gray-500">
@@ -1147,103 +1022,41 @@ const EmployerDashboard: React.FC = () => {
                     </div>
 
                     {/* 비용 정보 */}
-                    {(accommodationInfo.deposit || accommodationInfo.roomTypeOptions || accommodationInfo.mealCostType || accommodationInfo.utilitiesCostType) && (
-                      <div className="bg-white rounded-lg border p-4">
-                        <h3 className="font-semibold text-gray-900 mb-2">비용 정보</h3>
-                        <div className="space-y-2 text-sm">
+                    {(accommodationInfo.deposit || accommodationInfo.mealCostType || accommodationInfo.utilitiesCostType) && (
+                      <div className="bg-white rounded-lg border p-3">
+                        <h3 className="font-semibold text-gray-900 mb-2 text-sm">비용 정보</h3>
+                        <div className="space-y-2 text-xs">
                           {typeof accommodationInfo.deposit === 'number' && accommodationInfo.deposit > 0 && (
                             <div className="flex items-center justify-between">
                               <span className="text-gray-500">보증금</span>
-                              <span className="text-gray-900">{(accommodationInfo.deposit || 0).toLocaleString()}원</span>
-                            </div>
-                          )}
-                          
-                          {/* 객실 비용 정보 */}
-                          {accommodationInfo.roomTypeOptions && (
-                            <div className="pt-2 border-t">
-                              <div className="text-sm font-medium text-gray-700 mb-1">객실 비용</div>
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">요금 유형</span>
-                                <span className="text-gray-900">
-                                  {accommodationInfo.paymentType === 'free' ? '무료' : '유료'}
-                                </span>
-                              </div>
-                              {accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices && (
-                                <div className="space-y-1 mt-2">
-                                  {accommodationInfo.roomTypeOptions.singleRoom && accommodationInfo.roomPrices.singleRoom && (
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-600">1인실</span>
-                                      <span className="text-gray-900">{accommodationInfo.roomPrices.singleRoom}천원</span>
-                                    </div>
-                                  )}
-                                  {accommodationInfo.roomTypeOptions.doubleRoom && accommodationInfo.roomPrices.doubleRoom && (
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-600">2인실</span>
-                                      <span className="text-gray-900">{accommodationInfo.roomPrices.doubleRoom}천원</span>
-                                    </div>
-                                  )}
-                                  {accommodationInfo.roomTypeOptions.tripleRoom && accommodationInfo.roomPrices.tripleRoom && (
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-600">3인실</span>
-                                      <span className="text-gray-900">{accommodationInfo.roomPrices.tripleRoom}천원</span>
-                                    </div>
-                                  )}
-                                  {accommodationInfo.roomTypeOptions.quadRoom && accommodationInfo.roomPrices.quadRoom && (
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-600">4인실</span>
-                                      <span className="text-gray-900">{accommodationInfo.roomPrices.quadRoom}천원</span>
-                                    </div>
-                                  )}
-                                  {accommodationInfo.roomTypeOptions.otherRoom && accommodationInfo.roomPrices.otherRoom && (
-                                    <div className="flex items-center justify-between text-sm">
-                                      <span className="text-gray-600">
-                                        기타{accommodationInfo.otherRoomType && ` (${accommodationInfo.otherRoomType})`}
-                                      </span>
-                                      <span className="text-gray-900">{accommodationInfo.roomPrices.otherRoom}천원</span>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                              <span className="text-gray-900 font-medium">{(accommodationInfo.deposit || 0).toLocaleString()}원</span>
+                  </div>
                           )}
                           
                           {/* 식사 비용 정보 */}
-                          {(accommodationInfo.mealCostType || (accommodationInfo as any).mealNote) && (
-                            <div className="pt-2 border-t">
-                              <div className="text-sm font-medium text-gray-700 mb-1">식사 비용</div>
-                              {accommodationInfo.mealCostType && (
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-600">식사 제공</span>
-                                  <span className="text-gray-900">
-                                    {accommodationInfo.mealCostType === '무료' ? '무료' : `${(accommodationInfo.mealCostAmount || 0).toLocaleString()}원`}
-                                  </span>
-                                </div>
-                              )}
-                              {(accommodationInfo as any).mealNote && (
-                                <div className="text-sm text-gray-600 mt-1">
-                                  {(accommodationInfo as any).mealNote}
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          {accommodationInfo.mealCostType && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">식사</span>
+                              <span className="text-gray-900 font-medium">
+                                {accommodationInfo.mealCostType === '무료' ? '무료' : `${(accommodationInfo.mealCostAmount || 0).toLocaleString()}원`}
+                        </span>
+                </div>
+              )}
                           
                           {/* 부대비용 정보 */}
                           {accommodationInfo.utilitiesCostType && (
-                            <div className="pt-2 border-t">
-                              <div className="text-sm font-medium text-gray-700 mb-1">부대비용</div>
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">사용료</span>
-                                <span className="text-gray-900">
-                                  {accommodationInfo.utilitiesCostType === '무료' ? '무료' : 
-                                    accommodationInfo.utilitiesCostType === '실비' ? '실비' : 
-                                      `${(accommodationInfo.utilitiesCostAmount || 0).toLocaleString()}원`}
-                                </span>
-                              </div>
-                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">부대비용</span>
+                              <span className="text-gray-900 font-medium">
+                                {accommodationInfo.utilitiesCostType === '무료' ? '무료' : 
+                                  accommodationInfo.utilitiesCostType === '실비' ? '실비' : 
+                                    `${(accommodationInfo.utilitiesCostAmount || 0).toLocaleString()}원`}
+                              </span>
+            </div>
                           )}
-                        </div>
-                      </div>
-                    )}
+          </div>
+        </div>
+              )}
 
                     {/* 기타 */}
                     <div className="bg-white rounded-lg border p-4">
@@ -1262,10 +1075,12 @@ const EmployerDashboard: React.FC = () => {
                         ) : (
                           <div className="text-center py-4 text-gray-500">
                             <p className="text-sm">등록된 기타 설명이 없습니다.</p>
-                          </div>
+            </div>
                         )
                       )}
-                    </div>
+          </div>
+
+
 
                     {/* 연락처 */}
                     <div className="bg-white rounded-lg border p-4">
@@ -1296,18 +1111,24 @@ const EmployerDashboard: React.FC = () => {
                         </div>
                       ) : (
                         // 표시 모드
-                        (accommodationInfo?.contactPerson || accommodationInfo?.contactPhone) ? (
+                        (accommodationInfo?.contactPerson || accommodationInfo?.contactPhone || (accommodationInfo as any)?.contactEmail || companyInfo?.contactPerson || companyInfo?.contactPhone || companyInfo?.phone || companyInfo?.contactEmail || user?.email) ? (
                           <div className="space-y-1 text-sm">
-                            {accommodationInfo.contactPerson && (
+                            {(accommodationInfo?.contactPerson || companyInfo?.contactPerson) && (
                               <div className="flex items-center justify-between">
                                 <span className="text-gray-500">담당자</span>
-                                <span className="text-gray-900">{accommodationInfo.contactPerson}</span>
+                                <span className="text-gray-900">{accommodationInfo?.contactPerson || companyInfo?.contactPerson}</span>
                               </div>
                             )}
-                            {accommodationInfo.contactPhone && (
+                            {(accommodationInfo?.contactPhone || companyInfo?.contactPhone || companyInfo?.phone) && (
                               <div className="flex items-center justify-between">
                                 <span className="text-gray-500">연락처</span>
-                                <span className="text-gray-900">{accommodationInfo.contactPhone}</span>
+                                <span className="text-gray-900">{accommodationInfo?.contactPhone || companyInfo?.contactPhone || companyInfo?.phone}</span>
+                              </div>
+                            )}
+                            {((accommodationInfo as any)?.contactEmail || companyInfo?.contactEmail || user?.email) && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-gray-500">이메일</span>
+                                <span className="text-gray-900">{(accommodationInfo as any)?.contactEmail || companyInfo?.contactEmail || user?.email}</span>
                               </div>
                             )}
                           </div>
@@ -1317,7 +1138,7 @@ const EmployerDashboard: React.FC = () => {
                           </div>
                         )
                       )}
-                    </div>
+        </div>
 
                     {/* 관련 링크 */}
                     {accommodationInfo.externalLinks && accommodationInfo.externalLinks.length > 0 && (
@@ -1383,7 +1204,7 @@ const EmployerDashboard: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="p-6">
+          <div className="p-6">
                   {!accommodationInfo ? (
                     <>
                       {/* 기숙사 정보 없을 때 안내문 */}
@@ -1458,14 +1279,14 @@ const EmployerDashboard: React.FC = () => {
                     구인공고
                   </h3>
                   <div className="flex items-center gap-2">
-                    <Link
+              <Link
                       to="/job-post/new"
                       className="inline-flex items-center px-5 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-sm font-semibold border border-gray-300"
                     >
                       <Plus className="w-4 h-4 mr-2 relative z-10" />
                       <span className="relative z-10">새 공고 등록</span>
                     </Link>
-                  </div>
+                </div>
                 </div>
               </div>
               
@@ -1481,14 +1302,14 @@ const EmployerDashboard: React.FC = () => {
                   {jobPosts.length === 0 ? (
                     <div className="text-center py-8 bg-gray-50 rounded-lg">
                       <p className="text-gray-600 mb-4">등록된 공고가 없습니다.</p>
-                      <Link
+              <Link
                         to="/job-post/new"
                         className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
                       >
                         <Plus className="w-4 w-4 mr-1" />
                         첫 공고 등록하기
                       </Link>
-                    </div>
+                </div>
                   ) : (
                     <div className="space-y-2">
                       {jobPosts.map((post) => (
@@ -1498,7 +1319,7 @@ const EmployerDashboard: React.FC = () => {
                               <div className="flex items-center gap-2">
                                 <h5 className="font-medium text-gray-900 flex-shrink-0">{post.title}</h5>
                                 <span className="text-sm text-gray-500 truncate">{post.description}</span>
-                              </div>
+                </div>
                             </div>
                             <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
                               <span className="text-green-600 whitespace-nowrap">
@@ -1523,7 +1344,7 @@ const EmployerDashboard: React.FC = () => {
                               className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 transition-colors"
                             >
                               보기
-                            </Link>
+              </Link>
                             <Link
                               to={`/applications?jobId=${post.id}`}
                               className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200 transition-colors"
@@ -1546,14 +1367,14 @@ const EmployerDashboard: React.FC = () => {
                       </div>
                       근무타입
                     </h4>
-                    <Link
-                      to="/work-types"
+              <Link
+                to="/work-types"
                       className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium border border-gray-300"
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       관리
                     </Link>
-                  </div>
+                </div>
                   
                   {workTypes.length === 0 ? (
                     <div className="text-center py-6 bg-gray-50 rounded-lg">
@@ -1565,7 +1386,7 @@ const EmployerDashboard: React.FC = () => {
                         <Plus className="w-4 w-4 mr-1" />
                         근무타입 생성하기
                       </Link>
-                    </div>
+                </div>
                   ) : (
                     <div className="space-y-2">
                       {workTypes.map((workType) => (
@@ -1630,10 +1451,10 @@ const EmployerDashboard: React.FC = () => {
                   >
                     <Users className="w-4 h-4 mr-2" />
                     <span>전체 관리로 이동</span>
-                  </Link>
-                </div>
-              </div>
+              </Link>
             </div>
+          </div>
+        </div>
             <div className="p-5 space-y-5">
               {/* 지원자 요약 */}
               <div>

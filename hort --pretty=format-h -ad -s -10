@@ -1,0 +1,10 @@
+[33mf961585[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: 숙소 평점 표시 추가, 편집-대시보드 스키마 일치화 (roomTypes/roomPrices, facilities/amenities, rules) 및 UI 정리 - AccommodationInfo: 평점 계산/표시, 저장 정규화+재조회, 구형 스키마 병행 저장 - EmployerDashboard: 객실타입/가격 엄격 매핑, 시설 중복 제거, 이용규칙 섹션 추가, 이미지 컴팩트화 - AccommodationList: 카드 평점 배지 추가 - 기타: 월세 항목 제거/위치 조정 등
+[33m62fdbba[m[33m ([m[1;33mtag: [m[1;33maccommodation-compact-v1[m[33m)[m  주소 검색 기능에 상세주소 필드 추가
+[33m4b401ef[m 구인대시보드 확정
+[33m565197a[m 지원자 관리 섹션 기능 개선 및 최근 지원자 항목 활성화
+[33md0f6427[m 기숙사 상세정보 및 회사정보 인라인 편집 기능 개선 - 브라우저 히스토리 관리 최적화
+[33ma6a632e[m 기숙사 카드 클릭 기능 개선: 상세보기 버튼 제거하고 카드 전체 클릭으로 변경
+[33m926e75a[m 기숙사 카드 디자인 개선: 컴팩트하고 세련된 디자인으로 변경
+[33mdfbef99[m 기숙사 페이지 필터 개선: 회사명 검색, 무료/유료, 지역, 편의시설 필터 추가
+[33m17f2d0f[m 기숙사 페이지에 네비게이션바 추가
+[33m27e70f1[m ESLint 오류 수정: import 문 순서 정리

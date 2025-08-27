@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-// 지도 연동을 위한 확장된 주소 인터페이스
+// 주소 검색을 위한 인터페이스
 export interface Address {
   // 기본 주소 정보
   zipCode: string;
@@ -11,17 +11,13 @@ export interface Address {
   // 상세주소 (사용자 입력)
   detailAddress?: string;
   
-  // 지역 정보 (지도 마커 표시용)
+  // 지역 정보
   region?: string;
   sido?: string;
   sigungu?: string;
   emdNm?: string; // 읍면동
   
-  // 지도 연동을 위한 좌표 정보 (향후 추가 예정)
-  latitude?: number;
-  longitude?: number;
-  
-  // 상세 주소 정보 (지도 표시용)
+  // 상세 주소 정보
   buildingName?: string;
   roadName?: string;
   buildingNumber?: string;
@@ -70,7 +66,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     }
   }, [value, isEditing]);
 
-  // 주소에서 지역 정보 추출 (지도 마커 표시용)
+  // 주소에서 지역 정보 추출
   const extractRegionInfo = useCallback((address: string): { region: string; sido: string; sigungu: string } => {
     const parts = address.split(' ');
     let region = '';
