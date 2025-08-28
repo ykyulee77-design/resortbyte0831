@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { CompanyInfo } from '../types';
-import { Building, MapPin, Phone, Mail, Globe, Users, Calendar, Home, Star, CheckCircle, Edit, Save, X, Plus, Trash2, Briefcase, DollarSign, FileText, Camera } from 'lucide-react';
+import { Building, MapPin, Phone, Mail, Globe, Users, Calendar, Home, Star, CheckCircle, Edit, Save, X, Plus, Trash2, Briefcase, DollarSign, FileText, Camera, User } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -14,6 +14,7 @@ const CompanyInfoPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+  const [userInfo, setUserInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -23,39 +24,62 @@ const CompanyInfoPage: React.FC = () => {
     if (!employerId) return;
     setLoading(true);
     try {
-      const ref = doc(db, 'companyInfo', employerId);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const data = { id: snap.id, ...snap.data() } as CompanyInfo;
-        setCompanyInfo(data);
-        setFormData(data);
-      } else {
-        // 새로 생성할 경우 기본값 설정
-        const defaultData = {
-          id: '',
-          employerId: employerId,
-          name: '',
-          description: '',
-          website: '',
-          industry: '',
-          companySize: '',
-          businessNumber: '',
-          culture: '',
-          benefits: [],
-          images: [],
-          imageDescriptions: [],
-          contactEmail: '',
-          contactPhone: '',
-          contactPerson: '',
-          address: '',
-          salaryRange: '',
-          environment: '도심' as const,
-          workTimeType: '고정제' as const,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        setFormData(defaultData);
+      // 1. 회사 정보 가져오기
+      const companyRef = doc(db, 'companyInfo', employerId);
+      const companySnap = await getDoc(companyRef);
+      
+      // 2. 담당자 정보 가져오기 (회원가입 시 입력한 정보)
+      const userRef = doc(db, 'users', employerId);
+      const userSnap = await getDoc(userRef);
+      
+      let companyData = null;
+      let userData = null;
+      
+      if (companySnap.exists()) {
+        companyData = { id: companySnap.id, ...companySnap.data() } as CompanyInfo;
+        setCompanyInfo(companyData);
       }
+      
+      if (userSnap.exists()) {
+        userData = userSnap.data();
+        setUserInfo(userData);
+      }
+      
+             // 폼 데이터 설정 (회사 정보 + 회원가입 시 입력한 담당자 정보)
+       const combinedData = {
+         // 회사 정보
+         id: companyData?.id || '',
+          employerId: employerId,
+         name: companyData?.name || userData?.companyName || '',
+         description: companyData?.description || '',
+         website: companyData?.website || '',
+         industry: companyData?.industry || userData?.industry || '',
+         companySize: companyData?.companySize || userData?.companySize || '',
+         culture: companyData?.culture || '',
+         benefits: companyData?.benefits || [],
+         images: companyData?.images || [],
+         contactEmail: companyData?.contactEmail || userData?.email || '',
+         contactPhone: companyData?.contactPhone || userData?.phone || '',
+         contactPerson: companyData?.contactPerson || userData?.displayName || '',
+         address: companyData?.address || userData?.address || '',
+         businessNumber: userData?.businessNumber || '',
+         salaryRange: companyData?.salaryRange || '',
+         environment: companyData?.environment || '도심' as const,
+         workTimeType: companyData?.workTimeType || '고정제' as const,
+         createdAt: companyData?.createdAt || new Date(),
+         updatedAt: companyData?.updatedAt || new Date(),
+         
+         // 회원가입 시 입력한 담당자 정보
+         displayName: userData?.displayName || '',
+         email: userData?.email || '',
+         phone: userData?.phone || '',
+         birth: userData?.birth || '',
+         gender: userData?.gender || '',
+         detailAddress: userData?.detailAddress || '',
+       };
+      
+      setFormData(combinedData);
+      
     } catch (error) {
       console.error('회사 정보 불러오기 실패:', error);
     } finally {
@@ -142,20 +166,64 @@ const CompanyInfoPage: React.FC = () => {
     if (!employerId) return;
     setSaving(true);
     try {
-      const dataToSave = {
-        ...formData,
-        updatedAt: new Date(),
+      // 회사 정보 저장
+      const companyDataToSave = {
+        id: formData.id,
+        employerId: employerId,
+        name: formData.name,
+        description: formData.description,
+        website: formData.website,
+        industry: formData.industry,
+        companySize: formData.companySize,
+        culture: formData.culture,
+        benefits: formData.benefits,
+        images: formData.images,
+        contactEmail: formData.contactEmail,
+        contactPhone: formData.contactPhone,
+        contactPerson: formData.contactPerson,
+        address: formData.address,
+        region: formData.region || '',
+        dormitory: formData.dormitory || false,
+        dormitoryFacilities: formData.dormitoryFacilities || [],
+        salaryRange: formData.salaryRange,
+        environment: formData.environment,
+        workTimeType: formData.workTimeType,
+        createdAt: formData.createdAt,
+        updatedAt: Timestamp.now(),
       };
       
+             // 담당자 정보 저장 (회원가입 시 입력한 정보)
+       const userDataToSave = {
+         displayName: formData.displayName,
+         email: formData.email,
+         phone: formData.phone,
+         birth: formData.birth,
+         gender: formData.gender,
+         address: formData.address,
+         detailAddress: formData.detailAddress,
+         // 회원가입 시 입력한 회사 정보도 함께 저장
+         companyName: formData.name,
+         industry: formData.industry,
+         companySize: formData.companySize,
+         businessNumber: formData.businessNumber,
+       };
+      
+      // 회사 정보 저장
       if (companyInfo) {
-        await updateDoc(doc(db, 'companyInfo', employerId), dataToSave);
+        await updateDoc(doc(db, 'companyInfo', employerId), companyDataToSave);
       } else {
-        await setDoc(doc(db, 'companyInfo', employerId), dataToSave);
+        await setDoc(doc(db, 'companyInfo', employerId), companyDataToSave);
       }
       
-      setCompanyInfo(dataToSave);
+      // 담당자 정보 저장
+      await updateDoc(doc(db, 'users', employerId), userDataToSave);
+      
+      setCompanyInfo(companyDataToSave as CompanyInfo);
+      setUserInfo(userDataToSave);
       setIsEditing(false);
-      alert('회사 정보가 저장되었습니다.');
+      // 저장 후 조회 모드 URL로 이동
+      navigate(`/company/${employerId}`);
+      alert('회사 정보와 담당자 정보가 저장되었습니다.');
     } catch (error) {
       console.error('저장 실패:', error);
       alert('저장에 실패했습니다.');
@@ -167,6 +235,8 @@ const CompanyInfoPage: React.FC = () => {
   const handleCancel = () => {
     setFormData(companyInfo || {});
     setIsEditing(false);
+    // 취소 후 조회 모드 URL로 이동
+    navigate(`/company/${employerId}`);
   };
 
   if (loading) {
@@ -250,7 +320,11 @@ const CompanyInfoPage: React.FC = () => {
                     </>
                   ) : (
                     <button
-                      onClick={() => setIsEditing(true)}
+                      onClick={() => {
+                        setIsEditing(true);
+                        // 편집 모드 URL로 이동
+                        navigate(`/company/${employerId}?mode=edit`);
+                      }}
                       className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
                       <Edit className="h-4 w-4 mr-2" />
@@ -270,9 +344,223 @@ const CompanyInfoPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                       {/* 기본 정보 섹션 - 회사 정보 상단, 회원 정보 하단 */}
+           <div className="bg-white rounded-xl border-2 border-black p-6 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold flex items-center text-gray-800">
+                <Building className="w-6 h-6 mr-3 text-blue-600" />
+                기본 정보
+              </h2>
+              <span className="text-sm text-gray-500">회원가입시에 등록된 정보입니다</span>
+            </div>
+            
+            <div className="space-y-8">
+              {/* 회사 정보 - 상단 */}
+              <div className="border border-gray-200 rounded-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <Building className="w-5 h-5 mr-2 text-green-600" />
+                  회사 정보
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold text-gray-700">회사명</div>
+                    <div className="text-gray-900">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={displayInfo.name || ''}
+                          onChange={(e) => handleInputChange('name', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          placeholder="회사명을 입력하세요"
+                        />
+                      ) : (
+                        displayInfo.name || '회사명 미등록'
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold text-gray-700">사업자 등록번호</div>
+                    <div className="text-gray-900">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={displayInfo.businessNumber || ''}
+                          onChange={(e) => handleInputChange('businessNumber', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          placeholder="사업자 등록번호를 입력하세요"
+                        />
+                      ) : (
+                        displayInfo.businessNumber || '사업자 등록번호 미등록'
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold text-gray-700">업종</div>
+                    <div className="text-gray-900">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={displayInfo.industry || ''}
+                          onChange={(e) => handleInputChange('industry', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          placeholder="업종을 입력하세요"
+                        />
+                      ) : (
+                        displayInfo.industry || '업종 미등록'
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold text-gray-700">회사 규모</div>
+                    <div className="text-gray-900">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={displayInfo.companySize || ''}
+                          onChange={(e) => handleInputChange('companySize', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          placeholder="회사 규모를 입력하세요"
+                        />
+                      ) : (
+                        displayInfo.companySize || '회사 규모 미등록'
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold text-gray-700">회사 전화번호</div>
+                    <div className="text-gray-900">
+                      {isEditing ? (
+                        <input
+                          type="tel"
+                          value={displayInfo.contactPhone || ''}
+                          onChange={(e) => handleInputChange('contactPhone', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          placeholder="회사 전화번호를 입력하세요"
+                        />
+                      ) : (
+                        displayInfo.contactPhone || '회사 전화번호 미등록'
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold text-gray-700">회사 웹사이트</div>
+                    <div className="text-gray-900">
+                      {isEditing ? (
+                        <input
+                          type="url"
+                          value={displayInfo.website || ''}
+                          onChange={(e) => handleInputChange('website', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          placeholder="https://example.com"
+                        />
+                      ) : (
+                        displayInfo.website ? (
+                          <a 
+                            href={displayInfo.website} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            {displayInfo.website}
+                          </a>
+                        ) : (
+                          '회사 웹사이트 미등록'
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <div className="text-sm font-semibold text-gray-700">회사 주소</div>
+                    <div className="text-gray-900">
+                      {isEditing ? (
+                        <textarea
+                          value={displayInfo.address || ''}
+                          onChange={(e) => handleInputChange('address', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
+                          placeholder="회사 주소를 입력하세요"
+                          rows={2}
+                        />
+                      ) : (
+                        <p className="text-gray-700">
+                          {displayInfo.address || '회사 주소 미등록'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 회원(담당자) 정보 - 하단 */}
+              <div className="border border-gray-200 rounded-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <User className="w-5 h-5 mr-2 text-blue-600" />
+                  회원(담당자) 정보
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold text-gray-700">담당자명</div>
+                    <div className="text-gray-900">
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={displayInfo.displayName || ''}
+                          onChange={(e) => handleInputChange('displayName', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="담당자명을 입력하세요"
+                        />
+                      ) : (
+                        displayInfo.displayName || '담당자명 미등록'
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold text-gray-700">담당자 이메일</div>
+                    <div className="text-gray-900">
+                      {isEditing ? (
+                        <input
+                          type="email"
+                          value={displayInfo.email || ''}
+                          onChange={(e) => handleInputChange('email', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="담당자 이메일을 입력하세요"
+                        />
+                      ) : (
+                        displayInfo.email || '담당자 이메일 미등록'
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold text-gray-700">담당자 전화번호</div>
+                    <div className="text-gray-900">
+                      {isEditing ? (
+                        <input
+                          type="tel"
+                          value={displayInfo.phone || ''}
+                          onChange={(e) => handleInputChange('phone', e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="담당자 전화번호를 입력하세요"
+                        />
+                      ) : (
+                        displayInfo.phone || '담당자 전화번호 미등록'
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+                 <div className="space-y-6">
           {/* 메인 콘텐츠 */}
-          <div className="lg:col-span-2 space-y-6">
+           <div className="space-y-6">
             {/* 회사 소개 */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center">
@@ -490,130 +778,6 @@ const CompanyInfoPage: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
-
-          {/* 사이드바 */}
-          <div className="space-y-6">
-            {/* 기본 정보 */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <Building className="w-5 h-5 mr-2 text-gray-600" />
-                기본 정보
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <div className="text-sm font-medium text-gray-700 mb-2">사업자번호</div>
-                  <div className="text-gray-900">
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={displayInfo.businessNumber || ''}
-                        onChange={(e) => handleInputChange('businessNumber', e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                        placeholder="사업자번호를 입력하세요"
-                      />
-                    ) : (
-                      displayInfo.businessNumber || '사업자번호 미등록'
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-medium text-gray-700 mb-2">웹사이트</div>
-                  <div className="text-gray-900">
-                    {isEditing ? (
-                      <input
-                        type="url"
-                        value={displayInfo.website || ''}
-                        onChange={(e) => handleInputChange('website', e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                        placeholder="https://example.com"
-                      />
-                    ) : (
-                      displayInfo.website ? (
-                        <a 
-                          href={displayInfo.website} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          {displayInfo.website}
-                        </a>
-                      ) : (
-                        '웹사이트 미등록'
-                      )
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 근무 정보 */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <Briefcase className="w-5 h-5 mr-2 text-blue-600" />
-                근무 정보
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <div className="text-sm font-medium text-gray-700 mb-2">근무 환경</div>
-                  <div className="text-gray-900">
-                    {isEditing ? (
-                      <select
-                        value={displayInfo.environment}
-                        onChange={(e) => handleInputChange('environment', e.target.value as '도심' | '외곽' | '기타')}
-                        className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="도심">도심</option>
-                        <option value="외곽">외곽</option>
-                        <option value="기타">기타</option>
-                      </select>
-                    ) : (
-                      displayInfo.environment
-                    )}
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="text-sm font-medium text-gray-700 mb-2">근무 형태</div>
-                  <div className="text-gray-900">
-                    {isEditing ? (
-                      <select
-                        value={displayInfo.workTimeType}
-                        onChange={(e) => handleInputChange('workTimeType', e.target.value as '고정제' | '유연제' | '기타')}
-                        className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="고정제">고정제</option>
-                        <option value="유연제">유연제</option>
-                        <option value="기타">기타</option>
-                      </select>
-                    ) : (
-                      displayInfo.workTimeType
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                    <DollarSign className="w-4 h-4 mr-1" />
-                    급여 범위
-                  </div>
-                  <div className="text-gray-900">
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={displayInfo.salaryRange || ''}
-                        onChange={(e) => handleInputChange('salaryRange', e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="예시: 3000만원 ~ 5000만원"
-                      />
-                    ) : (
-                      displayInfo.salaryRange || '급여 정보 미등록'
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* 연락처 */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -623,24 +787,7 @@ const CompanyInfoPage: React.FC = () => {
               </h2>
               <div className="space-y-3">
                 <div>
-                  <div className="text-sm font-medium text-gray-700 mb-2">전화번호</div>
-                  <div className="text-gray-900">
-                    {isEditing ? (
-                      <input
-                        type="tel"
-                        value={displayInfo.contactPhone || ''}
-                        onChange={(e) => handleInputChange('contactPhone', e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                        placeholder="전화번호를 입력하세요"
-                      />
-                    ) : (
-                      displayInfo.contactPhone || '전화번호 미등록'
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-medium text-gray-700 mb-2">이메일</div>
+                   <div className="text-sm font-medium text-gray-700 mb-2">회사 이메일</div>
                   <div className="text-gray-900">
                     {isEditing ? (
                       <input
@@ -648,10 +795,10 @@ const CompanyInfoPage: React.FC = () => {
                         value={displayInfo.contactEmail || ''}
                         onChange={(e) => handleInputChange('contactEmail', e.target.value)}
                         className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                        placeholder="이메일을 입력하세요"
+                         placeholder="회사 이메일을 입력하세요"
                       />
                     ) : (
-                      displayInfo.contactEmail || '이메일 미등록'
+                       displayInfo.contactEmail || '회사 이메일 미등록'
                     )}
                   </div>
                 </div>
@@ -664,20 +811,25 @@ const CompanyInfoPage: React.FC = () => {
                 <MapPin className="w-5 h-5 mr-2 text-red-600" />
                 주소
               </h2>
+               <div className="space-y-3">
+                 <div>
+                   <div className="text-sm font-medium text-gray-700 mb-2">상세주소</div>
               <div className="text-gray-900">
                 {isEditing ? (
-                  <textarea
-                    value={displayInfo.address || ''}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
-                    placeholder="회사 주소를 입력하세요"
-                    rows={3}
+                       <input
+                         type="text"
+                         value={displayInfo.detailAddress || ''}
+                         onChange={(e) => handleInputChange('detailAddress', e.target.value)}
+                         className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                         placeholder="상세주소를 입력하세요"
                   />
                 ) : (
                   <p className="text-gray-700">
-                    {displayInfo.address || '주소 정보가 없습니다.'}
+                         {displayInfo.detailAddress || '상세주소 정보가 없습니다.'}
                   </p>
                 )}
+                   </div>
+                 </div>
               </div>
             </div>
           </div>

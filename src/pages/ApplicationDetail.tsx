@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, getDocs, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Application, JobPost, User, PositiveReview } from '../types';
+import { Application, JobPost, User, PositiveReview, CompanyInfo, WorkType, TimeSlot } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate } from '../utils/dateUtils';
+import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
 import { 
   Users, 
   Building, 
@@ -24,6 +25,7 @@ import {
   XCircle,
   ArrowLeft,
   Send,
+  X,
 } from 'lucide-react';
 
 const ApplicationDetail: React.FC = () => {
@@ -38,6 +40,9 @@ const ApplicationDetail: React.FC = () => {
   const [status, setStatus] = useState<'pending' | 'accepted' | 'rejected'>('pending');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [evaluations, setEvaluations] = useState<PositiveReview[]>([]);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedWorkType, setSelectedWorkType] = useState<WorkType | null>(null);
 
   useEffect(() => {
     const fetchApplicationDetails = async () => {
@@ -97,6 +102,15 @@ const ApplicationDetail: React.FC = () => {
         const userDoc = await getDoc(doc(db, 'users', applicationData.jobseekerId));
         if (userDoc.exists()) {
           setJobseeker({ uid: userDoc.id, ...userDoc.data() } as User);
+        }
+
+        // 회사 정보 가져오기 (공고 작성자 정보)
+        if (jobPostDoc.exists()) {
+          const jobPostData = jobPostDoc.data() as JobPost;
+          const companyDoc = await getDoc(doc(db, 'companyInfo', jobPostData.employerId));
+          if (companyDoc.exists()) {
+            setCompanyInfo({ id: companyDoc.id, ...companyDoc.data() } as CompanyInfo);
+          }
         }
 
         // 평가 정보 가져오기 (평가 노출이 허용된 경우에만)
@@ -170,6 +184,12 @@ const ApplicationDetail: React.FC = () => {
       console.error('피드백 제출 중 오류 발생:', error);
       alert('피드백 제출 중 오류가 발생했습니다.');
     }
+  };
+
+  // 근무타입 클릭 시 스케줄 그리드 모달 열기
+  const handleWorkTypeClick = (workType: WorkType) => {
+    setSelectedWorkType(workType);
+    setShowScheduleModal(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -256,6 +276,9 @@ const ApplicationDetail: React.FC = () => {
               <div className="space-y-4">
                 <div className="bg-blue-50 rounded-lg p-4">
                   <h3 className="font-semibold text-blue-800 mb-2">{jobPost.title}</h3>
+                  <p className="text-blue-600 text-sm font-medium mb-1">
+                    {companyInfo?.name || jobPost.workplaceName || jobPost.employerName || '회사명 없음'}
+                  </p>
                   <p className="text-blue-700 text-sm">{jobPost.jobTitle}</p>
                 </div>
 
@@ -263,11 +286,6 @@ const ApplicationDetail: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-500" />
                     <span className="text-sm text-gray-700">{jobPost.location}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Building className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-700">{jobPost.workplaceName}</span>
                   </div>
                   
                   <div className="flex items-center gap-2">
@@ -511,15 +529,27 @@ const ApplicationDetail: React.FC = () => {
                       {application.selectedWorkTypeIds.map((workTypeId, index) => {
                         const workType = jobPost?.workTypes?.find(wt => wt.id === workTypeId);
                         return (
-                          <div key={index} className="bg-white p-3 rounded-lg border border-indigo-200 shadow-sm">
+                          <div 
+                            key={index} 
+                            className="bg-white p-3 rounded-lg border border-indigo-200 shadow-sm cursor-pointer hover:border-indigo-400 hover:shadow-md transition-all"
+                            onClick={() => workType && handleWorkTypeClick(workType)}
+                          >
                             <div className="flex items-center justify-between mb-2">
                               <h4 className="font-medium text-indigo-800">{workType ? workType.name : `근무타입 ${index + 1}`}</h4>
-                              <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-xs font-medium">
-                                선택됨
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-xs font-medium">
+                                  선택됨
+                                </span>
+                                {workType && (
+                                  <Clock className="h-3 w-3 text-indigo-500" />
+                                )}
+                              </div>
                             </div>
                             {workType && workType.description && (
                               <p className="text-sm text-gray-600 leading-relaxed">{workType.description}</p>
+                            )}
+                            {workType && (
+                              <p className="text-indigo-600 text-xs mt-2">클릭하여 스케줄 확인</p>
                             )}
                           </div>
                         );
@@ -645,6 +675,71 @@ const ApplicationDetail: React.FC = () => {
                 className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 제출
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 스케줄 그리드 모달 */}
+      {showScheduleModal && selectedWorkType && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Clock className="w-6 h-6 text-indigo-600" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {selectedWorkType.name} - 근무 스케줄
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="mb-4 p-4 bg-indigo-50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">시급:</span>
+                  <span className="ml-2 text-indigo-600 font-semibold">
+                    {selectedWorkType.hourlyWage?.toLocaleString()}원
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">스케줄 수:</span>
+                  <span className="ml-2 text-indigo-600 font-semibold">
+                    {selectedWorkType.schedules?.length || 0}개
+                  </span>
+                </div>
+                {selectedWorkType.description && (
+                  <div className="md:col-span-2">
+                    <span className="font-medium text-gray-700">설명:</span>
+                    <span className="ml-2 text-gray-600">{selectedWorkType.description}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <UnifiedScheduleGrid
+              selectedTimeSlots={selectedWorkType.schedules || []}
+              mode="view"
+              title={`${selectedWorkType.name} 근무 스케줄`}
+              description="선택된 근무 시간대를 확인하세요"
+              showStatistics={true}
+              showActions={false}
+              readOnly={true}
+              employerView={true}
+            />
+            
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                닫기
               </button>
             </div>
           </div>

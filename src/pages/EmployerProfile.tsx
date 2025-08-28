@@ -65,10 +65,10 @@ const EmployerProfile: React.FC = () => {
               to={`/company/${user.uid}`}
               className="inline-flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
             >
-              <Edit className="w-4 h-4" /> 회사 정보 수정
+              <Edit className="w-4 h-4" /> 회사 정보
             </Link>
             <Link
-              to={`/accommodation/${user.uid}`}
+              to={`/accommodation-info/${user.uid}`}
               className="inline-flex items-center gap-2 px-3 py-1 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm"
             >
               <Home className="w-4 h-4" /> 기숙사 정보

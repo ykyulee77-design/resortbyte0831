@@ -590,7 +590,7 @@ const EmployerDashboard: React.FC = () => {
 
                     {/* 사이드바 정보 */}
                     <div className="space-y-4">
-                  {/* 연락처 정보 */}
+                      {/* 연락처 정보 */}
                       <div className="bg-white rounded-xl border border-gray-200 p-6">
                         <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
                           <Phone className="w-5 h-5 mr-2 text-blue-600" />
@@ -604,20 +604,29 @@ const EmployerDashboard: React.FC = () => {
                               <span className="text-sm text-gray-700 font-medium">
                                 {companyInfo.phone || companyInfo.companyPhone}
                               </span>
-                          </div>
+                            </div>
                           ) : (
                             <div className="text-center py-3 text-gray-500">
                               <p className="text-sm">전화번호 미등록</p>
-                          </div>
-                        )}
-          </div>
-        </div>
-
-
+                            </div>
+                          )}
+                          
+                          {companyInfo?.email || companyInfo?.contactEmail ? (
+                            <div className="flex items-center gap-3">
+                              <Mail className="w-4 h-4 text-gray-400" />
+                              <span className="text-sm text-gray-700 font-medium">
+                                {companyInfo.email || companyInfo.contactEmail}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="text-center py-3 text-gray-500">
+                              <p className="text-sm">이메일 미등록</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-
 
                   {/* 회사 이미지 */}
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -671,15 +680,15 @@ const EmployerDashboard: React.FC = () => {
                         <p className="text-xs text-gray-500 mt-3 text-center">
                           썸네일을 클릭하면 크게 볼 수 있습니다
                         </p>
-                </div>
-              ) : (
+                      </div>
+                    ) : (
                       <div className="text-center py-12 text-gray-500">
                         <Camera className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                         <p className="text-lg font-medium mb-2">등록된 회사 이미지가 없습니다</p>
                         <p className="text-sm">회사 이미지를 등록하여 구직자들에게 더 나은 인상을 남겨보세요</p>
-                          </div>
+                      </div>
                     )}
-                        </div>
+                  </div>
 
                   {/* 담당자 목록 */}
                   {companyRegistrants.length > 0 && (
@@ -760,13 +769,9 @@ const EmployerDashboard: React.FC = () => {
                       </p>
                     </div>
                   )}
-                  
-
-
-
                 </div>
               )}
-          </div>
+            </div>
 
             {/* 2. 기숙사 상세 정보 */}
             {accommodationInfo ? (
@@ -1008,16 +1013,34 @@ const EmployerDashboard: React.FC = () => {
                       <h3 className="font-semibold text-gray-900 mb-3">부대 시설</h3>
                       {(accommodationInfo?.amenities && accommodationInfo.amenities.length > 0) ? (
                         <div className="flex flex-wrap gap-1">
-                          {accommodationInfo.amenities.map((a: string, i: number) => (
-                            <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
-                              {a}
-                        </span>
-                      ))}
-                            </div>
-                        ) : (
-                          <div className="text-center py-4 text-gray-500">
-                            <p className="text-sm">등록된 부대시설이 없습니다.</p>
-                          </div>
+                          {accommodationInfo.amenities
+                            .filter((a: string) => a !== '근린시설' && a !== '기타')
+                            .map((a: string, i: number) => (
+                              <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                                {a}
+                              </span>
+                            ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-gray-500">
+                          <p className="text-sm">등록된 부대시설이 없습니다.</p>
+                        </div>
+                      )}
+                      
+                      {/* 근린시설 표시 */}
+                      {accommodationInfo?.nearbyFacilities && (
+                        <div className="mt-3">
+                          <h4 className="text-sm font-medium text-gray-700 mb-1">근린시설</h4>
+                          <p className="text-sm text-gray-900">{accommodationInfo.nearbyFacilities}</p>
+                        </div>
+                      )}
+                      
+                      {/* 기타 편의시설 표시 */}
+                      {accommodationInfo?.otherAmenities && (
+                        <div className="mt-3">
+                          <h4 className="text-sm font-medium text-gray-700 mb-1">기타 편의시설</h4>
+                          <p className="text-sm text-gray-900">{accommodationInfo.otherAmenities}</p>
+                        </div>
                       )}
                     </div>
 
@@ -1313,13 +1336,17 @@ const EmployerDashboard: React.FC = () => {
                   ) : (
                     <div className="space-y-2">
                       {jobPosts.map((post) => (
-                        <div key={post.id} className="group flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
+                        <div
+                          key={post.id}
+                          className="group flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => navigate(`/job-post/${post.id}`)}
+                        >
                           <div className="flex items-center gap-4 min-w-0 flex-1">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
                                 <h5 className="font-medium text-gray-900 flex-shrink-0">{post.title}</h5>
                                 <span className="text-sm text-gray-500 truncate">{post.description}</span>
-                </div>
+                              </div>
                             </div>
                             <div className="flex items-center gap-3 text-sm text-gray-600 flex-shrink-0">
                               <span className="text-green-600 whitespace-nowrap">
@@ -1340,17 +1367,19 @@ const EmployerDashboard: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-2 ml-4">
                             <Link
-                              to={`/job/${post.id}`}
+                              to={`/job-post/${post.id}`}
+                              onClick={(e) => e.stopPropagation()}
                               className="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 transition-colors"
                             >
-                              보기
-              </Link>
-                            <Link
-                              to={`/applications?jobId=${post.id}`}
-                              className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200 transition-colors"
-                            >
-                              지원자
-                            </Link>
+                               보기
+                             </Link>
+                             <Link
+                               to={`/applications?jobId=${post.id}`}
+                               onClick={(e) => e.stopPropagation()}
+                               className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200 transition-colors"
+                             >
+                               지원자
+                             </Link>
                           </div>
                         </div>
                       ))}

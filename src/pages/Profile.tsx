@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { User, LogOut, Trash2, AlertTriangle, FileText, Edit, Save, XCircle, Phone, Briefcase, GraduationCap, Award, DollarSign, Home, Globe, Users, Clock } from 'lucide-react';
 import { doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
@@ -204,13 +204,13 @@ const Profile: React.FC = () => {
                 회사 정보
               </h2>
               <div className="flex gap-2">
-                <a
-                  href={`/company/${user.uid}`}
+                <Link
+                  to={`/company/${user.uid}`}
                   className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                 >
                   <Edit className="w-4 h-4" />
-                  회사 정보 수정
-                </a>
+                  회사 정보
+                </Link>
               </div>
             </div>
           </div>
@@ -257,12 +257,12 @@ const Profile: React.FC = () => {
                   <Home className="w-4 h-4 text-orange-600" />
                   <span>기숙사 상세정보 관리</span>
                 </div>
-                <a
-                  href={`/accommodation/${user.uid}`}
+                <Link
+                  to={`/accommodation-info/${user.uid}`}
                   className="inline-flex items-center px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700"
                 >
                   이동
-                </a>
+                </Link>
               </div>
             </div>
           </div>

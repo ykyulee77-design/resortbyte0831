@@ -4,9 +4,11 @@ import { doc, getDoc, updateDoc, serverTimestamp, collection, query, where, getD
 import { db } from '../firebase';
 import { uploadImage, deleteImage, validateImageFile } from '../utils/imageUpload';
 import { useAuth } from '../contexts/AuthContext';
-import { Building, FileText, Home, Users, MessageSquare, MapPin, Edit, Save, X, List, Settings, Send, CheckCircle, Star, Share2 } from 'lucide-react';
-import { JobPost, Application, CompanyInfo, AccommodationInfo, WorkType } from '../types';
+import { Building, FileText, Home, Users, MessageSquare, MapPin, Edit, Save, X, Settings, Send, CheckCircle, Star, Share2, Eye, Clock } from 'lucide-react';
+import { JobPost, Application, CompanyInfo, AccommodationInfo, WorkType, TimeSlot } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ApplicationPreview from '../components/ApplicationPreview';
+import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
 
 import ImagePreviewModal from '../components/ImagePreviewModal';
 
@@ -15,7 +17,7 @@ const JobPostDetail: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isEditMode = searchParams.get('edit') === 'true';
+  const isEditMode = searchParams.get('mode') === 'edit';
 
   // 상태 관리
   const [job, setJob] = useState<JobPost | null>(null);
@@ -29,8 +31,14 @@ const JobPostDetail: React.FC = () => {
   const [hasApplied, setHasApplied] = useState(false);
   const [applying, setApplying] = useState(false);
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [showResumeConfirmModal, setShowResumeConfirmModal] = useState(false);
+  const [showApplicationPreview, setShowApplicationPreview] = useState(false);
   const [selectedWorkTypes, setSelectedWorkTypes] = useState<string[]>([]);
   const [applyMessage, setApplyMessage] = useState('');
+  const [application, setApplication] = useState<Partial<Application>>({
+    coverLetter: '',
+    selectedWorkTypeIds: [],
+  });
   
   // 관심공고 관련 상태
   const [isFavorite, setIsFavorite] = useState(false);
@@ -44,7 +52,7 @@ const JobPostDetail: React.FC = () => {
   const [autoFilled, setAutoFilled] = useState(false);
 
   // 편집 데이터
-  const [editData, setEditData] = useState<Partial<JobPost>>({
+  const [editData, setEditData] = useState<any>({
     title: '',
     jobTitle: '',
     description: '',
@@ -62,6 +70,8 @@ const JobPostDetail: React.FC = () => {
     workSchedule: { days: [], hours: '' },
     startDate: undefined,
     endDate: undefined,
+    accommodation: { provided: false, info: '' },
+    meal: { provided: false, info: '' },
   });
 
   // 회사 이미지 관리 상태
@@ -71,6 +81,10 @@ const JobPostDetail: React.FC = () => {
   // 이미지 미리보기 상태
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewImageName, setPreviewImageName] = useState<string>('');
+
+  // 스케줄 그리드 모달 상태
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedWorkType, setSelectedWorkType] = useState<WorkType | null>(null);
 
   // 지원 여부 확인
   const checkApplicationStatus = useCallback(async () => {
@@ -129,7 +143,7 @@ const JobPostDetail: React.FC = () => {
           jobseekerId: user.uid,
           jobPostId: id,
           jobTitle: job.title || '제목 없음',
-          employerName: job.employerName || job.workplaceName || '회사명 없음',
+          employerName: companyInfo?.name || job.employerName || job.workplaceName || '회사명 없음',
           createdAt: serverTimestamp(),
         };
         const docRef = await addDoc(collection(db, 'favoriteJobs'), favoriteData);
@@ -145,7 +159,7 @@ const JobPostDetail: React.FC = () => {
   const handleJobShare = async () => {
     if (!job) return;
     
-    const shareText = `🏖️ 리조트 일자리 추천!\n\n${job.title}\n${job.employerName}\n${job.location}\n${job.salary ? `${job.salary.min.toLocaleString()}원 ~ ${job.salary.max.toLocaleString()}원` : '급여 협의'}\n\n자세히 보기: ${window.location.href}`;
+    const shareText = `🏖️ 리조트 일자리 추천!\n\n${job.title}\n${companyInfo?.name || job.employerName || job.workplaceName || '회사명 없음'}\n${job.location}\n${job.salary ? `${job.salary.min.toLocaleString()}원 ~ ${job.salary.max.toLocaleString()}원` : '급여 협의'}\n\n자세히 보기: ${window.location.href}`;
     
     try {
       if (navigator.share) {
@@ -162,6 +176,30 @@ const JobPostDetail: React.FC = () => {
       console.error('공유 실패:', error);
     }
   };
+
+  // 이력서 완성도 검증
+  const isResumeComplete = () => {
+    if (!user?.resume) return false;
+    
+    const resume = user.resume;
+    const jobTypeValid = Array.isArray(resume.jobType) 
+      ? resume.jobType.length > 0 
+      : resume.jobType && resume.jobType.toString().trim() !== '';
+    
+    const requiredFields = [
+      resume.phone,
+      resume.birth,
+      resume.hourlyWage,
+    ];
+    
+    const otherFieldsValid = requiredFields.every(field => 
+      field && field.toString().trim() !== '',
+    );
+    
+    return jobTypeValid && otherFieldsValid;
+  };
+
+  const isResumeFilled = isResumeComplete();
 
   // 근무 타입 선택 토글
   const toggleWorkType = (workTypeId: string) => {
@@ -242,6 +280,9 @@ const JobPostDetail: React.FC = () => {
   // 모든 모달 닫기
   const closeAllModals = () => {
     setShowApplyModal(false);
+    setShowResumeConfirmModal(false);
+    setShowApplicationPreview(false);
+    setShowScheduleModal(false);
     setPreviewImage(null);
     setPreviewImageName('');
     
@@ -258,6 +299,12 @@ const JobPostDetail: React.FC = () => {
         }
       });
     }, 100);
+  };
+
+  // 근무유형 클릭 시 스케줄 그리드 모달 열기
+  const handleWorkTypeClick = (workType: WorkType) => {
+    setSelectedWorkType(workType);
+    setShowScheduleModal(true);
   };
 
   // 페이지 로드 시 모든 모달 초기화
@@ -354,6 +401,8 @@ const JobPostDetail: React.FC = () => {
             workSchedule: jobWithId.workSchedule || { days: [], hours: '' },
             startDate: jobWithId.startDate,
             endDate: jobWithId.endDate,
+            accommodation: (jobWithId as any).accommodation || { provided: false, info: '' },
+            meal: (jobWithId as any).meal || { provided: false, info: '' },
 
           });
         }
@@ -486,7 +535,7 @@ const JobPostDetail: React.FC = () => {
   }, [user?.uid, id, checkApplicationStatus, checkFavoriteStatus]);
 
   const handleInputChange = (field: string, value: any) => {
-    setEditData(prev => ({
+    setEditData((prev: any) => ({
       ...prev,
       [field]: value,
     }));
@@ -507,8 +556,14 @@ const JobPostDetail: React.FC = () => {
         }
       });
       
+      // 근무지 자동 대체: 입력이 비어있으면 회사 주소 사용
+      const resolvedLocation = (cleanEditData.location && String(cleanEditData.location).trim().length > 0)
+        ? cleanEditData.location
+        : (companyInfo?.address || companyInfo?.region || job.location || '');
+      
       const updateData = {
         ...cleanEditData,
+        location: resolvedLocation,
         updatedAt: serverTimestamp(),
       };
       
@@ -526,6 +581,8 @@ const JobPostDetail: React.FC = () => {
       }
       
       setIsEditing(false);
+      // 저장 후 조회 모드 URL로 이동
+      navigate(`/job-post/${id}`);
       
       // 업데이트된 정보 다시 불러오기
       await fetchJob();
@@ -554,9 +611,13 @@ const JobPostDetail: React.FC = () => {
         workSchedule: job.workSchedule || { days: [], hours: '' },
         startDate: job.startDate,
         endDate: job.endDate,
+        accommodation: (job as any).accommodation || { provided: false, info: '' },
+        meal: (job as any).meal || { provided: false, info: '' },
 
       });
     }
+    // 취소 후 조회 모드 URL로 이동
+    navigate(`/job-post/${id}`);
   };
 
   if (loading) {
@@ -616,13 +677,47 @@ const JobPostDetail: React.FC = () => {
                 </div>
               )}
             </h1>
+            <p className="text-xl font-semibold text-blue-600 mb-1">
+              {companyInfo?.name || job?.employerName || job?.workplaceName || '회사명 없음'}
+            </p>
             <p className="text-gray-600">
               {job.employerId === user?.uid ? '내가 등록한 공고' : '채용 공고'}
             </p>
           </div>
           
-          {job.employerId === user?.uid && (
             <div className="flex gap-2">
+            {/* 구직자인 경우 지원 버튼 표시 */}
+            {user?.role === 'jobseeker' && job.employerId !== user?.uid && (
+              <div className="flex gap-2">
+                {hasApplied ? (
+                  <button
+                    disabled
+                    className="inline-flex items-center px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    지원 완료
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (!isResumeFilled) {
+                        setShowResumeConfirmModal(true);
+                      } else {
+                        setShowApplyModal(true);
+                      }
+                    }}
+                    className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    지원하기
+                  </button>
+                )}
+              </div>
+            )}
+            
+            {/* 공고 작성자인 경우 수정 버튼 표시 */}
+            {job.employerId === user?.uid && (
+              <>
               {isEditing ? (
                 <>
                   <button
@@ -667,6 +762,8 @@ const JobPostDetail: React.FC = () => {
                       });
                     }
                     setIsEditing(true);
+                      // 편집 모드 URL로 이동
+                      navigate(`/job-post/${id}?mode=edit`);
                   }}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
@@ -674,16 +771,17 @@ const JobPostDetail: React.FC = () => {
                   수정
                 </button>
               )}
-            </div>
+              </>
           )}
+          </div>
         </div>
       </div>
 
 
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="space-y-6">
         {/* 메인 콘텐츠 - 채용 섹션 */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="space-y-6">
           {/* 채용 정보 */}
           <div className="bg-white rounded-lg border p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center">
@@ -726,10 +824,11 @@ const JobPostDetail: React.FC = () => {
                     type="text"
                     value={editData.location}
                     onChange={(e) => handleInputChange('location', e.target.value)}
+                    placeholder={(companyInfo?.address || companyInfo?.region) ? `미입력 시 회사주소 사용: ${companyInfo?.address || companyInfo?.region}` : '근무지를 입력하세요'}
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 ) : (
-                  <p className="text-gray-900">{job.location}</p>
+                  <p className="text-gray-900">{job.location || companyInfo?.address || companyInfo?.region || '미입력'}</p>
                 )}
               </div>
               
@@ -840,11 +939,83 @@ const JobPostDetail: React.FC = () => {
                           '날짜 없음'}
                       </p>
                     )}
-                  </div>
-                </div>
               </div>
             </div>
           </div>
+
+              {/* 숙식 제공 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">숙식 제공</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 기숙사 제공 */}
+                <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                {isEditing ? (
+                        <input
+                          type="checkbox"
+                          checked={!!editData.accommodation?.provided}
+                          onChange={(e) => handleInputChange('accommodation', { ...(editData.accommodation || { provided: false, info: '' }), provided: e.target.checked })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                      ) : (
+                        <input type="checkbox" checked={!!(job as any).accommodation?.provided} readOnly className="w-4 h-4 text-blue-600 border-gray-300 rounded" />
+                      )}
+                      <span className="text-sm font-medium text-gray-700">기숙사 제공</span>
+                  </div>
+                    {(isEditing ? editData.accommodation?.provided : (job as any).accommodation?.provided) && (
+              <div>
+                        <label className="block text-xs text-gray-500 mb-1">기숙사 정보</label>
+                {isEditing ? (
+                  <textarea
+                            value={editData.accommodation?.info || ''}
+                            onChange={(e) => handleInputChange('accommodation', { ...(editData.accommodation || { provided: false, info: '' }), info: e.target.value })}
+                            rows={2}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="방 유형, 비용, 위치 등"
+                  />
+                ) : (
+                          <p className="text-gray-900 whitespace-pre-wrap">{(job as any).accommodation?.info || '정보 없음'}</p>
+                )}
+              </div>
+                    )}
+          </div>
+
+                  {/* 식사 제공 */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                {isEditing ? (
+                  <input
+                          type="checkbox"
+                          checked={!!editData.meal?.provided}
+                          onChange={(e) => handleInputChange('meal', { ...(editData.meal || { provided: false, info: '' }), provided: e.target.checked })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                ) : (
+                        <input type="checkbox" checked={!!(job as any).meal?.provided} readOnly className="w-4 h-4 text-blue-600 border-gray-300 rounded" />
+                )}
+                      <span className="text-sm font-medium text-gray-700">식사 제공</span>
+              </div>
+                    {(isEditing ? editData.meal?.provided : (job as any).meal?.provided) && (
+              <div>
+                        <label className="block text-xs text-gray-500 mb-1">식사 정보</label>
+                {isEditing ? (
+                          <textarea
+                            value={editData.meal?.info || ''}
+                            onChange={(e) => handleInputChange('meal', { ...(editData.meal || { provided: false, info: '' }), info: e.target.value })}
+                            rows={2}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="제공 식사, 시간, 비용 등"
+                  />
+                ) : (
+                          <p className="text-gray-900 whitespace-pre-wrap">{(job as any).meal?.info || '정보 없음'}</p>
+                )}
+                      </div>
+                    )}
+                  </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
           {/* 근무 유형 */}
           {job.workTypes && job.workTypes.length > 0 && (
@@ -855,502 +1026,96 @@ const JobPostDetail: React.FC = () => {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {job.workTypes.map((workType) => (
-                  <div key={workType.id} className="border border-gray-200 rounded-lg p-4">
-                    <h3 className="font-medium text-gray-900 mb-2">{workType.name}</h3>
+                  <div 
+                    key={workType.id} 
+                    className="border border-gray-200 rounded-lg p-4 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                    onClick={() => handleWorkTypeClick(workType)}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-medium text-gray-900">{workType.name}</h3>
+                      <Clock className="h-4 w-4 text-blue-500" />
+                </div>
                     <div className="space-y-1 text-sm text-gray-600">
                       <p>시급: {workType.hourlyWage?.toLocaleString()}원</p>
                       <p>스케줄: {workType.schedules?.length || 0}개</p>
-                    </div>
+                      <p className="text-blue-600 text-xs mt-2">클릭하여 스케줄 확인</p>
+                  </div>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* 요구사항 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <List className="h-5 w-5 mr-2" />
-              요구사항
-            </h2>
-            <div className="space-y-4">
-              {isEditing ? (
-                <div className="space-y-2">
-                  {(editData.requirements || []).filter(req => req && req.trim() !== '').map((req, index) => (
-                    <div key={`edit-req-${index}-${req}`} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={req}
-                        onChange={(e) => {
-                          const newRequirements = [...(editData.requirements || [])];
-                          newRequirements[index] = e.target.value;
-                          handleInputChange('requirements', newRequirements);
-                        }}
-                        className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="요구사항을 입력하세요"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newRequirements = (editData.requirements || []).filter((_, i) => i !== index);
-                          handleInputChange('requirements', newRequirements);
-                        }}
-                        className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleInputChange('requirements', [...(editData.requirements || []), '']);
-                    }}
-                    className="text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg"
-                  >
-                    + 요구사항 추가
-                  </button>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {(job.requirements || []).filter(req => req && req.trim() !== '').length > 0 ? (
-                    (job.requirements || []).filter(req => req && req.trim() !== '').map((req, index) => (
-                      <p key={`req-${index}-${req}`} className="text-gray-900">• {req}</p>
-                    ))
-                  ) : (
-                    <p className="text-gray-500">요구사항 없음</p>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 복리후생 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <Home className="h-5 w-5 mr-2" />
-              복리후생
-            </h2>
-            <div className="space-y-4">
-              <div>
-                {isEditing ? (
-                  <div className="space-y-3">
-                    {editData.benefits?.map((benefit, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={benefit}
-                          onChange={(e) => {
-                            const newBenefits = [...(editData.benefits || [])];
-                            newBenefits[index] = e.target.value;
-                            handleInputChange('benefits', newBenefits);
-                          }}
-                          placeholder="복리후생을 입력하세요"
-                          className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newBenefits = editData.benefits?.filter((_, i) => i !== index) || [];
-                            handleInputChange('benefits', newBenefits);
-                          }}
-                          className="p-2 text-red-500 hover:text-red-700 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newBenefits = [...(editData.benefits || []), ''];
-                        handleInputChange('benefits', newBenefits);
-                      }}
-                      className="w-full p-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
-                    >
-                      + 복리후생 추가
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {job.benefits && job.benefits.length > 0 ? (
-                      job.benefits.filter(benefit => benefit && benefit.trim() !== '').map((benefit, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                          <span className="text-gray-900">{benefit}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-gray-500">등록된 복리후생이 없습니다.</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 메모 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <FileText className="h-5 w-5 mr-2" />
-              메모
-            </h2>
-            <div className="space-y-4">
-              <div>
-                {isEditing ? (
-                  <textarea
-                    value={editData.memo}
-                    onChange={(e) => handleInputChange('memo', e.target.value)}
-                    rows={4}
-                    placeholder="추가 메모를 입력하세요"
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                ) : (
-                  <p className="text-gray-900 whitespace-pre-wrap">{job.memo || '메모 없음'}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 연락처 정보 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <MessageSquare className="h-5 w-5 mr-2" />
-              연락처 정보
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
-                {isEditing ? (
-                  <input
-                    type="email"
-                    value={editData.contactInfo?.email}
-                    onChange={(e) => handleInputChange('contactInfo', {
-                      ...editData.contactInfo,
-                      email: e.target.value,
-                    })}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                ) : (
-                  <p className="text-gray-900">{job.contactInfo?.email || '없음'}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
-                {isEditing ? (
-                  <input
-                    type="tel"
-                    value={editData.contactInfo?.phone}
-                    onChange={(e) => handleInputChange('contactInfo', {
-                      ...editData.contactInfo,
-                      phone: e.target.value,
-                    })}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                ) : (
-                  <p className="text-gray-900">{job.contactInfo?.phone || '없음'}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 사이드바 */}
-        <div className="space-y-6">
-          {/* 지원 버튼 (구직자만) */}
-          {user?.role === 'jobseeker' && job && (
-            <div className="bg-white rounded-lg border p-4">
-              <h2 className="text-sm font-semibold mb-3 flex items-center">
-                <Send className="h-4 w-4 mr-2 text-green-600" />
-                지원하기
-              </h2>
-              
-              {hasApplied ? (
-                <div className="text-center py-4">
-                  <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                  <h3 className="text-sm font-semibold text-green-700 mb-1">이미 지원했습니다</h3>
-                  <Link
-                    to="/dashboard"
-                    className="text-xs text-blue-600 hover:text-blue-800 underline"
-                  >
-                    지원 현황 보기
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="bg-green-50 rounded-lg p-4 hidden">
-                    <h3 className="font-semibold text-green-800 mb-2">지원 전 확인사항</h3>
-                    <ul className="text-sm text-green-700 space-y-1">
-                      <li>• 이력서가 완성되어 있는지 확인해주세요</li>
-                      <li>• 지원 후에는 취소할 수 없습니다</li>
-                      <li>• 지원 현황은 대시보드에서 확인 가능합니다</li>
-                    </ul>
-                  </div>
-                  
-                  <Link
-                    to={`/apply/${id}`}
-                    className="w-full bg-green-600 text-white py-2 px-3 rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center justify-center gap-1"
-                  >
-                    <Send className="w-4 h-4" />
-                    지원하기
-                  </Link>
-                  
-                  <div className="text-center">
-                    <Link
-                      to="/profile"
-                      className="text-xs text-blue-600 hover:text-blue-800 underline"
-                    >
-                      이력서 수정
-                    </Link>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
           {/* 회사 정보 */}
           <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
               <Building className="h-5 w-5 mr-2" />
               회사 정보
             </h2>
+              {job?.employerId === user?.uid && isEditing && (
+                <Link
+                  to={`/company/${job.employerId}?mode=edit`}
+                  className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
+                >
+                  수정
+                </Link>
+              )}
+            </div>
             {loadingCompanyInfo ? (
               <div className="text-center py-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
                 <p className="text-sm text-gray-500">회사 정보 로딩 중...</p>
               </div>
             ) : companyInfo ? (
-              <div className="space-y-4">
-                {/* 기본 정보 */}
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <h3 className="font-semibold text-gray-900 mb-2">{companyInfo.name}</h3>
-                  <div className="grid grid-cols-1 gap-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">업종:</span>
-                      <span className="font-medium text-gray-900">{companyInfo.industry || '미등록'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">규모:</span>
-                      <span className="font-medium text-gray-900">{companyInfo.companySize || '미등록'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">설립년도:</span>
-                      <span className="font-medium text-gray-900">{companyInfo.foundedYear ? `${companyInfo.foundedYear}년` : '미등록'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">지역:</span>
-                      <span className="font-medium text-gray-900">{companyInfo.region || '미등록'}</span>
-                    </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사명</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.name || '미입력'}
                   </div>
                 </div>
 
-                {/* 연락처 */}
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <h4 className="text-sm font-semibold text-blue-700 mb-2">연락처</h4>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-blue-600">담당자:</span>
-                      <span className="font-medium text-blue-900">{companyInfo.contactPerson || '미등록'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-blue-600">이메일:</span>
-                      <span className="font-medium text-blue-900">{companyInfo.contactEmail || '미등록'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-blue-600">전화번호:</span>
-                      <span className="font-medium text-blue-900">{companyInfo.contactPhone || '미등록'}</span>
-                    </div>
-                    {companyInfo.website && (
-                      <div className="flex justify-between">
-                        <span className="text-blue-600">웹사이트:</span>
-                        <a href={companyInfo.website} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-900 hover:underline">
-                          {companyInfo.website}
-                        </a>
-                      </div>
-                    )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">업종</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.industry || '미입력'}
                   </div>
                 </div>
 
-                {/* 주소 */}
-                <div className="bg-green-50 rounded-lg p-3">
-                  <h4 className="text-sm font-semibold text-green-700 mb-2">주소</h4>
-                  <p className="text-sm font-medium text-green-900">{companyInfo.address || '미등록'}</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 규모</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.companySize || '미입력'}
                 </div>
-
-                {/* 회사 소개 */}
-                {companyInfo.description && (
-                  <div className="bg-purple-50 rounded-lg p-3">
-                    <h4 className="text-sm font-semibold text-purple-700 mb-2">회사 소개</h4>
-                    <p className="text-sm text-purple-900 leading-relaxed">{companyInfo.description}</p>
                   </div>
-                )}
 
-                {/* 회사 문화 */}
-                {companyInfo.culture && (
-                  <div className="bg-orange-50 rounded-lg p-3">
-                    <h4 className="text-sm font-semibold text-orange-700 mb-2">회사 문화</h4>
-                    <p className="text-sm text-orange-900 leading-relaxed">{companyInfo.culture}</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 주소</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.address || companyInfo.region || '미입력'}
                   </div>
-                )}
-
-                {/* 복리후생 */}
-                {companyInfo.benefits && companyInfo.benefits.length > 0 && (
-                  <div className="bg-indigo-50 rounded-lg p-3">
-                    <h4 className="text-sm font-semibold text-indigo-700 mb-2">복리후생</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {companyInfo.benefits.filter(benefit => benefit && benefit.trim() !== '').map((benefit, index) => (
-                        <span key={`benefit-${index}-${benefit}`} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-indigo-100 text-indigo-800 font-medium">
-                          {benefit}
-                        </span>
-                      ))}
                     </div>
-                  </div>
-                )}
 
-                {/* 근무 환경 */}
-                {(companyInfo.environment || companyInfo.workTimeType || companyInfo.salaryRange) && (
-                  <div className="bg-teal-50 rounded-lg p-3">
-                    <h4 className="text-sm font-semibold text-teal-700 mb-2">근무 환경</h4>
-                    <div className="space-y-1 text-sm">
-                      {companyInfo.environment && (
-                        <div className="flex justify-between">
-                          <span className="text-teal-600">환경:</span>
-                          <span className="font-medium text-teal-900">{companyInfo.environment}</span>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.contactPerson || '미입력'}
                         </div>
-                      )}
-                      {companyInfo.workTimeType && (
-                        <div className="flex justify-between">
-                          <span className="text-teal-600">근무타입:</span>
-                          <span className="font-medium text-teal-900">{companyInfo.workTimeType}</span>
                         </div>
-                      )}
-                      {companyInfo.salaryRange && (
-                        <div className="flex justify-between">
-                          <span className="text-teal-600">급여:</span>
-                          <span className="font-medium text-teal-900">{companyInfo.salaryRange}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
 
-                {/* 기숙사 정보 */}
-                {companyInfo.dormitory && (
-                  <div className="bg-pink-50 rounded-lg p-3">
-                    <h4 className="text-sm font-semibold text-pink-700 mb-2">기숙사 정보</h4>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-pink-600">기숙사 제공:</span>
-                        <span className="font-medium text-pink-900">{companyInfo.dormitory ? '제공' : '미제공'}</span>
-                      </div>
-                      {companyInfo.dormitoryFacilities && companyInfo.dormitoryFacilities.length > 0 && (
                         <div>
-                          <span className="text-pink-600">시설:</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {companyInfo.dormitoryFacilities.filter(facility => facility && facility.trim() !== '').map((facility, index) => (
-                              <span key={`facility-${index}-${facility}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-pink-100 text-pink-800">
-                                {facility}
-                              </span>
-                            ))}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">담당자 연락처</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.contactPhone || '미입력'}
                           </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                )}
 
-                {/* 회사 이미지 */}
-                <div className="bg-yellow-50 rounded-lg p-3">
-                  <h4 className="text-sm font-semibold text-yellow-700 mb-2">회사 이미지</h4>
-                   
-                  {isEditing ? (
-                    <div className="space-y-3">
-                      {/* 기존 이미지 표시 및 삭제 */}
-                      {companyImages.length > 0 && (
-                        <div className="grid grid-cols-2 gap-2">
-                          {companyImages.map((image, index) => (
-                            <div key={`edit-image-${index}`} className="relative aspect-square bg-white rounded overflow-hidden group">
-                              <img
-                                src={image}
-                                alt={`회사 이미지 ${index + 1}`}
-                                className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => handleImagePreview(image, `회사 이미지 ${index + 1}`)}
-                              />
-                              <button
-                                onClick={() => handleCompanyImageDelete(image, index)}
-                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
-                                title="이미지 삭제"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                                <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
-                                   클릭하여 크게 보기
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 이메일</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.contactEmail || '미입력'}
                                 </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                       
-                      {/* 이미지 업로드 */}
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={(e) => e.target.files && handleCompanyImageUpload(e.target.files)}
-                          className="hidden"
-                          id="company-image-upload"
-                          disabled={uploadingCompanyImages}
-                        />
-                        <label
-                          htmlFor="company-image-upload"
-                          className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-50"
-                        >
-                          {uploadingCompanyImages ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                               업로드 중...
-                            </>
-                          ) : (
-                            <>
-                              <Edit className="w-4 h-4" />
-                               이미지 추가
-                            </>
-                          )}
-                        </label>
-                        <span className="text-xs text-gray-500">
-                           최대 4개까지 업로드 가능
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                  /* 보기 모드 */
-                    companyImages.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        {companyImages.slice(0, 4).map((image, index) => (
-                          <div key={`view-image-${index}`} className="aspect-square bg-white rounded overflow-hidden group cursor-pointer">
-                            <img
-                              src={image}
-                              alt={`회사 이미지 ${index + 1}`}
-                              className="w-full h-full object-cover hover:opacity-80 transition-opacity"
-                              onClick={() => handleImagePreview(image, `회사 이미지 ${index + 1}`)}
-                            />
-                            {/* 임시로 hover 효과 비활성화 */}
-                            {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                               <div className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
-                                 클릭하여 크게 보기
-                               </div>
-                             </div> */}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">등록된 이미지가 없습니다.</p>
-                    )
-                  )}
                 </div>
               </div>
             ) : (
@@ -1359,182 +1124,147 @@ const JobPostDetail: React.FC = () => {
           </div>
 
           {/* 기숙사 정보 */}
-          <div className="bg-white rounded-lg border p-4">
-            <h2 className="text-sm font-semibold mb-3 flex items-center">
-              <Home className="h-4 w-4 mr-2" />
+          <div className="bg-white rounded-lg border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <Home className="h-5 w-5 mr-2" />
               기숙사 정보
             </h2>
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/accommodation-info/${job?.employerId}`}
+                  className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                >
+                  기숙사 상세
+                </Link>
+                {job?.employerId === user?.uid && isEditing && (
+                  <Link
+                    to={`/accommodation-info/${job.employerId}?mode=edit`}
+                    className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-md hover:bg-green-200"
+                  >
+                    수정
+                  </Link>
+                )}
+              </div>
+            </div>
             {loadingAccommodationInfo ? (
               <div className="text-center py-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500 mx-auto mb-2"></div>
                 <p className="text-xs text-gray-500">기숙사 정보 로딩 중...</p>
               </div>
             ) : accommodationInfo ? (
-              <div className="space-y-4">
+              <div className="space-y-6">
+                {/* 기본 정보 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-medium text-gray-900 mb-1">{accommodationInfo.name}</h3>
-                  <p className="text-sm text-gray-600">
-                    {accommodationInfo.type === 'dormitory' && '기숙사'}
-                    {accommodationInfo.type === 'apartment' && '아파트'}
-                    {accommodationInfo.type === 'house' && '단독주택'}
-                    {accommodationInfo.type === 'other' && '기타'}
-                  </p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">기숙사 주소</label>
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                      {accommodationInfo.address || '미입력'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                      {accommodationInfo.contactPerson || '미입력'}
+                    </div>
+                  </div>
                 </div>
                 
+                {/* 기숙사 설명 */}
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-1">주소</h4>
-                  <p className="text-sm text-gray-900">{accommodationInfo.address}</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">기숙사 설명</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 min-h-[60px]">
+                    {accommodationInfo.description || '미입력'}
+                  </div>
                 </div>
 
-                {accommodationInfo.distanceFromWorkplace && (
+                {/* 수용 인원 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-1">직장까지 거리</h4>
-                    <p className="text-sm text-gray-900">{accommodationInfo.distanceFromWorkplace}</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">총 수용 인원</label>
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                      {accommodationInfo.capacity || 0}명
                   </div>
-                )}
-                
-                {/* 객실 유형 및 요금 정보 */}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">현재 입주 인원</label>
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                      {accommodationInfo.currentOccupancy || 0}명
+                    </div>
+                  </div>
+                </div>
+
+                {/* 방 타입 및 가격 */}
                 {accommodationInfo.roomTypeOptions && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-1">객실 유형</h4>
-                    <div className="space-y-1">
-                      <p className="text-xs text-gray-600">
-                        요금 유형: {accommodationInfo.paymentType === 'free' ? '무료' : '유료'}
-                      </p>
-                      <div className="flex flex-wrap gap-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">방 타입 및 가격</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {accommodationInfo.roomTypeOptions.singleRoom && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                            1인실{accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.singleRoom ? ` (${accommodationInfo.roomPrices.singleRoom}천원)` : ''}
-                          </span>
+                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                          <div className="text-sm font-medium text-gray-700">1인실</div>
+                          <div className="text-gray-900">{accommodationInfo.roomPrices?.singleRoom || '가격 미정'}</div>
+                        </div>
                         )}
                         {accommodationInfo.roomTypeOptions.doubleRoom && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                            2인실{accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.doubleRoom ? ` (${accommodationInfo.roomPrices.doubleRoom}천원)` : ''}
-                          </span>
+                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                          <div className="text-sm font-medium text-gray-700">2인실</div>
+                          <div className="text-gray-900">{accommodationInfo.roomPrices?.doubleRoom || '가격 미정'}</div>
+                        </div>
                         )}
                         {accommodationInfo.roomTypeOptions.tripleRoom && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                            3인실{accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.tripleRoom ? ` (${accommodationInfo.roomPrices.tripleRoom}천원)` : ''}
-                          </span>
+                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                          <div className="text-sm font-medium text-gray-700">3인실</div>
+                          <div className="text-gray-900">{accommodationInfo.roomPrices?.tripleRoom || '가격 미정'}</div>
+                        </div>
                         )}
                         {accommodationInfo.roomTypeOptions.quadRoom && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                            4인실{accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.quadRoom ? ` (${accommodationInfo.roomPrices.quadRoom}천원)` : ''}
-                          </span>
+                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                          <div className="text-sm font-medium text-gray-700">4인실</div>
+                          <div className="text-gray-900">{accommodationInfo.roomPrices?.quadRoom || '가격 미정'}</div>
+                        </div>
                         )}
                         {accommodationInfo.roomTypeOptions.otherRoom && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                            기타{accommodationInfo.otherRoomType && ` (${accommodationInfo.otherRoomType})`}{accommodationInfo.paymentType === 'paid' && accommodationInfo.roomPrices?.otherRoom ? ` - ${accommodationInfo.roomPrices.otherRoom}천원` : ''}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                          <div className="text-sm font-medium text-gray-700">{accommodationInfo.otherRoomType || '기타'}</div>
+                          <div className="text-gray-900">{accommodationInfo.roomPrices?.otherRoom || '가격 미정'}</div>
                   </div>
-                )}
-
-                {/* 객실 시설 */}
-                {(accommodationInfo.wifi || accommodationInfo.tv || accommodationInfo.refrigerator || 
-                  accommodationInfo.airConditioning || accommodationInfo.laundry || accommodationInfo.kitchen || 
-                  accommodationInfo.parkingAvailable || accommodationInfo.petAllowed || accommodationInfo.smokingAllowed || 
-                  accommodationInfo.otherFacilities) && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-1">객실 시설</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {accommodationInfo.wifi && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">와이파이</span>
-                      )}
-                      {accommodationInfo.tv && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">TV</span>
-                      )}
-                      {accommodationInfo.refrigerator && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">냉장고</span>
-                      )}
-                      {accommodationInfo.airConditioning && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">에어컨</span>
-                      )}
-                      {accommodationInfo.laundry && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">세탁기</span>
-                      )}
-                      {accommodationInfo.kitchen && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">주방</span>
-                      )}
-                      {accommodationInfo.parkingAvailable && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">주차 가능</span>
-                      )}
-                      {accommodationInfo.petAllowed && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">반려동물 허용</span>
-                      )}
-                      {accommodationInfo.smokingAllowed && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">흡연 허용</span>
-                      )}
-                      {accommodationInfo.otherFacilities && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                                                     기타{accommodationInfo.otherFacilityText && ` (${accommodationInfo.otherFacilityText})`}
-                        </span>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* 부대 시설 */}
-                {accommodationInfo.facilityOptions && (
+                {/* 편의시설 */}
+                {(accommodationInfo as any)?.amenities && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-1">부대 시설</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {accommodationInfo.facilityOptions.parking && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">주차장</span>
-                      )}
-                      {accommodationInfo.facilityOptions.laundry && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">세탁실</span>
-                      )}
-                      {accommodationInfo.facilityOptions.kitchen && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">공용주방</span>
-                      )}
-                      {accommodationInfo.facilityOptions.gym && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">체육관</span>
-                      )}
-                      {accommodationInfo.facilityOptions.studyRoom && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">스터디룸</span>
-                      )}
-                      {accommodationInfo.facilityOptions.lounge && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">휴게실</span>
-                      )}
-                      {accommodationInfo.facilityOptions.wifi && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">와이파이</span>
-                      )}
-                      {accommodationInfo.facilityOptions.security && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">보안시설</span>
-                      )}
-                      {accommodationInfo.facilityOptions.elevator && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">엘리베이터</span>
-                      )}
-                      {accommodationInfo.facilityOptions.other && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
-                          기타{accommodationInfo.otherFacilityText && ` (${accommodationInfo.otherFacilityText})`}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 하위 호환성을 위한 기존 facilities 표시 */}
-                {(accommodationInfo.facilities && accommodationInfo.facilities.length > 0 && !accommodationInfo.facilityOptions) && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-1">시설</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {accommodationInfo.facilities.filter(facility => facility && facility.trim() !== '').slice(0, 5).map((facility, index) => (
-                        <span key={`acc-facility-${index}-${facility}`} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                          {facility}
+                    <label className="block text-sm font-medium text-gray-700 mb-2">편의시설</label>
+                    <div className="flex flex-wrap gap-2">
+                      {(accommodationInfo as any).amenities.map((amenity: string, index: number) => (
+                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-md">
+                          {amenity}
                         </span>
                       ))}
+                      {(accommodationInfo as any).otherAmenities && (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-sm rounded-md">
+                          {(accommodationInfo as any).otherAmenities}
+                        </span>
+                      )}
                     </div>
+                  </div>
+                )}
+
+                {/* 근린시설 */}
+                {(accommodationInfo as any).nearbyFacilities && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">근린시설</label>
+                    <p className="text-sm text-gray-900">{(accommodationInfo as any).nearbyFacilities}</p>
                   </div>
                 )}
                 
-                {accommodationInfo.description && (
+                {/* 규칙 */}
+                {accommodationInfo.rules && (
                   <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-1">기타</h4>
-                    <p className="text-sm text-gray-900 line-clamp-3">{accommodationInfo.description}</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">기숙사 규칙</label>
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap">{accommodationInfo.rules}</p>
                   </div>
                 )}
               </div>
@@ -1545,13 +1275,13 @@ const JobPostDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* 지원 확인 모달 */}
+      {/* 지원 정보 입력 모달 */}
       {showApplyModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center gap-3 mb-4">
               <Send className="w-6 h-6 text-green-600" />
-              <h3 className="text-lg font-semibold text-gray-900">지원하기</h3>
+              <h3 className="text-lg font-semibold text-gray-900">지원 정보 입력</h3>
             </div>
             
             <div className="space-y-6">
@@ -1561,7 +1291,7 @@ const JobPostDetail: React.FC = () => {
                 <div className="text-sm text-blue-700 space-y-1">
                   <div>• 지원자: {user?.displayName}</div>
                   <div>• 공고: {job?.title}</div>
-                  <div>• 회사: {job?.workplaceName}</div>
+                  <div>• 회사: {companyInfo?.name || job?.workplaceName || job?.employerName || '회사명 없음'}</div>
                   <div>• 위치: {job?.location}</div>
                 </div>
               </div>
@@ -1570,31 +1300,56 @@ const JobPostDetail: React.FC = () => {
               {job?.workTypes && job.workTypes.length > 0 && (
                 <div>
                   <h4 className="text-sm font-semibold text-gray-800 mb-3">근무 타입 선택 *</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-3">
+                    {/* 무관 옵션 */}
+                    <label className="flex items-start p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer bg-blue-50">
+                      <input
+                        type="checkbox"
+                        checked={selectedWorkTypes.includes('any')}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedWorkTypes(['any']);
+                          } else {
+                            setSelectedWorkTypes([]);
+                          }
+                        }}
+                        className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <div className="ml-3 flex-1">
+                        <div className="font-medium text-gray-900">무관 (어떤 근무타입이든 가능)</div>
+                        <div className="text-sm text-gray-600 mt-1">모든 근무타입에 지원 가능합니다</div>
+                      </div>
+                    </label>
+                    
+                    {/* 개별 근무타입 옵션들 */}
                     {job.workTypes.map((workType) => (
-                      <div
-                        key={workType.id}
-                        onClick={() => toggleWorkType(workType.id)}
-                        className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                          selectedWorkTypes.includes(workType.id)
-                            ? 'border-green-500 bg-green-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h5 className="font-medium text-gray-900">{workType.name}</h5>
-                            <p className="text-sm text-gray-600">{workType.description}</p>
-                          </div>
-                          {selectedWorkTypes.includes(workType.id) && (
-                            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
+                      <label key={workType.id} className="flex items-start p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedWorkTypes.includes(workType.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedWorkTypes(prev => 
+                                prev.includes('any') 
+                                  ? [workType.id]
+                                  : [...prev, workType.id]
+                              );
+                            } else {
+                              setSelectedWorkTypes(prev => prev.filter(id => id !== workType.id));
+                            }
+                          }}
+                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <div className="ml-3 flex-1">
+                          <div className="font-medium text-gray-900">{workType.name}</div>
+                          <div className="text-sm text-gray-600 mt-1">{workType.description}</div>
+                          {workType.hourlyWage && (
+                            <div className="text-sm text-blue-600 mt-1">
+                              시급: {workType.hourlyWage.toLocaleString()}원
                             </div>
                           )}
                         </div>
-                      </div>
+                      </label>
                     ))}
                   </div>
                   {selectedWorkTypes.length === 0 && (
@@ -1603,45 +1358,37 @@ const JobPostDetail: React.FC = () => {
                 </div>
               )}
 
-              {/* 추가 메시지 */}
+              {/* 지원 동기 */}
               <div>
-                <h4 className="text-sm font-semibold text-gray-800 mb-2">추가 메시지 (선택사항)</h4>
+                <h4 className="text-sm font-semibold text-gray-800 mb-2">지원 동기 (선택사항)</h4>
                 <textarea
                   value={applyMessage}
                   onChange={(e) => setApplyMessage(e.target.value)}
-                  placeholder="지원 동기나 특별히 전달하고 싶은 내용이 있다면 작성해주세요..."
+                  placeholder="이 공고에 지원하는 이유나 관련 경험을 간단히 작성해주세요."
                   className="w-full h-24 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
-
-              {/* 지원 전 확인사항 */}
-              <div className="bg-yellow-50 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-yellow-800 mb-2">지원 전 확인사항</h4>
-                <ul className="text-sm text-yellow-700 space-y-1">
-                  <li>• 이력서가 완성되어 있는지 확인해주세요</li>
-                  <li>• 지원 후에는 취소할 수 없습니다</li>
-                  <li>• 지원 현황은 대시보드에서 확인 가능합니다</li>
-                </ul>
               </div>
-            </div>
-            
+
             <div className="flex gap-3 mt-6">
               <button
-                onClick={handleApply}
-                disabled={applying || (job?.workTypes && job.workTypes.length > 0 && selectedWorkTypes.length === 0)}
+                onClick={() => {
+                  if (selectedWorkTypes.length === 0) {
+                    alert('근무 타입을 하나 이상 선택해주세요.');
+                    return;
+                  }
+                  setApplication({
+                    coverLetter: applyMessage,
+                    selectedWorkTypeIds: selectedWorkTypes,
+                  });
+                  setShowApplyModal(false);
+                  setShowApplicationPreview(true);
+                }}
+                disabled={selectedWorkTypes.length === 0}
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {applying ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    지원 중...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    지원하기
-                  </>
-                )}
+                <Eye className="w-4 h-4" />
+                지원서 미리보기
               </button>
               <button
                 onClick={() => {
@@ -1649,8 +1396,7 @@ const JobPostDetail: React.FC = () => {
                   setSelectedWorkTypes([]);
                   setApplyMessage('');
                 }}
-                disabled={applying}
-                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
               >
                 취소
               </button>
@@ -1659,9 +1405,262 @@ const JobPostDetail: React.FC = () => {
         </div>
       )}
 
-      {/* 지원 확인 모달 - 임시 비활성화 */}
+      {/* 이력서 확인 모달 */}
+      {showResumeConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center gap-3 mb-4">
+              <FileText className="w-6 h-6 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-900">이력서 확인</h3>
+            </div>
+            
+            <div className="space-y-6">
+              {/* 지원 정보 요약 */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-blue-800 mb-2">지원 정보</h4>
+                <div className="text-sm text-blue-700 space-y-1">
+                  <div>• 지원자: {user?.displayName}</div>
+                  <div>• 공고: {job?.title}</div>
+                  <div>• 회사: {companyInfo?.name || job?.workplaceName || job?.employerName || '회사명 없음'}</div>
+                  <div>• 위치: {job?.location}</div>
+                </div>
+              </div>
 
+              {/* 이력서 정보 */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-800 mb-3">내 이력서 정보</h4>
+                {user?.resume ? (
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                    {/* 기본 정보 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">이름</label>
+                        <div className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">
+                          {user?.displayName || '미입력'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">이메일</label>
+                        <div className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">
+                          {user?.email || '미입력'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">전화번호</label>
+                        <div className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">
+                          {user?.resume?.phone || '미입력'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">생년월일</label>
+                        <div className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">
+                          {user?.resume?.birth || '미입력'}
+                        </div>
+                      </div>
+                    </div>
 
+                    {/* 직무 정보 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">희망 직무</label>
+                        <div className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">
+                          {user?.resume?.jobType ? 
+                            (Array.isArray(user.resume.jobType) ? 
+                              user.resume.jobType.join(', ') : 
+                              user.resume.jobType
+                            ) : 
+                            '미입력'
+                          }
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">희망 시급</label>
+                        <div className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">
+                          {user?.resume?.hourlyWage 
+                            ? `${user?.resume?.hourlyWage?.toLocaleString?.()}원/시간` 
+                            : '미입력'
+                          }
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 경험 정보 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">관련 경험</label>
+                      <div className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">
+                        {user?.resume?.customerServiceExp && <span className="mr-2">• 고객 응대 경험</span>}
+                        {user?.resume?.restaurantExp && <span>• 음식점/호텔 경험</span>}
+                        {!user?.resume?.customerServiceExp && !user?.resume?.restaurantExp && 
+                          <span className="text-red-500">미입력</span>
+                        }
+                      </div>
+                    </div>
+
+                    {/* 언어 능력 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">언어 능력</label>
+                      <div className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">
+                        {user?.resume?.languages && user.resume.languages.length > 0 ? 
+                          user.resume.languages.join(', ')
+                          : '미입력'
+                        }
+                      </div>
+                    </div>
+
+                    {/* 자기소개 */}
+                    {user?.resume?.intro && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">자기소개</label>
+                        <div className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm whitespace-pre-wrap">
+                          {user?.resume?.intro}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-red-50 rounded-lg p-4 text-center">
+                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FileText className="w-6 h-6 text-red-600" />
+                    </div>
+                    <h5 className="text-sm font-semibold text-red-800 mb-2">이력서가 없습니다</h5>
+                    <p className="text-sm text-red-600 mb-3">지원하기 전에 이력서를 먼저 작성해주세요</p>
+                    <Link
+                      to="/profile"
+                      className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm"
+                    >
+                      이력서 작성하기
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* 확인사항 */}
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-yellow-800 mb-2">지원 전 확인사항</h4>
+                <ul className="text-sm text-yellow-700 space-y-1">
+                  <li>• 위 이력서 정보가 정확한지 확인해주세요</li>
+                  <li>• 지원 후에는 취소할 수 없습니다</li>
+                  <li>• 지원 현황은 대시보드에서 확인 가능합니다</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              {user?.resume ? (
+              <button
+                  onClick={() => {
+                    setShowResumeConfirmModal(false);
+                    setShowApplyModal(true);
+                  }}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                >
+                    <Send className="w-4 h-4" />
+                  지원 계속하기
+              </button>
+              ) : (
+              <button
+                  disabled
+                  className="flex-1 px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed"
+                >
+                  이력서 작성 후 지원 가능
+                </button>
+              )}
+              <button
+                onClick={() => setShowResumeConfirmModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 지원서 미리보기 모달 */}
+      {showApplicationPreview && job && user?.resume && (
+        <ApplicationPreview
+          jobPost={job}
+          resume={user.resume}
+          application={application}
+          user={user}
+          onConfirm={handleApply}
+          onCancel={() => {
+            setShowApplicationPreview(false);
+                  setSelectedWorkTypes([]);
+                  setApplyMessage('');
+                }}
+          onEdit={() => {
+            setShowApplicationPreview(false);
+            setShowApplyModal(true);
+          }}
+          isSubmitting={applying}
+        />
+      )}
+
+      {/* 스케줄 그리드 모달 */}
+      {showScheduleModal && selectedWorkType && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Clock className="w-6 h-6 text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {selectedWorkType.name} - 근무 스케줄
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">시급:</span>
+                  <span className="ml-2 text-blue-600 font-semibold">
+                    {selectedWorkType.hourlyWage?.toLocaleString()}원
+                  </span>
+          </div>
+                <div>
+                  <span className="font-medium text-gray-700">스케줄 수:</span>
+                  <span className="ml-2 text-blue-600 font-semibold">
+                    {selectedWorkType.schedules?.length || 0}개
+                  </span>
+                </div>
+                {selectedWorkType.description && (
+                  <div className="md:col-span-2">
+                    <span className="font-medium text-gray-700">설명:</span>
+                    <span className="ml-2 text-gray-600">{selectedWorkType.description}</span>
+        </div>
+      )}
+              </div>
+            </div>
+
+            <UnifiedScheduleGrid
+              selectedTimeSlots={selectedWorkType.schedules || []}
+              mode="view"
+              title={`${selectedWorkType.name} 근무 스케줄`}
+              description="선택된 근무 시간대를 확인하세요"
+              showStatistics={true}
+              showActions={false}
+              readOnly={true}
+              employerView={true}
+            />
+            
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 이미지 미리보기 모달 */}
       <ImagePreviewModal

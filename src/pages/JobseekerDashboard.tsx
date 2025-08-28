@@ -160,10 +160,76 @@ const JobseekerDashboard: React.FC = () => {
         // 5. 추천 일자리 계산 (지원하지 않은 활성 공고만)
         const availableJobs = jobPostsData.filter(job => !appliedJobIds.includes(job.id));
         
-        const recommended = availableJobs.map(job => ({
-          ...job,
-          recommendationScore: Math.floor(Math.random() * 100) + 1,
-        })).sort((a, b) => (b.recommendationScore || 0) - (a.recommendationScore || 0));
+        const recommended = availableJobs.map(job => {
+          let score = 0;
+          
+          // 1. 새로 등록된 공고 우선순위 (최근 7일 내 등록)
+          const jobDate = job.createdAt?.toDate?.() || new Date();
+          const daysSincePosted = Math.floor((new Date().getTime() - jobDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysSincePosted <= 7) {
+            score += 30; // 새 공고 보너스
+          } else if (daysSincePosted <= 14) {
+            score += 15; // 2주 내 공고 보너스
+          }
+          
+          // 2. 이력서 기반 매칭 (사용자 이력서가 있는 경우)
+          if (user?.resume) {
+            const resume = user.resume;
+            
+            // 급여 매칭
+            if (resume.hourlyWage && job.salary) {
+              const wageDiff = Math.abs(resume.hourlyWage - job.salary.min);
+              if (wageDiff <= 1000) score += 20;
+              else if (wageDiff <= 2000) score += 10;
+              else if (wageDiff <= 5000) score += 5;
+            }
+            
+            // 직무 매칭
+            if (resume.jobType && job.jobTitle) {
+              const jobTypes = Array.isArray(resume.jobType) ? resume.jobType : [resume.jobType];
+              const jobTitleLower = job.jobTitle.toLowerCase();
+              const hasMatchingJobType = jobTypes.some(type => 
+                jobTitleLower.includes(type.toLowerCase()) || 
+                type.toLowerCase().includes(jobTitleLower)
+              );
+              if (hasMatchingJobType) score += 25;
+            }
+            
+            // 경험 매칭
+            if (resume.customerServiceExp && job.description?.toLowerCase().includes('고객')) {
+              score += 15;
+            }
+            if (resume.restaurantExp && job.description?.toLowerCase().includes('음식')) {
+              score += 15;
+            }
+            
+            // 언어 능력 매칭
+            if (resume.languages && resume.languages.length > 0) {
+              const jobDescLower = job.description?.toLowerCase() || '';
+              const hasLanguageRequirement = resume.languages.some(lang => 
+                jobDescLower.includes(lang.toLowerCase())
+              );
+              if (hasLanguageRequirement) score += 10;
+            }
+          }
+          
+          // 3. 위치 기반 매칭 (간단한 지역 매칭)
+          if (user?.resume?.address && job.location) {
+            const userAddress = user.resume.address.toLowerCase();
+            const jobLocation = job.location.toLowerCase();
+            if (userAddress.includes(jobLocation) || jobLocation.includes(userAddress)) {
+              score += 20;
+            }
+          }
+          
+          // 4. 기본 점수 (모든 공고에 기본 점수)
+          score += 10;
+          
+          return {
+            ...job,
+            recommendationScore: Math.min(score, 100), // 최대 100점
+          };
+        }).sort((a, b) => (b.recommendationScore || 0) - (a.recommendationScore || 0));
         
         setRecommendedJobs(recommended);
 
@@ -601,7 +667,7 @@ const JobseekerDashboard: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1 text-xs text-gray-600">
                     <Target className="w-3 h-3" />
-                    <span>선호도 기반 추천</span>
+                    <span>이력서 기반 맞춤 추천</span>
                   </div>
                   <div className="flex-1"></div>
                   <button

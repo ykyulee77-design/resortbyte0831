@@ -247,7 +247,7 @@ const Applications: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg_WHITE rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
               <CheckCircle className="h-6 w-6 text-green-600" />
@@ -281,7 +281,7 @@ const Applications: React.FC = () => {
               <XCircle className="h-6 w-6 text-red-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">거절됨</p>
+              <p className="text-sm font-medium text_GRAY-600">거절됨</p>
               <p className="text-2xl font-bold text-gray-900">
                 {applications.filter(app => app.status === 'rejected').length}
               </p>
@@ -291,7 +291,7 @@ const Applications: React.FC = () => {
       </div>
 
       {/* 필터 */}
-      <div className="bg-white rounded-lg shadow p-6 mb-8">
+      <div className="bg_WHITE rounded-lg shadow p-6 mb-8">
         <div className="flex items-center space-x-4">
           <label className="text-sm font-medium text-gray-700">상태별 필터:</label>
           <select
@@ -333,7 +333,7 @@ const Applications: React.FC = () => {
       </div>
 
       {/* 지원자 목록 */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg_WHITE shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">지원자 목록</h3>
         </div>
@@ -354,7 +354,7 @@ const Applications: React.FC = () => {
                 <Link
                   key={application.id}
                   to={`/application-detail/${application.id}`}
-                  className="block hover:bg-gray-50 transition-colors"
+                  className="block hover:bg_GRAY-50 transition-colors"
                 >
                   <div className="px-6 py-4">
                     <div className="flex items-center justify-between">
@@ -405,7 +405,7 @@ const Applications: React.FC = () => {
                               e.stopPropagation();
                               handleStatusChange(application.id, option.value);
                             }}
-                            className={`inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white ${option.color}`}
+                            className={`inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text_WHITE ${option.color}`}
                           >
                             {option.value === 'rejected' ? (
                               <XCircle className="h-4 w-4 mr-1" />

@@ -16,6 +16,10 @@ const ReviewForm: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // 검색 상태
+  const [queryText, setQueryText] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
   useEffect(() => {
     const fetchResorts = async () => {
       // 회사 정보에서 id(문서ID)와 name 추출
@@ -27,6 +31,10 @@ const ReviewForm: React.FC = () => {
     };
     fetchResorts();
   }, []);
+
+  const filtered = queryText.trim() === ''
+    ? resorts.slice(0, 10)
+    : resorts.filter(r => r.name.toLowerCase().includes(queryText.toLowerCase())).slice(0, 10);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +62,7 @@ const ReviewForm: React.FC = () => {
         date: serverTimestamp(),
       });
       alert('후기가 등록되었습니다!');
-      setResort(''); setOverallRating(0); setAccommodationRating(0); setContent('');
+      setResort(''); setOverallRating(0); setAccommodationRating(0); setContent(''); setQueryText('');
       navigate('/reviews');
     } catch (err) {
       alert('후기 등록 중 오류가 발생했습니다.');
@@ -80,13 +88,38 @@ const ReviewForm: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded-lg shadow">
           <div>
             <label className="block text-sm font-medium mb-1">리조트 선택</label>
-            <select value={resort} onChange={e => setResort(e.target.value)} className="w-full border rounded px-3 py-2">
-              <option value="">리조트 선택</option>
-              {resorts.length === 0 && <option disabled>등록된 리조트가 없습니다</option>}
-              {resorts.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
-            </select>
+            {/* 검색형 선택 입력 */}
+            <div className="relative">
+              <input
+                type="text"
+                value={queryText}
+                onChange={(e) => { setQueryText(e.target.value); setIsOpen(true); }}
+                onFocus={() => setIsOpen(true)}
+                placeholder="회사명을 검색하세요"
+                className="w-full border rounded px-3 py-2"
+              />
+              {/* 선택된 resort 표시 */}
+              {resort && (
+                <div className="mt-1 text-xs text-gray-500">선택됨: {resorts.find(r => r.id === resort)?.name || resort}</div>
+              )}
+              {isOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-white border rounded shadow max-h-56 overflow-auto">
+                  {filtered.length === 0 && (
+                    <div className="px-3 py-2 text-sm text-gray-500">검색 결과가 없습니다</div>
+                  )}
+                  {filtered.map(r => (
+                    <button
+                      type="button"
+                      key={r.id}
+                      onClick={() => { setResort(r.id); setQueryText(r.name); setIsOpen(false); }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${resort === r.id ? 'bg-gray-50' : ''}`}
+                    >
+                      {r.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">전체 별점</label>

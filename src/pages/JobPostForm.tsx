@@ -2,18 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { collection, addDoc, updateDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { uploadMultipleImages, validateImageFile } from '../utils/imageUpload';
+
 import { JobPost, WorkType, TimeSlot } from '../types';
 
 import LoadingSpinner from '../components/LoadingSpinner';
 
 import WorkTypeEditModal from '../components/WorkTypeEditModal';
 import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
-import ImageDetailModal from '../components/ImageDetailModal';
+
 
 import { useAuth } from '../contexts/AuthContext';
 import { workTypeService } from '../utils/scheduleMatchingService';
-import { Clock, Trash2, Maximize2, Building, FileText, Users, Home, Save, CheckCircle } from 'lucide-react';
+import { Clock, Trash2, Maximize2, Building, FileText, Home, Save, CheckCircle } from 'lucide-react';
 
 interface JobPostFormData {
   title: string;
@@ -42,20 +42,12 @@ interface JobPostFormData {
     max: number;
     type: 'hourly' | 'daily' | 'monthly';
   };
-  requirements: string[];
-  benefits: string[];
   scheduleType: 'traditional' | 'flexible' | 'smart_matching';
   workTypes: WorkType[];
-  workTimeType: '기타(추후 협의)' | '기본형' | '설정형';
+  workTimeType: '추후 협의' | '기본형' | '설정형';
   workTimeText: string; // 기본형일 때 사용할 텍스트
-  images: File[];
-  contactInfo: {
-    email: string;
-    phone: string;
-  };
   accommodation: { provided: false, info: '' };
   meal: { provided: false, info: '' };
-  employeeBenefits: string;
 }
 
 // 총 근무시간 계산 함수
@@ -90,8 +82,7 @@ const JobPostForm: React.FC = () => {
 
   const [selectedWorkTypeForDetail, setSelectedWorkTypeForDetail] = useState<WorkType | null>(null);
   const [showWorkTypeDetailModal, setShowWorkTypeDetailModal] = useState(false);
-  const [selectedImageForDetail, setSelectedImageForDetail] = useState<File | null>(null);
-  const [showImageDetailModal, setShowImageDetailModal] = useState(false);
+
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [accommodationInfo, setAccommodationInfo] = useState<any>(null);
   const [loadingCompanyInfo, setLoadingCompanyInfo] = useState(false);
@@ -122,24 +113,17 @@ const JobPostForm: React.FC = () => {
       endDate: '',
     },
     salary: {
-      min: 0,
+      min: 10000,
       max: 0,
       type: 'hourly',
     },
-    requirements: [''],
-    benefits: [''],
+    
     scheduleType: 'smart_matching',
     workTypes: [],
-    workTimeType: '기타(추후 협의)',
+    workTimeType: '추후 협의',
     workTimeText: '',
-    images: [],
-    contactInfo: {
-      email: '',
-      phone: '',
-    },
     accommodation: { provided: false, info: '' },
     meal: { provided: false, info: '' },
-    employeeBenefits: '',
   });
 
   useEffect(() => {
@@ -158,11 +142,7 @@ const JobPostForm: React.FC = () => {
 
 
 
-  useEffect(() => {
-    if (companyInfo || accommodationInfo) {
-      loadExistingInfo();
-    }
-  }, [companyInfo, accommodationInfo]);
+
 
 
 
@@ -224,18 +204,7 @@ const JobPostForm: React.FC = () => {
     }
   };
 
-  const loadExistingInfo = () => {
-    if (accommodationInfo) {
-      // 기숙사정보를 폼에 자동으로 채우기
-      setFormData(prev => ({
-        ...prev,
-        accommodation: {
-          provided: accommodationInfo.isAvailable || false,
-          info: accommodationInfo.description || accommodationInfo.name || '',
-        },
-      }));
-    }
-  };
+
 
   const selectWorkType = (workType: WorkType) => {
     console.log('선택된 근무 유형:', workType);
@@ -320,10 +289,7 @@ const JobPostForm: React.FC = () => {
   //   setShowWorkTypeDetailModal(true);
   // };
 
-  const handleImageClick = (image: File) => {
-    setSelectedImageForDetail(image);
-    setShowImageDetailModal(true);
-  };
+
 
   const loadJobPost = async () => {
     if (!id) return;
@@ -354,17 +320,13 @@ const JobPostForm: React.FC = () => {
             endDate: data.endDate ? new Date(data.endDate.seconds * 1000).toISOString().split('T')[0] : '',
           },
           salary: data.salary,
-          requirements: data.requirements || [''],
-          benefits: data.benefits || [''],
+          
           scheduleType: data.scheduleType || 'traditional',
           workTypes: data.workTypes || [],
-          workTimeType: data.workTimeType === '주간 근무타입' || data.workTimeType === '야간 근무타입' || data.workTimeType === '주말근무타입' || data.workTimeType === '주중근무타입' ? '설정형' : (data.workTimeType === '무관' || data.workTimeType === '무관-추후협의' ? '기타(추후 협의)' : (data.workTimeType || '기타(추후 협의)')),
+          workTimeType: data.workTimeType === '주간 근무타입' || data.workTimeType === '야간 근무타입' || data.workTimeType === '주말근무타입' || data.workTimeType === '주중근무타입' ? '설정형' : (data.workTimeType === '무관' || data.workTimeType === '무관-추후협의' ? '추후 협의' : (data.workTimeType || '추후 협의')),
           workTimeText: (data as any).workTimeText || '',
-          images: [],
-          contactInfo: (data as any).contactInfo || { email: '', phone: '' },
           accommodation: (data as any).accommodation || { provided: false, info: '' },
           meal: (data as any).meal || { provided: false, info: '' },
-          employeeBenefits: (data as any).employeeBenefits || '',
         });
       }
     } catch (error) {
@@ -391,64 +353,8 @@ const JobPostForm: React.FC = () => {
     }));
   };
 
-  const handleArrayChange = (field: 'requirements' | 'benefits', index: number, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: prev[field].map((item, i) => i === index ? value : item),
-    }));
-  };
+  
 
-  const addArrayItem = (field: 'requirements' | 'benefits') => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: [...prev[field], ''],
-    }));
-  };
-
-  const removeArrayItem = (field: 'requirements' | 'benefits', index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: prev[field].filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setFormData(prev => ({
-      ...prev,
-      images: [...prev.images, ...files],
-    }));
-  };
-
-  const uploadImages = async (images: File[]): Promise<string[]> => {
-    console.log('이미지 업로드 시작:', images.length, '개 파일');
-    
-    // 파일 검증
-    for (const image of images) {
-      const validation = validateImageFile(image);
-      if (!validation.valid) {
-        throw new Error(validation.error);
-      }
-    }
-    
-    // 이미지 업로드
-    const results = await uploadMultipleImages(images, {
-      folder: 'job-posts',
-      metadata: {
-        uploadedBy: user?.uid,
-        uploadType: 'job-post',
-      },
-    });
-    
-    // 성공한 업로드만 URL 반환
-    const urls = results
-      .filter(result => result.success)
-      .map(result => result.url!)
-      .filter(Boolean);
-    
-    console.log('업로드 완료:', urls.length, '개 성공');
-    return urls;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -477,9 +383,6 @@ const JobPostForm: React.FC = () => {
     setSaving(true);
 
     try {
-      console.log('이미지 업로드 시작...');
-      const imageUrls = await uploadImages(formData.images);
-      console.log('이미지 업로드 완료:', imageUrls);
       
       const jobPostData = {
         title: formData.title.trim(),
@@ -488,17 +391,13 @@ const JobPostForm: React.FC = () => {
         companyInfo: companyInfo || formData.companyInfo, // 기존 회사 정보 사용
         workPeriod: formData.workPeriod,
         salary: formData.salary,
-        requirements: formData.requirements.filter(req => req.trim() !== ''),
-        benefits: formData.benefits.filter(benefit => benefit.trim() !== ''),
+        
         scheduleType: formData.scheduleType,
         workTypes: formData.workTypes,
         workTimeType: formData.workTimeType,
         workTimeText: formData.workTimeText,
-        images: imageUrls,
-        contactInfo: formData.contactInfo,
         accommodation: formData.accommodation,
         meal: formData.meal,
-        employeeBenefits: formData.employeeBenefits,
         employerId: user?.uid, // 고용주 ID 추가
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -565,114 +464,14 @@ const JobPostForm: React.FC = () => {
           {/* 폼 제출 버튼 (숨김) */}
           <button type="submit" style={{ display: 'none' }} />
           
-          {/* 회사 정보 (고정값) */}
-          <div className="bg-white rounded-lg border p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold flex items-center">
-                <Building className="h-5 w-5 mr-2" />
-                회사 정보
-              </h2>
-              <div className="flex items-center gap-2">
-                <Link
-                  to={`/company/${user?.uid}?edit=true`}
-                  className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
-                >
-                  회사 정보 수정
-                </Link>
-                {(loadingCompanyInfo) && (
-                  <span className="text-sm text-gray-500">정보 로딩 중...</span>
-                )}
-              </div>
-            </div>
-            
-            {companyInfo ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">회사명</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
-                    {companyInfo.name || '미입력'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">업종</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
-                    {companyInfo.industry || '미입력'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 규모</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
-                    {companyInfo.companySize || '미입력'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 주소</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
-                    {companyInfo.address || companyInfo.region || '미입력'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
-                    {companyInfo.contactPerson || '미입력'}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 연락처</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
-                    {companyInfo.contactPhone || '미입력'}
-                  </div>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 이메일</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
-                    {companyInfo.contactEmail || '미입력'}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                <Building className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                <p className="text-gray-500 mb-2">회사 정보가 등록되지 않았습니다</p>
-                <Link
-                  to={`/company/${user?.uid}?edit=true`}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                >
-                  회사 정보 등록하기
-                </Link>
-              </div>
-            )}
-          </div>
-
-
-
-          {/* 구인공고 정보 */}
-          <div className="bg-white rounded-lg border p-6">
+          {/* 구인공고 정보 - 최상단으로 이동 */}
+          <div className="bg-blue-50 rounded-lg border-2 border-blue-300 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold flex items-center">
                 <FileText className="h-5 w-5 mr-2" />
                 구인공고 정보
               </h2>
-              <div className="flex items-center gap-2">
-                {accommodationInfo && (
-                  <button
-                    type="button"
-                    onClick={loadExistingInfo}
-                    className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-md hover:bg-green-200"
-                  >
-                    기숙사 정보 불러오기
-                  </button>
-                )}
-                {loadingAccommodationInfo && (
-                  <span className="text-sm text-gray-500">정보 로딩 중...</span>
-                )}
-              </div>
+              <span className="px-2 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">입력</span>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -699,8 +498,6 @@ const JobPostForm: React.FC = () => {
                   required
                 />
               </div>
-
-
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">근무기간</label>
@@ -739,9 +536,8 @@ const JobPostForm: React.FC = () => {
                   onChange={(e) => handleInputChange('workTimeType', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="기본형">기본형</option>
                   <option value="설정형">설정형</option>
-                  <option value="기타(추후 협의)">기타(추후 협의)</option>
+                  <option value="추후 협의">추후 협의</option>
                 </select>
               </div>
 
@@ -767,6 +563,8 @@ const JobPostForm: React.FC = () => {
                     onChange={(e) => handleSalaryChange('min', Number(e.target.value))}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="최소"
+                    min={10000}
+                    step={1000}
                   />
                   <input
                     type="number"
@@ -774,6 +572,8 @@ const JobPostForm: React.FC = () => {
                     onChange={(e) => handleSalaryChange('max', Number(e.target.value))}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="최대"
+                    min={10000}
+                    step={1000}
                   />
                   <select
                     value={formData.salary.type}
@@ -797,16 +597,96 @@ const JobPostForm: React.FC = () => {
                   placeholder="담당 업무, 근무 환경, 필요한 자격 등을 상세히 설명해주세요"
                 />
               </div>
+
+              {/* 숙식 제공 */}
+              <div className="md:col-span-2">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                  <Home className="h-4 w-4 mr-2" />
+                  숙식 제공
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* 기숙사 제공 */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="accommodation"
+                        checked={formData.accommodation.provided}
+                        onChange={(e) => handleInputChange('accommodation', {
+                          ...formData.accommodation,
+                          provided: e.target.checked,
+                        })}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor="accommodation" className="text-sm font-medium text-gray-700">
+                        기숙사 제공
+                      </label>
             </div>
+                    
+                    {formData.accommodation.provided && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          기숙사 정보
+                        </label>
+                        <textarea
+                          value={formData.accommodation.info}
+                          onChange={(e) => handleInputChange('accommodation', {
+                            ...formData.accommodation,
+                            info: e.target.value,
+                          })}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="기숙사 위치, 시설, 비용 등을 입력하세요"
+                        />
+                      </div>
+                    )}
           </div>
 
-
-
-
-
-          {/* 근무시간 유형 섹션 */}
+                  {/* 식사 제공 */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="meal"
+                        checked={formData.meal.provided}
+                        onChange={(e) => handleInputChange('meal', {
+                          ...formData.meal,
+                          provided: e.target.checked,
+                        })}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label htmlFor="meal" className="text-sm font-medium text-gray-700">
+                        식사 제공
+                      </label>
+                    </div>
+                    
+                    {formData.meal.provided && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          식사 정보
+                        </label>
+                        <textarea
+                          value={formData.meal.info}
+                          onChange={(e) => handleInputChange('meal', {
+                            ...formData.meal,
+                            info: e.target.value,
+                          })}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="식사 종류, 시간, 비용 등을 입력하세요"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* 근무시간 유형 섹션 (설정형 선택 시 표시) */}
           {formData.workTimeType === '설정형' && (
-            <div className="bg-white rounded-lg border p-6">
+            <div className="bg-blue-50 rounded-lg border-2 border-blue-300 p-6">
               <div className="mb-4">
                 <h2 className="text-xl font-semibold flex items-center">
                   <Clock className="h-5 w-5 mr-2" />
@@ -829,7 +709,6 @@ const JobPostForm: React.FC = () => {
                       value={workTypeFormData.name}
                       onChange={(e) => {
                         setWorkTypeFormData(prev => ({ ...prev, name: e.target.value }));
-                        // 입력이 있으면 에러 메시지 제거
                         if (workTypeErrors.name && e.target.value.trim()) {
                           setWorkTypeErrors(prev => ({
                             ...prev,
@@ -870,8 +749,9 @@ const JobPostForm: React.FC = () => {
                     value={workTypeFormData.hourlyWage}
                     onChange={(e) => setWorkTypeFormData(prev => ({ ...prev, hourlyWage: Number(e.target.value) }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0"
-                    min="0"
+                    placeholder="10000"
+                    min={10000}
+                    step={1000}
                   />
                 </div>
 
@@ -881,13 +761,11 @@ const JobPostForm: React.FC = () => {
                     근무 스케줄 *
                   </label>
                   <div className="flex gap-4">
-                    {/* 스케줄 그리드 (폭 절반) */}
                     <div className="w-1/2">
                       <UnifiedScheduleGrid
                         selectedTimeSlots={schedules}
                         onChange={(newSchedules) => {
                           setSchedules(newSchedules);
-                          // 스케줄이 변경되면 해당 에러 메시지 제거
                           if (workTypeErrors.schedules && newSchedules.length > 0) {
                             setWorkTypeErrors(prev => ({
                               ...prev,
@@ -898,8 +776,6 @@ const JobPostForm: React.FC = () => {
                         mode="create"
                         showActions={false}
                       />
-                      
-                      {/* 현재 설정된 스케줄 정보 */}
                       {schedules.length > 0 && (
                         <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                           <div className="flex items-center justify-between text-sm">
@@ -913,8 +789,6 @@ const JobPostForm: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    
-                    {/* 생성된 근무시간 유형 목록 (오른쪽 절반) */}
                     <div className="w-1/2">
                       <div className="bg-gray-50 rounded-lg border p-4 h-full">
                         <h4 className="text-sm font-medium text-gray-700 mb-3">생성된 근무시간 유형</h4>
@@ -931,10 +805,8 @@ const JobPostForm: React.FC = () => {
                                 onClick={() => {
                                   const isSelected = formData.workTypes.some(wt => wt.id === workType.id);
                                   if (isSelected) {
-                                    // 선택 해제
                                     handleInputChange('workTypes', formData.workTypes.filter(wt => wt.id !== workType.id));
                                   } else {
-                                    // 선택 추가
                                     handleInputChange('workTypes', [...formData.workTypes, workType]);
                                   }
                                 }}
@@ -996,247 +868,247 @@ const JobPostForm: React.FC = () => {
             </div>
           )}
 
-          {/* 요구사항 */}
+          {/* 회사 정보 (고정값) */}
           <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <FileText className="h-5 w-5 mr-2" />
-              요구사항
-            </h2>
-            
-            {formData.requirements.map((requirement, index) => (
-              <div key={index} className="flex items-center space-x-2 mb-2">
-                <input
-                  type="text"
-                  value={requirement}
-                  onChange={(e) => handleArrayChange('requirements', index, e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="요구사항을 입력하세요"
-                />
-                {formData.requirements.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeArrayItem('requirements', index)}
-                    className="px-3 py-2 text-red-600 hover:text-red-800"
-                  >
-                    삭제
-                  </button>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <Building className="h-5 w-5 mr-2" />
+                회사 정보
+              </h2>
+              <span className="px-2 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-600">조회</span>
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/company/${user?.uid}?edit=true`}
+                  className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
+                >
+                  회사 정보 수정
+                </Link>
+                {(loadingCompanyInfo) && (
+                  <span className="text-sm text-gray-500">정보 로딩 중...</span>
                 )}
               </div>
-            ))}
+            </div>
             
-            <button
-              type="button"
-              onClick={() => addArrayItem('requirements')}
-              className="mt-2 px-4 py-2 text-blue-600 hover:text-blue-800"
-            >
-              + 요구사항 추가
-            </button>
-          </div>
-
-          {/* 복리후생 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <Users className="h-5 w-5 mr-2" />
-              복리후생
-            </h2>
-            
-            {formData.benefits.map((benefit, index) => (
-              <div key={index} className="flex items-center space-x-2 mb-2">
-                <input
-                  type="text"
-                  value={benefit}
-                  onChange={(e) => handleArrayChange('benefits', index, e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="복리후생을 입력하세요"
-                />
-                {formData.benefits.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeArrayItem('benefits', index)}
-                    className="px-3 py-2 text-red-600 hover:text-red-800"
-                  >
-                    삭제
-                  </button>
-                )}
-              </div>
-            ))}
-            
-            <button
-              type="button"
-              onClick={() => addArrayItem('benefits')}
-              className="mt-2 px-4 py-2 text-blue-600 hover:text-blue-800"
-            >
-              + 복리후생 추가
-            </button>
-          </div>
-
-          {/* 숙식 제공 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <Home className="h-5 w-5 mr-2" />
-              숙식 제공
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* 기숙사 제공 */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="accommodation"
-                    checked={formData.accommodation.provided}
-                    onChange={(e) => handleInputChange('accommodation', {
-                      ...formData.accommodation,
-                      provided: e.target.checked,
-                    })}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="accommodation" className="text-sm font-medium text-gray-700">
-                    기숙사 제공
-                  </label>
+            {companyInfo ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사명</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.name || '미입력'}
+                  </div>
                 </div>
-                
-                {formData.accommodation.provided && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      기숙사 정보
-                    </label>
-                    <textarea
-                      value={formData.accommodation.info}
-                      onChange={(e) => handleInputChange('accommodation', {
-                        ...formData.accommodation,
-                        info: e.target.value,
-                      })}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="기숙사 위치, 시설, 비용 등을 입력하세요"
-                    />
-                  </div>
-                )}
-              </div>
 
-              {/* 식사 제공 */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="meal"
-                    checked={formData.meal.provided}
-                    onChange={(e) => handleInputChange('meal', {
-                      ...formData.meal,
-                      provided: e.target.checked,
-                    })}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="meal" className="text-sm font-medium text-gray-700">
-                    식사 제공
-                  </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">업종</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.industry || '미입력'}
+                  </div>
                 </div>
-                
-                {formData.meal.provided && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      식사 정보
-                    </label>
-                    <textarea
-                      value={formData.meal.info}
-                      onChange={(e) => handleInputChange('meal', {
-                        ...formData.meal,
-                        info: e.target.value,
-                      })}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="식사 종류, 시간, 비용 등을 입력하세요"
-                    />
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 규모</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.companySize || '미입력'}
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
 
-            {/* 직원 혜택 */}
-            <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                직원 혜택
-              </label>
-              <textarea
-                value={formData.employeeBenefits}
-                onChange={(e) => handleInputChange('employeeBenefits', e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="건강보험, 퇴직연금, 교육지원, 복리후생 등을 입력하세요"
-              />
-            </div>
-          </div>
-
-          {/* 연락처 정보 */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">연락처 정보</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  이메일
-                </label>
-                <input
-                  type="email"
-                  value={formData.contactInfo.email}
-                  onChange={(e) => handleInputChange('contactInfo', {
-                    ...formData.contactInfo,
-                    email: e.target.value,
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  전화번호
-                </label>
-                <input
-                  type="tel"
-                  value={formData.contactInfo.phone}
-                  onChange={(e) => handleInputChange('contactInfo', {
-                    ...formData.contactInfo,
-                    phone: e.target.value,
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* 이미지 업로드 */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">이미지 업로드</h2>
-            
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleImageChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            
-            {formData.images.length > 0 && (
-              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                {formData.images.map((image, index) => (
-                  <div key={index} className="relative group cursor-pointer" onClick={() => handleImageClick(image)}>
-                    <img
-                      src={URL.createObjectURL(image)}
-                      alt={`Preview ${index + 1}`}
-                      className="w-full h-24 object-cover rounded-md transition-transform group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-md flex items-center justify-center">
-                      <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-6 h-6" />
-                    </div>
-                    <div className="absolute top-1 right-1 bg-blue-600 text-white text-xs px-1 py-0.5 rounded">
-                      {index + 1}
-                    </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 주소</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.address || companyInfo.region || '미입력'}
                   </div>
-                ))}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.contactPerson || '미입력'}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">담당자 연락처</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.contactPhone || '미입력'}
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">회사 이메일</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                    {companyInfo.contactEmail || '미입력'}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                <Building className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                <p className="text-gray-500 mb-2">회사 정보가 등록되지 않았습니다</p>
+                <Link
+                  to={`/company/${user?.uid}?edit=true`}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                >
+                  회사 정보 등록하기
+                </Link>
               </div>
             )}
           </div>
+
+
+
+          {/* 기숙사 정보 섹션 */}
+          <div className="bg-white rounded-lg border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <Home className="h-5 w-5 mr-2" />
+                기숙사 정보
+              </h2>
+              <span className="px-2 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-600">조회</span>
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/accommodation-info/${user?.uid}?mode=edit`}
+                  className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                >
+                  기숙사 정보 수정
+                </Link>
+              </div>
+            </div>
+            
+            {accommodationInfo ? (
+              <div className="space-y-6">
+                {/* 기본 정보 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">기숙사 주소</label>
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                      {accommodationInfo.address || '미입력'}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                      {accommodationInfo.contactPerson || '미입력'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 기숙사 설명 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">기숙사 설명</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 min-h-[60px]">
+                    {accommodationInfo.description || '미입력'}
+                  </div>
+                </div>
+
+                {/* 수용 인원 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">총 수용 인원</label>
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                      {accommodationInfo.capacity || 0}명
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">현재 입주 인원</label>
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                      {accommodationInfo.currentOccupancy || 0}명
+                    </div>
+                  </div>
+                </div>
+
+                {/* 방 타입 및 가격 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">방 타입 및 가격</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {accommodationInfo.roomTypeOptions?.singleRoom && (
+                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                        <div className="text-sm font-medium text-gray-700">1인실</div>
+                        <div className="text-gray-900">{accommodationInfo.roomPrices?.singleRoom || '가격 미정'}</div>
+                      </div>
+                    )}
+                    {accommodationInfo.roomTypeOptions?.doubleRoom && (
+                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                        <div className="text-sm font-medium text-gray-700">2인실</div>
+                        <div className="text-gray-900">{accommodationInfo.roomPrices?.doubleRoom || '가격 미정'}</div>
+                      </div>
+                    )}
+                    {accommodationInfo.roomTypeOptions?.tripleRoom && (
+                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                        <div className="text-sm font-medium text-gray-700">3인실</div>
+                        <div className="text-gray-900">{accommodationInfo.roomPrices?.tripleRoom || '가격 미정'}</div>
+                      </div>
+                    )}
+                    {accommodationInfo.roomTypeOptions?.quadRoom && (
+                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                        <div className="text-sm font-medium text-gray-700">4인실</div>
+                        <div className="text-gray-900">{accommodationInfo.roomPrices?.quadRoom || '가격 미정'}</div>
+                      </div>
+                    )}
+                    {accommodationInfo.roomTypeOptions?.otherRoom && (
+                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                        <div className="text-sm font-medium text-gray-700">{accommodationInfo.otherRoomType || '기타'}</div>
+                        <div className="text-gray-900">{accommodationInfo.roomPrices?.otherRoom || '가격 미정'}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 편의시설 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">편의시설</label>
+                  <div className="flex flex-wrap gap-2">
+                    {accommodationInfo.amenities?.map((amenity: string, index: number) => (
+                      <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-md">
+                        {amenity}
+                      </span>
+                    ))}
+                    {accommodationInfo.otherAmenities && (
+                      <span className="px-2 py-1 bg-green-100 text-green-800 text-sm rounded-md">
+                        {accommodationInfo.otherAmenities}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 근린시설 */}
+                {accommodationInfo.nearbyFacilities && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">근린시설</label>
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                      {accommodationInfo.nearbyFacilities}
+                    </div>
+                  </div>
+                )}
+
+                {/* 기숙사 규칙 */}
+                {accommodationInfo.rules && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">기숙사 규칙</label>
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900 min-h-[60px]">
+                      {accommodationInfo.rules}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                <Home className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                <p className="text-gray-500 mb-2">기숙사 정보가 등록되지 않았습니다</p>
+                <Link
+                  to={`/accommodation-info/${user?.uid}?mode=edit`}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                >
+                  기숙사 정보 등록하기
+                </Link>
+              </div>
+            )}
+          </div>
+
+
+
+
 
           {/* 폼 제출 버튼 */}
           <div className="bg-white rounded-lg border p-6">
@@ -1276,15 +1148,7 @@ const JobPostForm: React.FC = () => {
           }}
         />
 
-        {/* 이미지 상세 정보 모달 */}
-        <ImageDetailModal
-          image={selectedImageForDetail}
-          isOpen={showImageDetailModal}
-          onClose={() => {
-            setShowImageDetailModal(false);
-            setSelectedImageForDetail(null);
-          }}
-        />
+
       </div>
     </div>
   );

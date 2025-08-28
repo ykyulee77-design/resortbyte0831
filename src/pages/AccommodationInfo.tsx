@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { doc, getDoc, updateDoc, serverTimestamp, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadImage, deleteImage, validateImageFile } from '../utils/imageUpload';
-import { Building, Home, Camera, Upload, Trash2, Save, ArrowLeft, Users, Edit3, Wifi, Snowflake, Tv, Refrigerator, BookOpen, Bed, Utensils, Thermometer } from 'lucide-react';
+import { Building, Home, Camera, Upload, Trash2, Save, ArrowLeft, Users, Edit3, Wifi, Snowflake, Tv, Refrigerator, BookOpen, Bed, Utensils, Thermometer, Star } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 
@@ -13,9 +13,11 @@ const AccommodationInfoPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const mode = searchParams.get('mode');
 
   const [accommodationInfo, setAccommodationInfo] = useState<any>(null);
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(mode === 'edit');
@@ -26,6 +28,10 @@ const AccommodationInfoPage: React.FC = () => {
   const [uploadingImages, setUploadingImages] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewImageName, setPreviewImageName] = useState<string>('');
+
+  // 리조트바이트 생활(후기/평점) 상태
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [avgRating, setAvgRating] = useState<number | null>(null);
 
   // 편집 데이터
   const [editData, setEditData] = useState({
@@ -55,7 +61,9 @@ const AccommodationInfoPage: React.FC = () => {
     },
     otherRoomType: '',
     capacity: 0,
-    currentOccupancy: 0
+    currentOccupancy: 0,
+    otherAmenities: '',
+    nearbyFacilities: ''
   });
 
   useEffect(() => {
@@ -67,6 +75,17 @@ const AccommodationInfoPage: React.FC = () => {
 
     const fetchAccommodationInfo = async () => {
       try {
+        // 회사 정보 먼저 로드
+        const companyDocRef = doc(db, 'companyInfo', employerId);
+        const companyDocSnap = await getDoc(companyDocRef);
+        let companyData: any = null;
+        
+        if (companyDocSnap.exists()) {
+          companyData = companyDocSnap.data();
+          setCompanyInfo(companyData);
+        }
+
+        // 기숙사 정보 로드
         const docRef = doc(db, 'accommodationInfo', employerId);
         const docSnap = await getDoc(docRef);
 
@@ -80,10 +99,10 @@ const AccommodationInfoPage: React.FC = () => {
             amenities: data.amenities || [],
             rules: data.rules || '',
             contactInfo: {
-              phone: data.contactInfo?.phone || '',
-              email: data.contactInfo?.email || ''
+              phone: data.contactInfo?.phone || (companyData ? companyData.contactPhone || '' : ''),
+              email: data.contactInfo?.email || (companyData ? companyData.contactEmail || '' : '')
             },
-            contactPerson: data.contactPerson || '',
+            contactPerson: data.contactPerson || (companyData ? companyData.contactPerson || '' : ''),
             roomTypeOptions: data.roomTypeOptions || {
               singleRoom: false,
               doubleRoom: false,
@@ -100,11 +119,68 @@ const AccommodationInfoPage: React.FC = () => {
             },
             otherRoomType: data.otherRoomType || '',
             capacity: data.capacity || 0,
-            currentOccupancy: data.currentOccupancy || 0
+            currentOccupancy: data.currentOccupancy || 0,
+            otherAmenities: data.otherAmenities || '',
+            nearbyFacilities: data.nearbyFacilities || ''
           });
           setImages(data.images || []);
         } else {
           setAccommodationInfo(null);
+          // 기숙사 정보가 없을 때 회사 정보로 기본값 설정
+          if (companyData) {
+            setEditData(prev => ({
+              ...prev,
+              contactInfo: {
+                phone: companyData.contactPhone || '',
+                email: companyData.contactEmail || ''
+              },
+              contactPerson: companyData.contactPerson || ''
+            }));
+          }
+        }
+
+        // 같은 회사의 후기/평점 로드
+        try {
+          let reviewsData: any[] = [];
+          try {
+            const reviewsQ = query(
+              collection(db, 'reviews'),
+              where('resort', '==', employerId),
+              orderBy('date', 'desc'),
+              limit(20),
+            );
+            const reviewsSnap = await getDocs(reviewsQ);
+            reviewsData = reviewsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          } catch (orderErr) {
+            // orderBy 인덱스 미구성 등으로 실패 시 정렬 없이 가져온 뒤 클라이언트 정렬
+            const fallbackQ = query(
+              collection(db, 'reviews'),
+              where('resort', '==', employerId),
+              limit(20),
+            );
+            const snap = await getDocs(fallbackQ);
+            reviewsData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            reviewsData.sort((a: any, b: any) => {
+              const aTime = a.date?.toDate?.()?.getTime?.() || a.createdAt?.toDate?.()?.getTime?.() || 0;
+              const bTime = b.date?.toDate?.()?.getTime?.() || b.createdAt?.toDate?.()?.getTime?.() || 0;
+              return bTime - aTime;
+            });
+          }
+          setReviews(reviewsData);
+          const rated = reviewsData.filter((r: any) => (
+            (typeof r.accommodationRating === 'number' && r.accommodationRating > 0) ||
+            (typeof r.overallRating === 'number' && r.overallRating > 0)
+          ));
+          if (rated.length > 0) {
+            const score = rated.reduce((sum: number, r: any) => sum + (r.accommodationRating || r.overallRating || 0), 0);
+            setAvgRating(parseFloat((score / rated.length).toFixed(1)));
+          } else {
+            setAvgRating(null);
+          }
+        } catch (e) {
+          console.warn('후기/평점 로드 중 경고:', e);
+          setReviews([]);
+          setAvgRating(null);
         }
       } catch (error) {
         console.error('기숙사 정보 불러오기 실패:', error);
@@ -117,15 +193,7 @@ const AccommodationInfoPage: React.FC = () => {
     fetchAccommodationInfo();
   }, [employerId]);
 
-  // 권한 확인
-  useEffect(() => {
-    if (!user || !employerId) return;
-    
-    if (user.uid !== employerId && user.role !== 'admin') {
-      setError('이 페이지에 접근할 권한이 없습니다.');
-      setLoading(false);
-    }
-  }, [user, employerId]);
+
 
   // 이미지 업로드 처리
   const handleImageUpload = async (files: FileList) => {
@@ -198,6 +266,8 @@ const AccommodationInfoPage: React.FC = () => {
       
       setAccommodationInfo(accommodationData);
       setIsEditing(false);
+      // 저장 후 조회 모드 URL로 이동
+      navigate(`/accommodation-info/${employerId}`);
       setError(null);
     } catch (error) {
       console.error('기숙사 정보 저장 실패:', error);
@@ -258,7 +328,7 @@ const AccommodationInfoPage: React.FC = () => {
   ];
 
   const amenityOptions = [
-    '주차장', '헬스장', '독서실', '라운지', '엘리베이터', '보안시스템', '반려동물 허용', '흡연실'
+    '주차장', '헬스장', '독서실', '라운지', '엘리베이터', '보안시스템', '반려동물 허용', '흡연실', '직원식당', '공용주방', '근린시설', '기타'
   ];
 
 
@@ -277,16 +347,20 @@ const AccommodationInfoPage: React.FC = () => {
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">기숙사 정보</h1>
+                <h1 className="text-xl font-semibold text-gray-900">기숙사 상세</h1>
                 <p className="text-sm text-gray-500">
                   {accommodationInfo ? '기숙사 정보 관리' : '새 기숙사 정보 등록'}
                 </p>
               </div>
             </div>
             
-            {!isEditing && (
+            {!isEditing && user && (user.uid === employerId || user.role === 'admin') && (
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  setIsEditing(true);
+                  // 편집 모드 URL로 이동
+                  navigate(`/accommodation-info/${employerId}?mode=edit`);
+                }}
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex items-center space-x-2"
               >
                 <Edit3 className="w-4 h-4" />
@@ -332,8 +406,12 @@ const AccommodationInfoPage: React.FC = () => {
                       ...prev, 
                       contactInfo: { ...prev.contactInfo, phone: e.target.value }
                     }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="연락처를 입력하세요"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      !editData.contactInfo.phone && companyInfo?.contactPhone 
+                        ? 'border-gray-300 bg-gray-50 text-gray-500' 
+                        : 'border-gray-300'
+                    }`}
+                    placeholder={companyInfo?.contactPhone ? `기본값: ${companyInfo.contactPhone}` : "연락처를 입력하세요"}
                   />
                 </div>
 
@@ -348,8 +426,12 @@ const AccommodationInfoPage: React.FC = () => {
                       ...prev, 
                       contactInfo: { ...prev.contactInfo, email: e.target.value }
                     }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="이메일을 입력하세요"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      !editData.contactInfo.email && companyInfo?.contactEmail 
+                        ? 'border-gray-300 bg-gray-50 text-gray-500' 
+                        : 'border-gray-300'
+                    }`}
+                    placeholder={companyInfo?.contactEmail ? `기본값: ${companyInfo.contactEmail}` : "이메일을 입력하세요"}
                   />
                 </div>
 
@@ -361,8 +443,12 @@ const AccommodationInfoPage: React.FC = () => {
                     type="text"
                     value={editData.contactPerson}
                     onChange={(e) => setEditData(prev => ({ ...prev, contactPerson: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="담당자 이름을 입력하세요"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      !editData.contactPerson && companyInfo?.contactPerson 
+                        ? 'border-gray-300 bg-gray-50 text-gray-500' 
+                        : 'border-gray-300'
+                    }`}
+                    placeholder={companyInfo?.contactPerson ? `기본값: ${companyInfo.contactPerson}` : "담당자 이름을 입력하세요"}
                   />
                 </div>
 
@@ -502,6 +588,38 @@ const AccommodationInfoPage: React.FC = () => {
                   </label>
                 ))}
               </div>
+
+              {/* 근린시설 입력 */}
+              {editData.amenities.includes('근린시설') && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    근린시설
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.nearbyFacilities}
+                    onChange={(e) => setEditData(prev => ({ ...prev, nearbyFacilities: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="근린시설을 입력하세요 (예: 편의점, 병원, 은행 등)"
+                  />
+                </div>
+              )}
+
+              {/* 기타 편의시설 입력 */}
+              {editData.amenities.includes('기타') && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    기타 편의시설
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.otherAmenities}
+                    onChange={(e) => setEditData(prev => ({ ...prev, otherAmenities: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="기타 편의시설을 입력하세요"
+                  />
+                </div>
+              )}
             </div>
 
 
@@ -570,7 +688,11 @@ const AccommodationInfoPage: React.FC = () => {
             {/* 저장 버튼 */}
             <div className="flex justify-end space-x-4">
               <button
-                onClick={() => setIsEditing(false)}
+                onClick={() => {
+                  setIsEditing(false);
+                  // 조회 모드 URL로 이동
+                  navigate(`/accommodation-info/${employerId}`);
+                }}
                 className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
               >
                 취소
@@ -687,6 +809,18 @@ const AccommodationInfoPage: React.FC = () => {
                         </span>
                       ))}
                     </div>
+                    {accommodationInfo.nearbyFacilities && (
+                      <div className="mt-4">
+                        <h3 className="text-sm font-medium text-gray-700 mb-2">근린시설</h3>
+                        <p className="text-gray-900">{accommodationInfo.nearbyFacilities}</p>
+                      </div>
+                    )}
+                    {accommodationInfo.otherAmenities && (
+                      <div className="mt-4">
+                        <h3 className="text-sm font-medium text-gray-700 mb-2">기타 편의시설</h3>
+                        <p className="text-gray-900">{accommodationInfo.otherAmenities}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -720,6 +854,71 @@ const AccommodationInfoPage: React.FC = () => {
                     <p className="text-gray-900 whitespace-pre-wrap">{accommodationInfo.rules}</p>
                   </div>
                 )}
+
+                {/* 리조트바이트 생활 (후기/평점) */}
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                      <BookOpen className="w-5 h-5 mr-2 text-indigo-600" />
+                      리조트바이트 생활
+                    </h2>
+                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-sm ${avgRating !== null ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600'}`}>
+                      <Star className={`w-4 h-4 ${avgRating !== null ? 'fill-current' : ''}`} />
+                      <span>{avgRating !== null ? avgRating : '평점 없음'}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {reviews.length > 0 ? (
+                      reviews.slice(0, 5).map((rev: any) => (
+                        <div key={rev.id} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-sm text-gray-600">
+                              {rev.user || '익명'} · {(rev.date?.toDate?.()?.toLocaleDateString?.('ko-KR')) || (rev.createdAt?.toDate?.()?.toLocaleDateString?.('ko-KR')) || ''}
+                            </div>
+                            {typeof rev.accommodationRating === 'number' || typeof rev.overallRating === 'number' ? (
+                              <div className="flex items-center gap-1 text-yellow-600 text-sm">
+                                <Star className="w-4 h-4 fill-current" />
+                                <span>{rev.accommodationRating || rev.overallRating}</span>
+                              </div>
+                            ) : null}
+                          </div>
+                          {rev.content ? (
+                            <p className="text-gray-800 text-sm whitespace-pre-wrap">
+                              {rev.content.length > 180 ? rev.content.slice(0, 180) + '…' : rev.content}
+                            </p>
+                          ) : (
+                            <p className="text-gray-500 text-sm">내용이 없습니다.</p>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="border border-dashed border-gray-300 rounded-lg p-6 text-center">
+                        <p className="text-gray-500 text-sm">아직 등록된 후기가 없습니다.</p>
+                      </div>
+                    )}
+                    <div className="text-right space-x-2">
+                      <button
+                        onClick={() => {
+                          if (!user) {
+                            const current = location.pathname + location.search;
+                            navigate(`/login?redirect=${encodeURIComponent(current)}`);
+                            return;
+                          }
+                          navigate(`/reviews/new`);
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                      >
+                        작성하기
+                      </button>
+                      <button
+                        onClick={() => navigate(`/resort/${employerId}/reviews`)}
+                        className="inline-flex items-center px-3 py-1.5 text-sm bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100"
+                      >
+                        후기 더 보기
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </>
             ) : (
               <div className="bg-white rounded-lg shadow p-6 text-center">
