@@ -125,7 +125,6 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
       return;
     }
 
-    console.log('🔍 주소 검색 시작:', keyword);
     setIsLoading(true);
     setError(null);
     
@@ -133,7 +132,6 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
       // 환경 변수에서 API URL 가져오기 (개발/프로덕션 환경 대응)
       const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
       const url = `${apiBaseUrl}/api/geocode?query=${encodeURIComponent(keyword)}`;
-      console.log('🌐 API 호출 URL:', url);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -141,15 +139,12 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
           'Content-Type': 'application/json',
         },
       });
-
-      console.log('📡 응답 상태:', response.status);
       
       if (!response.ok) {
         throw new Error(`API 호출 실패: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('📦 받은 데이터:', data);
       
       // 공공데이터 포털 API 응답 처리
       if (data.results && data.results.juso && data.results.juso.length > 0) {
@@ -161,7 +156,6 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         setShowDropdown(true);
       } else {
         // 샘플 데이터 사용 (전국 주요 도시 주소)
-        console.log('📝 API 응답 없음, 샘플 데이터 사용');
         const sampleAddresses: Address[] = getSampleAddresses(keyword);
         setAddresses(sampleAddresses);
         setShowDropdown(true);
@@ -249,7 +243,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
 
   // 주소 선택 처리
   const handleAddressSelect = useCallback((address: Address) => {
-    console.log('📍 선택된 주소:', address);
+
     setSelectedAddress(address);
     setSearchTerm(address.address);
     setShowDropdown(false); // 드롭다운 즉시 숨김
@@ -280,7 +274,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
           : selectedAddress.address
       };
       
-      console.log('📍 최종 선택된 주소:', finalAddress);
+  
       onAddressSelect(finalAddress);
     }
   }, [selectedAddress, detailAddress, onAddressSelect]);

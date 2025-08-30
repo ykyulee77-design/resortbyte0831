@@ -42,34 +42,26 @@ const Login: React.FC = () => {
       // 로그인 후 사용자 정보 확인
       const user = JSON.parse(localStorage.getItem('user') || 'null');
       
-      // 디버깅: 로그인 후 사용자 정보 로그
-      console.log('🔍 로그인 후 사용자 정보:', user);
-      
       if (user && user.role === 'employer') {
-        console.log('🎯 구인자로 인식, employer-dashboard로 리다이렉트');
         navigate('/employer-dashboard');
         return;
       } else if (user && user.role === 'jobseeker') {
-        console.log('🎯 구직자로 인식, jobseeker-dashboard로 리다이렉트');
         navigate('/jobseeker-dashboard');
         return;
       } else if (user && user.role === 'admin') {
-        console.log('🎯 관리자로 인식, admin-dashboard로 리다이렉트');
         navigate('/admin-dashboard');
         return;
       }
-      
-      console.log('⚠️ 사용자 역할을 확인할 수 없음, 기본 리다이렉트:', redirectTo);
       navigate(redirectTo);
-    } catch (error: any) {
-      console.error('로그인 실패:', error);
-      if (error.code === 'auth/user-not-found') {
+    } catch (error: unknown) {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === 'auth/user-not-found') {
         setError('등록되지 않은 이메일입니다.');
-      } else if (error.code === 'auth/wrong-password') {
+      } else if (firebaseError.code === 'auth/wrong-password') {
         setError('비밀번호가 올바르지 않습니다.');
-      } else if (error.code === 'auth/invalid-email') {
+      } else if (firebaseError.code === 'auth/invalid-email') {
         setError('유효하지 않은 이메일 형식입니다.');
-      } else if (error.code === 'auth/too-many-requests') {
+      } else if (firebaseError.code === 'auth/too-many-requests') {
         setError('로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.');
       } else {
         setError('로그인 중 오류가 발생했습니다.');

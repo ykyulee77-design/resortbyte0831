@@ -23,7 +23,7 @@ const ApplicationPreview: React.FC<ApplicationPreviewProps> = ({
   onEdit,
   isSubmitting = false,
 }) => {
-  console.log('ApplicationPreview 렌더링:', { jobPost, resume, application, user });
+
   const formatDate = (date: Date | string) => {
     if (typeof date === 'string') {
       return new Date(date).toLocaleDateString('ko-KR');
@@ -92,10 +92,7 @@ const ApplicationPreview: React.FC<ApplicationPreviewProps> = ({
                 취소
               </button>
               <button
-                onClick={() => {
-                  console.log('최종 지원하기 버튼 클릭됨');
-                  onConfirm();
-                }}
+                onClick={onConfirm}
                 disabled={isSubmitting}
                 className={`px-6 py-2 text-sm font-medium rounded-md transition-colors ${
                   isSubmitting

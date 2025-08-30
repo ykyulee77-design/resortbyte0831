@@ -83,6 +83,9 @@ const HiredCandidates: React.FC = () => {
             selectedWorkTypeIds: data.selectedWorkTypeIds || [],
             phone: data.phone || '',
             email: data.email || '',
+            processStage: data.processStage || 'applied',
+            priority: data.priority || 'medium',
+            tags: data.tags || [],
           };
         });
         setApplications(fetchedApplications);

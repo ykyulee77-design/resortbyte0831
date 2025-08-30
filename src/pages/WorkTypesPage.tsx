@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { WorkType, JobPost } from '../types';
 import { workTypeService } from '../utils/scheduleMatchingService';
-// WorkTypeEditModal import 제거 - 더 이상 사용하지 않음
+
 import WorkTypeDetailViewModal from '../components/WorkTypeDetailViewModal';
 import { ArrowLeft, Plus, Search, Filter, Briefcase } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -96,7 +96,7 @@ const WorkTypesPage: React.FC = () => {
     setShowDetailViewModal(true);
   };
 
-  // handleWorkTypeEdit과 handleWorkTypeUpdate 함수 제거 - 더 이상 사용하지 않음
+
 
   const handleWorkTypeDelete = (workTypeId: string) => {
     setWorkTypes(prev => prev.filter(wt => wt.id !== workTypeId));
@@ -406,16 +406,7 @@ const WorkTypesPage: React.FC = () => {
         isCreateMode={false}
       />
 
-      {/* 근무 타입 수정 모달 - 더 이상 사용하지 않음 */}
-      {/* <WorkTypeEditModal
-        workType={selectedWorkType}
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setSelectedWorkType(null);
-        }}
-        onUpdate={handleWorkTypeUpdate}
-      /> */}
+
 
       {/* 새 근무 타입 생성 모달 */}
       <WorkTypeDetailViewModal

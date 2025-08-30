@@ -6,6 +6,7 @@ import { Application, JobPost, User, PositiveReview, CompanyInfo, WorkType, Time
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate } from '../utils/dateUtils';
 import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
+import InterviewNoteModal from '../components/InterviewNoteModal';
 import { 
   Users, 
   Building, 
@@ -32,6 +33,7 @@ const ApplicationDetail: React.FC = () => {
   const { applicationId } = useParams<{ applicationId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isPreviewMode = applicationId === 'preview';
   const [application, setApplication] = useState<Application | null>(null);
   const [jobPost, setJobPost] = useState<JobPost | null>(null);
   const [jobseeker, setJobseeker] = useState<User | null>(null);
@@ -39,6 +41,7 @@ const ApplicationDetail: React.FC = () => {
   const [feedback, setFeedback] = useState('');
   const [status, setStatus] = useState<'pending' | 'accepted' | 'rejected'>('pending');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showInterviewNoteModal, setShowInterviewNoteModal] = useState(false);
   const [evaluations, setEvaluations] = useState<PositiveReview[]>([]);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -46,6 +49,67 @@ const ApplicationDetail: React.FC = () => {
 
   useEffect(() => {
     const fetchApplicationDetails = async () => {
+      if (isPreviewMode) {
+        // 미리보기 모드: 세션스토리지에서 데이터 가져오기
+        const tempApplication = sessionStorage.getItem('tempApplication');
+        const tempJobPost = sessionStorage.getItem('tempJobPost');
+        
+        if (!tempApplication || !tempJobPost) {
+          alert('미리보기 데이터를 찾을 수 없습니다.');
+          navigate(-1);
+          return;
+        }
+
+        const applicationData = JSON.parse(tempApplication);
+        const jobPostData = JSON.parse(tempJobPost);
+
+        // 미리보기용 Application 객체 생성
+        const previewApplication: Application = {
+          id: 'preview',
+          jobPostId: jobPostData.id,
+          jobseekerId: user?.uid || '',
+          jobseekerName: user?.displayName || '',
+          status: 'pending',
+          appliedAt: new Date(),
+          coverLetter: applicationData.coverLetter || '',
+          experience: user?.resume?.career || '',
+          education: user?.resume?.education || '',
+          availableStartDate: user?.resume?.availableStartDate ? new Date(user.resume.availableStartDate) : undefined,
+          skills: user?.resume?.computerSkills || [],
+          hourlyWage: user?.resume?.hourlyWage || 0,
+          message: '',
+          jobTitle: jobPostData.title,
+          employerName: jobPostData.employerName,
+          location: jobPostData.location,
+          salary: jobPostData.salary,
+          selectedWorkTypeIds: applicationData.selectedWorkTypeIds || [],
+          processStage: 'applied',
+          priority: 'medium',
+          tags: [],
+          resume: user?.resume,
+        };
+
+        // JobPost 데이터에 필수 필드 추가
+        const completeJobPostData = {
+          ...jobPostData,
+          employerId: jobPostData.employerId || 'unknown',
+          isActive: jobPostData.isActive !== undefined ? jobPostData.isActive : true,
+          applications: jobPostData.applications || [],
+          startDate: jobPostData.startDate || new Date(),
+        };
+
+        setApplication(previewApplication);
+        setJobPost(completeJobPostData);
+        // User 타입에 맞게 id 속성 추가하고 role 타입 캐스팅
+        setJobseeker(user ? { 
+          ...user, 
+          id: user.uid,
+          role: user.role as 'employer' | 'jobseeker' | 'admin'
+        } : null);
+        setLoading(false);
+        return;
+      }
+
       if (!applicationId) return;
 
       try {
@@ -89,6 +153,9 @@ const ApplicationDetail: React.FC = () => {
           location: data.location,
           salary: data.salary,
           selectedWorkTypeIds: data.selectedWorkTypeIds || [],
+          processStage: data.processStage || 'applied',
+          priority: data.priority || 'medium',
+          tags: data.tags || [],
         };
         setApplication(applicationData);
 
@@ -147,6 +214,103 @@ const ApplicationDetail: React.FC = () => {
     } catch (error) {
       console.error('상태 변경 중 오류 발생:', error);
       alert('상태 변경 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handlePreviewApply = async () => {
+    if (!application || !user?.uid || !jobPost) {
+      console.error('필수 데이터 누락:', { application: !!application, user: !!user?.uid, jobPost: !!jobPost });
+      alert('필수 데이터가 누락되었습니다. 다시 시도해주세요.');
+      return;
+    }
+
+    try {
+      console.log('지원 데이터 준비 중...', { jobPostId: jobPost.id, jobseekerId: user.uid });
+      
+      // 지원서 생성
+      const applicationData: any = {
+        jobPostId: jobPost.id,
+        jobseekerId: user.uid,
+        jobseekerName: user.displayName || '',
+        status: 'pending',
+        appliedAt: new Date(),
+        coverLetter: application.coverLetter || '',
+        experience: application.experience || '',
+        education: application.education || '',
+        skills: application.skills || [],
+        hourlyWage: application.hourlyWage || 0,
+        message: application.message || '',
+        jobTitle: jobPost.title,
+        employerName: jobPost.employerName,
+        location: jobPost.location,
+        salary: jobPost.salary,
+        selectedWorkTypeIds: application.selectedWorkTypeIds || [],
+        processStage: 'applied',
+        priority: 'medium',
+        tags: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // undefined가 아닌 경우에만 필드 추가
+      if (application.availableStartDate) {
+        applicationData.availableStartDate = application.availableStartDate;
+      }
+
+      console.log('Firestore에 지원서 저장 중...', applicationData);
+      const docRef = await addDoc(collection(db, 'applications'), applicationData);
+      console.log('지원서 저장 성공:', docRef.id);
+
+      // 세션스토리지 정리
+      sessionStorage.removeItem('tempApplication');
+      sessionStorage.removeItem('tempJobPost');
+
+      alert('지원이 성공적으로 완료되었습니다!');
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('지원 실패 상세 오류:', error);
+      alert(`지원에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+    }
+  };
+
+  const handleInterviewNote = async (interviewData: { note: string; contactInfo: string; interviewDate: string; }) => {
+    if (!application || !user?.uid) return;
+
+    try {
+      await updateDoc(doc(db, 'applications', application.id), {
+        status: 'interview_completed',
+        employerFeedback: interviewData.note,
+        interviewContactInfo: interviewData.contactInfo,
+        interviewDate: interviewData.interviewDate,
+        updatedAt: new Date(),
+      });
+
+      // 알림 생성
+      await addDoc(collection(db, 'notifications'), {
+        userId: application.jobseekerId,
+        title: '면접 완료',
+        message: `${jobPost?.title} 공고에 대한 면접이 완료되었습니다.`,
+        type: 'application_status',
+        isRead: false,
+        createdAt: new Date(),
+        applicationId: application.id,
+        status: 'interview_completed',
+      });
+
+      // 로컬 상태 업데이트
+      setApplication(prev => prev ? {
+        ...prev,
+        status: 'interview_completed',
+        employerFeedback: interviewData.note,
+        interviewContactInfo: interviewData.contactInfo,
+        interviewDate: interviewData.interviewDate,
+      } : null);
+
+      setShowInterviewNoteModal(false);
+      alert('면접 노트가 성공적으로 저장되었습니다.');
+    } catch (error) {
+      console.error('면접 노트 저장 중 오류 발생:', error);
+      alert('면접 노트 저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -353,13 +517,23 @@ const ApplicationDetail: React.FC = () => {
                 
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm text-gray-700">{jobseeker.email}</span>
+                  <a 
+                    href={`mailto:${jobseeker.email}`}
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    {jobseeker.email}
+                  </a>
                 </div>
                 
                 {jobseeker.resume?.phone && (
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-700">{jobseeker.resume.phone}</span>
+                    <a 
+                      href={`tel:${jobseeker.resume.phone}`}
+                      className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    >
+                      {jobseeker.resume.phone}
+                    </a>
                   </div>
                 )}
                 
@@ -367,6 +541,19 @@ const ApplicationDetail: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-gray-500" />
                     <span className="text-sm text-gray-700">{jobseeker.resume.birth}</span>
+                  </div>
+                )}
+
+                {/* 면접 노트 작성 버튼 - 구인자만 */}
+                {user?.role === 'employer' && application.status === 'pending' && !isPreviewMode && (
+                  <div className="pt-3 border-t">
+                    <button
+                      onClick={() => setShowInterviewNoteModal(true)}
+                      className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      면접 노트 작성
+                    </button>
                   </div>
                 )}
               </div>
@@ -607,33 +794,77 @@ const ApplicationDetail: React.FC = () => {
               )}
             </div>
 
-            {/* 구인자 피드백 */}
+            {/* 면접 노트 */}
             {application.employerFeedback && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-orange-600" />
-                  구인자 피드백
+                  <MessageSquare className="w-5 h-5 text-purple-600" />
+                  면접 노트
                 </h2>
-                <div className="bg-orange-50 p-4 rounded-lg">
-                  <p className="text-orange-700 whitespace-pre-wrap leading-relaxed">{application.employerFeedback}</p>
-                  <p className="text-sm text-orange-600 mt-2">
+                <div className="bg-purple-50 p-4 rounded-lg space-y-3">
+                  {/* 면접 노트 내용 */}
+                  <div>
+                    <h3 className="font-medium text-purple-800 mb-2">면접 내용</h3>
+                    <p className="text-purple-700 whitespace-pre-wrap leading-relaxed">{application.employerFeedback}</p>
+                  </div>
+                  
+                  {/* 면접 연락처 */}
+                  {application.interviewContactInfo && (
+                    <div>
+                      <h3 className="font-medium text-purple-800 mb-2">면접 연락처</h3>
+                      <p className="text-purple-700">{application.interviewContactInfo}</p>
+                    </div>
+                  )}
+                  
+                  {/* 면접일자 */}
+                  {application.interviewDate && (
+                    <div>
+                      <h3 className="font-medium text-purple-800 mb-2">면접일자</h3>
+                      <p className="text-purple-700">{application.interviewDate}</p>
+                    </div>
+                  )}
+                  
+                  <p className="text-sm text-purple-600 mt-3 pt-3 border-t border-purple-200">
                     작성일: {formatDate(application.employerFeedbackAt)}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* 상태 변경 버튼 - 구인자만 */}
-            {user?.role === 'employer' && application.status === 'pending' && (
+            {/* 미리보기 모드에서 지원하기 버튼 */}
+            {isPreviewMode && (
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">지원 상태 변경</h2>
+                <h2 className="text-xl font-bold text-gray-800 mb-4">지원하기</h2>
                 <div className="flex gap-4">
                   <button
-                    onClick={() => handleStatusChange('accepted')}
-                    className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                    onClick={handlePreviewApply}
+                    className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                   >
-                    <CheckCircle className="w-4 h-4" />
-                    승인하기
+                    <Send className="w-4 h-4" />
+                    최종 지원하기
+                  </button>
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="flex-1 bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    돌아가기
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 면접 프로세스 버튼 - 구인자만 */}
+            {user?.role === 'employer' && application.status === 'pending' && !isPreviewMode && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">지원자 관리</h2>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setShowInterviewNoteModal(true)}
+                    className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    면접 노트 작성
                   </button>
                   <button
                     onClick={() => handleStatusChange('rejected')}
@@ -645,9 +876,40 @@ const ApplicationDetail: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* 면접 완료 후 채용 결정 버튼 */}
+            {user?.role === 'employer' && application.status === 'interview_completed' && !isPreviewMode && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">채용 결정</h2>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => navigate(`/final-hiring-decision/${application.id}`)}
+                    className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    최종 채용 결정
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* 면접 노트 작성 모달 */}
+      {showInterviewNoteModal && (
+        <InterviewNoteModal
+          application={{
+            ...application,
+            // 지원자 연락처 정보 추가
+            phone: jobseeker.resume?.phone || '',
+            email: jobseeker.email || '',
+            resume: jobseeker.resume
+          }}
+          onSave={handleInterviewNote}
+          onCancel={() => setShowInterviewNoteModal(false)}
+        />
+      )}
 
       {/* 피드백 모달 */}
       {showFeedbackModal && (

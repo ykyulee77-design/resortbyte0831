@@ -359,6 +359,8 @@ const JobPostDetail: React.FC = () => {
       await addDoc(collection(db, 'applications'), applicationData);
       setHasApplied(true);
       setShowApplyModal(false);
+      setShowApplicationPreview(false);
+      setShowResumeConfirmModal(false);
       setSelectedWorkTypes([]);
       setApplyMessage('');
       alert('지원이 완료되었습니다!');
@@ -414,7 +416,10 @@ const JobPostDetail: React.FC = () => {
           
           // workTypes가 없거나 비어있을 때만 별도로 로드
           if (!jobWithId.workTypes || jobWithId.workTypes.length === 0) {
+            console.log('근무타입 로딩 시작...');
             await loadWorkTypes(jobWithId.employerId);
+          } else {
+            console.log('기존 근무타입 사용:', jobWithId.workTypes.length, '개');
           }
           setAutoFilled(true);
         }
@@ -1297,7 +1302,7 @@ const JobPostDetail: React.FC = () => {
               </div>
 
               {/* 근무 타입 선택 */}
-              {job?.workTypes && job.workTypes.length > 0 && (
+              {job?.workTypes && job.workTypes.length > 0 ? (
                 <div>
                   <h4 className="text-sm font-semibold text-gray-800 mb-3">근무 타입 선택 *</h4>
                   <div className="space-y-3">
@@ -1356,6 +1361,11 @@ const JobPostDetail: React.FC = () => {
                     <p className="text-sm text-red-600 mt-2">근무 타입을 하나 이상 선택해주세요.</p>
                   )}
                 </div>
+              ) : (
+                <div className="bg-yellow-50 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-yellow-800 mb-2">근무 타입 정보</h4>
+                  <p className="text-sm text-yellow-700">이 공고에는 특정 근무 타입이 설정되지 않았습니다. 모든 근무 타입에 지원 가능합니다.</p>
+                </div>
               )}
 
               {/* 지원 동기 */}
@@ -1373,18 +1383,24 @@ const JobPostDetail: React.FC = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => {
-                  if (selectedWorkTypes.length === 0) {
+                  // 근무타입이 있는 경우에만 선택 필수
+                  if (job?.workTypes && job.workTypes.length > 0 && selectedWorkTypes.length === 0) {
                     alert('근무 타입을 하나 이상 선택해주세요.');
                     return;
                   }
-                  setApplication({
+                  // 지원서 미리보기 대신 지원서 상세 페이지로 이동
+                  const applicationData = {
                     coverLetter: applyMessage,
                     selectedWorkTypeIds: selectedWorkTypes,
-                  });
+                  };
+                  // 임시로 세션스토리지에 저장
+                  sessionStorage.setItem('tempApplication', JSON.stringify(applicationData));
+                  sessionStorage.setItem('tempJobPost', JSON.stringify(job));
                   setShowApplyModal(false);
-                  setShowApplicationPreview(true);
+                  // 지원서 상세 페이지로 이동
+                  navigate(`/application-detail/preview`);
                 }}
-                disabled={selectedWorkTypes.length === 0}
+                disabled={job?.workTypes && job.workTypes.length > 0 && selectedWorkTypes.length === 0}
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 <Eye className="w-4 h-4" />
@@ -1576,26 +1592,7 @@ const JobPostDetail: React.FC = () => {
         </div>
       )}
 
-      {/* 지원서 미리보기 모달 */}
-      {showApplicationPreview && job && user?.resume && (
-        <ApplicationPreview
-          jobPost={job}
-          resume={user.resume}
-          application={application}
-          user={user}
-          onConfirm={handleApply}
-          onCancel={() => {
-            setShowApplicationPreview(false);
-                  setSelectedWorkTypes([]);
-                  setApplyMessage('');
-                }}
-          onEdit={() => {
-            setShowApplicationPreview(false);
-            setShowApplyModal(true);
-          }}
-          isSubmitting={applying}
-        />
-      )}
+
 
       {/* 스케줄 그리드 모달 */}
       {showScheduleModal && selectedWorkType && (

@@ -1479,7 +1479,7 @@ const EmployerDashboard: React.FC = () => {
                     className="inline-flex items-center px-5 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium border border-gray-300"
                   >
                     <Users className="w-4 h-4 mr-2" />
-                    <span>전체 관리로 이동</span>
+                    <span>관리 페이지</span>
               </Link>
             </div>
           </div>
@@ -1511,7 +1511,7 @@ const EmployerDashboard: React.FC = () => {
               {/* 최신 지원 리스트 */}
               <div>
                 <h4 className="text-md font-semibold text-gray-800 mb-3">
-                  최근 지원자 ({applications.length}명)
+                  최근 지원자 (최대 5명)
                 </h4>
                 {applications.length === 0 ? (
                   <div className="text-center py-6 bg-gray-50 rounded-lg text-gray-600">
@@ -1520,23 +1520,64 @@ const EmployerDashboard: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-1.5">
-                    {[...applications]
-                      .sort((a: any, b: any) => {
-                        const ta = a.appliedAt?.toDate ? a.appliedAt.toDate().getTime() : (a.appliedAt ? new Date(a.appliedAt).getTime() : 0);
-                        const tb = b.appliedAt?.toDate ? b.appliedAt.toDate().getTime() : (b.appliedAt ? new Date(b.appliedAt).getTime() : 0);
-                        return tb - ta;
-                      })
-                      .slice(0, 5)
-                      .map((app) => (
+                    {(() => {
+                      // 지원자별로 그룹화하여 중복 제거
+                      const groupedByJobseeker = applications.reduce((groups, app) => {
+                        const key = app.jobseekerName || app.id;
+                        if (!groups[key]) {
+                          groups[key] = [];
+                        }
+                        groups[key].push(app);
+                        return groups;
+                      }, {} as Record<string, any[]>);
+
+                      // 각 지원자의 최신 지원서만 선택
+                      const uniqueApplicants = Object.entries(groupedByJobseeker).map(([jobseekerName, apps]) => {
+                        const latestApp = apps.sort((a, b) => {
+                          const ta = a.appliedAt?.toDate ? a.appliedAt.toDate().getTime() : (a.appliedAt ? new Date(a.appliedAt).getTime() : 0);
+                          const tb = b.appliedAt?.toDate ? b.appliedAt.toDate().getTime() : (b.appliedAt ? new Date(b.appliedAt).getTime() : 0);
+                          return tb - ta;
+                        })[0];
+
+                        return {
+                          ...latestApp,
+                          totalApplications: apps.length,
+                          hasMultipleApplications: apps.length > 1
+                        };
+                      });
+
+                      // 최신 순으로 정렬하고 5개만 선택
+                      return uniqueApplicants
+                        .sort((a, b) => {
+                          const ta = a.appliedAt?.toDate ? a.appliedAt.toDate().getTime() : (a.appliedAt ? new Date(a.appliedAt).getTime() : 0);
+                          const tb = b.appliedAt?.toDate ? b.appliedAt.toDate().getTime() : (b.appliedAt ? new Date(b.appliedAt).getTime() : 0);
+                          return tb - ta;
+                        })
+                        .slice(0, 5)
+                        .map((app) => (
                         <div 
                           key={app.id} 
                           className="group flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
-                          onClick={() => navigate(`/applications?jobId=${app.jobPostId}`)}
+                          onClick={() => {
+                            // 채용 진행 상황에 따라 다른 페이지로 이동
+                            if (app.status === 'accepted') {
+                              navigate(`/final-hiring/${app.id}`);
+                            } else {
+                              navigate(`/application-detail/${app.id}`);
+                            }
+                          }}
                         >
                           <div className="flex items-center gap-4 min-w-0 flex-1">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
-                                <h5 className="font-medium text-gray-900 flex-shrink-0 truncate">{app.jobseekerName || '지원자'}</h5>
+                                <h5 className="font-medium text-gray-900 flex-shrink-0 truncate">
+                                  {app.jobseekerName || '지원자'}
+                                  {app.hasMultipleApplications && (
+                                    <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
+                                      {app.totalApplications}회 지원
+                                    </span>
+                                  )}
+                                </h5>
                                 <span className="text-sm text-gray-500 truncate">{getJobTitleById(app.jobPostId)}</span>
                               </div>
                               <div className="flex items-center gap-2 mt-1">
@@ -1568,20 +1609,15 @@ const EmployerDashboard: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
                             <Link
-                              to={`/applications?jobId=${app.jobPostId}`}
+                              to={app.status === 'accepted' ? `/final-hiring/${app.id}` : `/application-detail/${app.id}`}
                               className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
                             >
-                              상세보기
-                            </Link>
-                            <Link
-                              to={'/applications'}
-                              className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition-colors"
-                            >
-                              전체보기
+                              {app.status === 'accepted' ? '최종채용' : '상세보기'}
                             </Link>
                           </div>
                         </div>
-                      ))}
+                      ));
+                    })()}
                   </div>
                 )}
               </div>

@@ -286,10 +286,78 @@ export interface JobPost extends BaseEntity {
   recommendationScore?: number;
 }
 
+// 지원자 관리 프로세스를 위한 새로운 타입들
+export interface Interview extends BaseEntity {
+  applicationId: string;
+  jobseekerId: string;
+  employerId: string;
+  scheduledAt: DateOrTimestamp;
+  duration: number; // 분 단위
+  location: string;
+  type: 'online' | 'offline' | 'phone';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
+  notes?: string;
+  interviewer?: string;
+  meetingLink?: string; // 온라인 면접용
+}
+
+export interface InterviewResult extends BaseEntity {
+  interviewId: string;
+  applicationId: string;
+  jobseekerId: string;
+  employerId: string;
+  overallRating: number; // 1-5점
+  technicalSkills: number;
+  communicationSkills: number;
+  experience: number;
+  personality: number;
+  notes: string;
+  strengths: string[];
+  weaknesses: string[];
+  recommendation: 'strong_yes' | 'yes' | 'maybe' | 'no' | 'strong_no';
+  nextSteps?: string;
+  followUpRequired?: boolean;
+}
+
+export interface ResumeReview extends BaseEntity {
+  applicationId: string;
+  jobseekerId: string;
+  employerId: string;
+  overallRating: number; // 1-5점
+  experienceMatch: number;
+  skillsMatch: number;
+  educationMatch: number;
+  notes: string;
+  strengths: string[];
+  concerns: string[];
+  recommendation: 'proceed_to_interview' | 'reject' | 'hold';
+  reviewedBy: string;
+}
+
+export interface HiringDecision extends BaseEntity {
+  applicationId: string;
+  jobseekerId: string;
+  employerId: string;
+  decision: 'offer' | 'reject' | 'hold';
+  offerDetails?: {
+    salary: number;
+    startDate: DateOrTimestamp;
+    position: string;
+    benefits: string[];
+    conditions: string[];
+  };
+  rejectionReason?: string;
+  feedback?: string;
+  decidedBy: string;
+  offerExpiryDate?: DateOrTimestamp;
+}
+
+// Application 타입 확장
 export interface Application extends BaseEntity {
   jobPostId: string;
   jobseekerId: string;
   jobseekerName: string;
+  employerId?: string; // 구인자 ID 추가
   status: StatusType;
   appliedAt: DateOrTimestamp;
   message?: string;
@@ -302,6 +370,8 @@ export interface Application extends BaseEntity {
   selectedWorkTypeIds?: string[];
   employerFeedback?: string;
   employerFeedbackAt?: DateOrTimestamp;
+  interviewContactInfo?: string;
+  interviewDate?: string;
   jobTitle?: string;
   employerName?: string;
   location?: string;
@@ -309,6 +379,19 @@ export interface Application extends BaseEntity {
   phone?: string;
   email?: string;
   showEvaluations?: boolean;
+  resume?: Resume;
+  
+  // 지원자 관리 프로세스 관련 필드들
+  resumeReview?: ResumeReview;
+  interview?: Interview;
+  interviewResult?: InterviewResult;
+  hiringDecision?: HiringDecision;
+  processStage?: 'applied' | 'resume_reviewed' | 'interview_scheduled' | 'interviewed' | 'decision_made';
+  priority?: 'high' | 'medium' | 'low';
+  tags?: string[]; // '즉시채용가능', '경험풍부', '신입' 등
+  
+  // 확장된 공고 정보 (UI에서 사용)
+  jobPost?: JobPost;
 }
 
 export interface ApplicationTemplate extends BaseEntity {

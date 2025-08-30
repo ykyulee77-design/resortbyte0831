@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, updateDoc, doc, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, orderBy, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Notification } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -220,14 +220,33 @@ const Notifications: React.FC = () => {
                         </button>
                       )}
                       
-                      {notification.type === 'application_status' && notification.applicationId && (
-                        <button
-                          onClick={() => navigate(`/application-detail/${notification.applicationId}`)}
-                          className="text-green-600 hover:text-green-800 text-sm"
-                        >
-                          지원서 보기
-                        </button>
-                      )}
+                                             {notification.type === 'application_status' && notification.applicationId && (
+                         <button
+                           onClick={async () => {
+                             try {
+                               // 지원서 상태 확인
+                               const applicationDoc = await getDoc(doc(db, 'applications', notification.applicationId!));
+                               if (applicationDoc.exists()) {
+                                 const applicationData = applicationDoc.data();
+                                 // 채용 확정된 경우 최종 채용 페이지로 이동
+                                 if (applicationData.status === 'accepted') {
+                                   navigate(`/final-hiring/${notification.applicationId}`);
+                                 } else {
+                                   navigate(`/application-detail/${notification.applicationId}`);
+                                 }
+                               } else {
+                                 navigate(`/application-detail/${notification.applicationId}`);
+                               }
+                             } catch (error) {
+                               console.error('지원서 상태 확인 실패:', error);
+                               navigate(`/application-detail/${notification.applicationId}`);
+                             }
+                           }}
+                           className="text-green-600 hover:text-green-800 text-sm"
+                         >
+                           지원서 보기
+                         </button>
+                       )}
                     </div>
                   </div>
                 </div>

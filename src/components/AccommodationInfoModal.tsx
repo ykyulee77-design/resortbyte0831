@@ -152,17 +152,8 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
       setUploadingImages(true);
       const uploadedUrls: string[] = [];
 
-      console.log('=== 이미지 업로드 시작 ===');
-      console.log('선택된 파일 수:', files.length);
-      console.log('Firebase Storage 설정 확인:', storage ? '✅' : '❌');
-
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        
-        console.log(`\n--- 파일 ${i + 1}/${files.length} 처리 중 ---`);
-        console.log('파일명:', file.name);
-        console.log('파일 크기:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
-        console.log('파일 타입:', file.type);
         
         // 파일 크기 체크 (5MB 제한)
         if (file.size > 5 * 1024 * 1024) {
@@ -183,7 +174,6 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
         const originalSizeMB = getFileSizeMB(file);
         
         if (isFileTooLarge(file, 1)) {
-          console.log(`파일 크기 최적화 중: ${originalSizeMB.toFixed(2)}MB`);
           try {
             optimizedFile = await optimizeImage(file, {
               maxWidth: 1920,
@@ -191,8 +181,6 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
               quality: 0.8,
               maxSizeMB: 1,
             });
-            const optimizedSizeMB = getFileSizeMB(optimizedFile);
-            console.log(`최적화 완료: ${originalSizeMB.toFixed(2)}MB → ${optimizedSizeMB.toFixed(2)}MB`);
           } catch (optimizeError) {
             console.error('이미지 최적화 실패:', optimizeError);
             alert(`파일 "${file.name}" 최적화에 실패했습니다. 원본 파일로 진행합니다.`);
@@ -206,19 +194,10 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
 
         while (retryCount < maxRetries && !uploadSuccess) {
           try {
-            console.log(`\n=== 이미지 업로드 시도 ${retryCount + 1}/${maxRetries} ===`);
-            console.log('파일:', optimizedFile.name);
-            console.log('크기:', getFileSizeMB(optimizedFile).toFixed(2) + 'MB');
-            console.log('employerId:', employerId);
-            
             // Firebase Storage에 업로드
             const fileName = generateSafeFileName(employerId, optimizedFile.name, i);
             const storagePath = generateStoragePath(employerId, fileName);
             const storageRef = ref(storage, storagePath);
-            
-            console.log('파일명:', fileName);
-            console.log('Storage 경로:', storagePath);
-            console.log('Storage 참조 생성 완료');
             
             // 메타데이터 설정
             const metadata = {
@@ -226,57 +205,38 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
               cacheControl: 'public, max-age=31536000',
             };
             
-            console.log('메타데이터:', metadata);
-            console.log('업로드 시작...');
-            
             const snapshot = await uploadBytes(storageRef, optimizedFile, metadata);
-            console.log('업로드 완료:', snapshot.ref.fullPath);
-            console.log('업로드된 바이트:' );
-            
             const downloadURL = await getDownloadURL(storageRef);
-            console.log('다운로드 URL 생성 완료:', downloadURL);
             uploadedUrls.push(downloadURL);
             uploadSuccess = true;
             
-            console.log(`✅ 파일 "${file.name}" 업로드 성공!`);
-            
-          } catch (uploadError: any) {
+          } catch (uploadError: unknown) {
             retryCount++;
-            console.error(`\n❌ 업로드 실패 (시도 ${retryCount}/${maxRetries}):`);
-            console.error('오류 코드:', uploadError.code);
-            console.error('오류 메시지:', uploadError.message);
-            console.error('전체 오류:', uploadError);
             
-            if (uploadError.code === 'storage/retry-limit-exceeded') {
+            // uploadError를 Firebase Storage 오류 타입으로 타입 가드
+            const error = uploadError as { code?: string; message?: string };
+            
+            if (error.code === 'storage/retry-limit-exceeded') {
               if (retryCount < maxRetries) {
-                console.log(`🔄 ${retryCount}초 후 재시도...`);
                 await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
                 continue;
               } else {
-                console.error('최대 재시도 횟수 초과');
                 alert(`파일 "${file.name}" 업로드 실패: 네트워크 문제입니다.\n\n해결 방법:\n1. 인터넷 연결 확인\n2. 파일 크기 줄이기 (1MB 이하 권장)\n3. 잠시 후 다시 시도`);
                 break;
               }
-            } else if (uploadError.code === 'storage/unauthorized') {
-              console.error('Firebase Storage 권한 문제');
+            } else if (error.code === 'storage/unauthorized') {
               alert(`파일 "${file.name}" 업로드 실패: Firebase Storage 권한 문제입니다.\n\n해결 방법:\n1. Firebase Console에서 Storage Rules 확인\n2. firebase-storage-rules-emergency.txt 파일의 규칙 사용\n3. FIREBASE_STORAGE_CHECK.md 파일 참조`);
               break;
-            } else if (uploadError.code === 'storage/bucket-not-found') {
-              console.error('Firebase Storage 버킷을 찾을 수 없음');
+            } else if (error.code === 'storage/bucket-not-found') {
               alert(`파일 "${file.name}" 업로드 실패: Firebase Storage가 활성화되지 않았습니다.\n\n해결 방법:\n1. Firebase Console에서 Storage 활성화\n2. 프로젝트 설정 확인`);
               break;
             } else {
-              console.error('알 수 없는 오류');
-              alert(`파일 "${file.name}" 업로드에 실패했습니다:\n${uploadError.message || uploadError}\n\n오류 코드: ${uploadError.code}`);
+              alert(`파일 "${file.name}" 업로드에 실패했습니다:\n${error.message || String(error)}\n\n오류 코드: ${error.code || '알 수 없음'}`);
               break;
             }
           }
         }
       }
-
-      console.log('\n=== 업로드 완료 요약 ===');
-      console.log('성공한 파일 수:', uploadedUrls.length);
-      console.log('업로드된 URL들:', uploadedUrls);
 
       if (uploadedUrls.length > 0) {
         // 기존 이미지와 새로 업로드된 이미지 합치기
@@ -286,17 +246,14 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
         }));
 
         alert(`✅ ${uploadedUrls.length}개의 이미지가 성공적으로 업로드되었습니다!`);
-      } else {
-        console.warn('업로드된 파일이 없습니다.');
       }
-    } catch (error: any) {
-      console.error('이미지 업로드 중 오류:', error);
-      alert(`이미지 업로드 중 오류가 발생했습니다:\n${error.message || error}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`이미지 업로드 중 오류가 발생했습니다:\n${errorMessage}`);
     } finally {
       setUploadingImages(false);
       // 파일 입력 초기화
       event.target.value = '';
-      console.log('=== 이미지 업로드 함수 종료 ===');
     }
   };
 
@@ -310,8 +267,6 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
         const storagePath = `accommodation-images/${employerId}/${fileName}`;
         const storageRef = ref(storage, storagePath);
         
-        console.log('삭제할 파일:', fileName);
-        console.log('삭제할 경로:', storagePath);
         await deleteObject(storageRef);
         
         // 상태에서 이미지 제거
@@ -321,9 +276,9 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
         }));
         
         alert('이미지가 삭제되었습니다.');
-      } catch (error) {
-        console.error('이미지 삭제 실패:', error);
-        alert(`이미지 삭제 중 오류가 발생했습니다: ${error}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        alert(`이미지 삭제 중 오류가 발생했습니다: ${errorMessage}`);
       }
     }
   };
@@ -351,8 +306,7 @@ const AccommodationInfoModal: React.FC<AccommodationInfoModalProps> = ({
       await setDoc(doc(db, 'accommodationInfo', employerId), accommodationData);
       alert('기숙사 정보가 저장되었습니다.');
       onClose();
-    } catch (error) {
-      console.error('기숙사 정보 저장 실패:', error);
+    } catch (error: unknown) {
       alert('기숙사 정보 저장 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);

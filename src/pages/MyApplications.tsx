@@ -58,6 +58,9 @@ const MyApplications: React.FC = () => {
             location: data.location,
             salary: data.salary,
             selectedWorkTypeIds: data.selectedWorkTypeIds || [],
+            processStage: data.processStage || 'applied',
+            priority: data.priority || 'medium',
+            tags: data.tags || [],
           };
         });
         setApplications(fetchedApplications);

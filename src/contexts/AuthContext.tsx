@@ -168,7 +168,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       // Firestore에 사용자 정보 저장
-      const userData: any = {
+      const userData: {
+        email: string;
+        displayName: string;
+        role: string;
+        createdAt: any;
+        updatedAt: any;
+        workplaceName?: string;
+        workplaceLocation?: string;
+        contactPerson?: string;
+        companyName?: string;
+        companyAddress?: string;
+        companyDetailAddress?: string;
+        companyPhone?: string;
+        companyWebsite?: string;
+        businessNumber?: string;
+        industry?: string;
+        companySize?: string;
+        contactPhone?: string;
+        resume?: Resume;
+      } = {
         email: email,
         displayName: displayName,
         role: role,
@@ -248,18 +267,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       setUser(userInfo);
       localStorage.setItem('user', JSON.stringify(userInfo));
-    } catch (error: any) {
-      console.error('회원가입 실패:', error);
-      throw error;
+         } catch (error: unknown) {
+       throw error;
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (error: any) {
-      console.error('로그인 실패:', error);
-      throw error;
+         } catch (error: unknown) {
+       throw error;
     }
   };
 
@@ -271,9 +288,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.removeItem('user');
       // 로그아웃 후 소개페이지로 리다이렉트
       window.location.href = '/';
-    } catch (error: any) {
-      console.error('로그아웃 실패:', error);
-      throw error;
+         } catch (error: unknown) {
+       throw error;
     }
   };
 

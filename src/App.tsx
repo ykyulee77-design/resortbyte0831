@@ -22,6 +22,8 @@ import JobApplication from './pages/JobApplication';
 import ApplicationDetail from './pages/ApplicationDetail';
 import ApplicationEdit from './pages/ApplicationEdit';
 import ApplicationTemplates from './pages/ApplicationTemplates';
+import FinalHiringDecision from './pages/FinalHiringDecision';
+import FinalHiringPage from './pages/FinalHiringPage';
 import Notifications from './pages/Notifications';
 import Applications from './pages/Applications';
 import MyApplications from './pages/MyApplications';
@@ -347,6 +349,22 @@ function App() {
               <ProtectedRoute allowedRoles={['employer', 'jobseeker']}>
                 <Layout>
                   <ApplicationDetail />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/final-hiring-decision/:applicationId" element={
+              <ProtectedRoute allowedRoles={['employer']}>
+                <Layout>
+                  <FinalHiringDecision />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/final-hiring/:applicationId" element={
+              <ProtectedRoute allowedRoles={['employer']}>
+                <Layout>
+                  <FinalHiringPage />
                 </Layout>
               </ProtectedRoute>
             } />
