@@ -4,16 +4,18 @@ import { collection, addDoc, updateDoc, doc, getDoc, serverTimestamp } from 'fir
 import { db } from '../firebase';
 
 import { JobPost, WorkType, TimeSlot } from '../types';
+import { MapLocation } from '../types/naverMap';
 
 import LoadingSpinner from '../components/LoadingSpinner';
-
 import WorkTypeEditModal from '../components/WorkTypeEditModal';
 import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
-
+import AddressSearch from '../components/AddressSearch';
+import NaverMap from '../components/NaverMap';
+import NaverMapScript from '../components/NaverMapScript';
 
 import { useAuth } from '../contexts/AuthContext';
 import { workTypeService } from '../utils/scheduleMatchingService';
-import { Clock, Trash2, Maximize2, Building, FileText, Home, Save, CheckCircle } from 'lucide-react';
+import { Clock, Trash2, Maximize2, Building, FileText, Home, Save, CheckCircle, MapPin } from 'lucide-react';
 
 interface JobPostFormData {
   title: string;
@@ -87,6 +89,14 @@ const JobPostForm: React.FC = () => {
   const [accommodationInfo, setAccommodationInfo] = useState<any>(null);
   const [loadingCompanyInfo, setLoadingCompanyInfo] = useState(false);
   const [loadingAccommodationInfo, setLoadingAccommodationInfo] = useState(false);
+
+  // 지도 관련 상태
+  const [mapLocation, setMapLocation] = useState<MapLocation>({
+    lat: 37.5665, // 서울 시청 기본 좌표
+    lng: 126.9780
+  });
+  const [showMap, setShowMap] = useState(false);
+  const [mapLoading, setMapLoading] = useState(false);
   
 
 
@@ -282,6 +292,31 @@ const JobPostForm: React.FC = () => {
     } finally {
       setIsSavingWorkType(false);
     }
+  };
+
+  // 지도 관련 함수들
+  const handleAddressSelect = (result: any) => {
+    setMapLocation({
+      lat: result.lat,
+      lng: result.lng,
+      address: result.address
+    });
+    setFormData(prev => ({
+      ...prev,
+      companyInfo: {
+        ...prev.companyInfo,
+        address: result.address
+      }
+    }));
+    setShowMap(true);
+  };
+
+  const handleMapToggle = () => {
+    setShowMap(!showMap);
+  };
+
+  const handleMapClick = (lat: number, lng: number) => {
+    console.log('지도 클릭:', lat, lng);
   };
 
   // const handleWorkTypeClick = (workType: WorkType) => {
@@ -914,10 +949,44 @@ const JobPostForm: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">회사 주소</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
-                    {companyInfo.address || companyInfo.region || '미입력'}
+                  <div className="space-y-2">
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-900">
+                      {companyInfo.address || companyInfo.region || '미입력'}
+                    </div>
+                    {(companyInfo.address || companyInfo.region) && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleMapToggle}
+                          className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                        >
+                          <MapPin className="h-4 w-4 mr-1" />
+                          {showMap ? '지도 숨기기' : '지도 보기'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
+                
+                {/* 지도 표시 */}
+                {showMap && (companyInfo.address || companyInfo.region) && (
+                  <div className="md:col-span-2 mt-4">
+                    <NaverMapScript>
+                      <NaverMap
+                        center={mapLocation}
+                        zoom={15}
+                        markers={[
+                          {
+                            position: mapLocation,
+                            title: companyInfo.name || '회사',
+                            content: companyInfo.address || companyInfo.region || '위치 정보'
+                          }
+                        ]}
+                        onMapClick={handleMapClick}
+                      />
+                    </NaverMapScript>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>

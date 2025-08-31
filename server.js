@@ -5,8 +5,43 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// 성능 모니터링 미들웨어
+const performanceMonitor = (req, res, next) => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);
+    
+    // 느린 요청 경고 (1초 이상)
+    if (duration > 1000) {
+      console.warn(`⚠️ 느린 요청 감지: ${req.method} ${req.path} - ${duration}ms`);
+    }
+  });
+  
+  next();
+};
+
+// 요청 제한 미들웨어 (Rate Limiting)
+const rateLimit = require('express-rate-limit');
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15분
+  max: 100, // IP당 최대 100개 요청
+  message: {
+    error: '너무 많은 요청이 발생했습니다. 15분 후에 다시 시도해주세요.',
+    errorCode: 'RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // 성능 최적화를 위한 설정
 app.set('trust proxy', 1);
+
+// 미들웨어 적용
+app.use(performanceMonitor);
+app.use('/api/', apiLimiter);
 
 // CORS 설정 (더 구체적으로)
 app.use(cors({

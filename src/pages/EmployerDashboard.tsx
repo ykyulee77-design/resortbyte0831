@@ -8,6 +8,7 @@ import ImagePreviewModal from '../components/ImagePreviewModal';
 import { workTypeService } from '../utils/scheduleMatchingService';
 import { uploadImage, deleteImage, compressImage } from '../utils/imageUpload';
 import NaverMap from '../components/NaverMap';
+import NaverMapScript from '../components/NaverMapScript';
 
 interface JobPost {
   id: string;
@@ -283,16 +284,68 @@ const EmployerDashboard: React.FC = () => {
           setCompanyRegistrants([]);
         }
 
-        // 2. 기숙사 정보 로딩
-        try {
-          // 먼저 문서 ID로 직접 조회 시도
-          const accommodationDocRef = doc(db, 'accommodationInfo', user.uid);
-          const accommodationDoc = await getDoc(accommodationDocRef);
-          
-          if (accommodationDoc.exists()) {
-            const accommodationData = accommodationDoc.data();
-            setAccommodationInfo(accommodationData);
-          } else {
+                 // 2. 기숙사 정보 로딩
+         try {
+           // 먼저 문서 ID로 직접 조회 시도
+           const accommodationDocRef = doc(db, 'accommodationInfo', user.uid);
+           const accommodationDoc = await getDoc(accommodationDocRef);
+           
+           if (accommodationDoc.exists()) {
+             const accommodationData = accommodationDoc.data();
+             console.log('기숙사 정보 데이터:', accommodationData);
+             
+                           // 주소는 있지만 좌표가 없는 경우, 네이버 지도 API의 내장 지오코딩 사용
+              if (accommodationData.address && (!accommodationData.latitude || !accommodationData.longitude)) {
+                console.log('주소를 좌표로 변환 시도:', accommodationData.address);
+                
+                // 네이버 지도 API가 로드되었는지 확인
+                if (window.naver && window.naver.maps && window.naver.maps.Service) {
+                  try {
+                    // 네이버 지도 API의 내장 지오코딩 사용
+                                         window.naver.maps.Service.geocode({
+                       query: accommodationData.address
+                     }, function(status: any, response: any) {
+                      if (status === window.naver.maps.Service.Status.OK) {
+                        const result = response.v2;
+                        if (result.meta.totalCount > 0) {
+                          const item = result.addresses[0];
+                          const coordinates = {
+                            lat: parseFloat(item.y),
+                            lng: parseFloat(item.x)
+                          };
+                          
+                          console.log('네이버 지오코딩 성공:', coordinates);
+                          
+                          const updatedData = {
+                            ...accommodationData,
+                            latitude: coordinates.lat,
+                            longitude: coordinates.lng
+                          };
+                          
+                          // Firestore에 업데이트
+                          setDoc(accommodationDocRef, updatedData, { merge: true });
+                          setAccommodationInfo(updatedData);
+                        } else {
+                          console.log('지오코딩 결과 없음, 기본 좌표 사용');
+                          setAccommodationInfo(accommodationData);
+                        }
+                      } else {
+                        console.log('지오코딩 실패, 기본 좌표 사용');
+                        setAccommodationInfo(accommodationData);
+                      }
+                    });
+                  } catch (error) {
+                    console.error('지오코딩 오류:', error);
+                    setAccommodationInfo(accommodationData);
+                  }
+                } else {
+                  console.log('네이버 지도 API가 로드되지 않음, 기본 좌표 사용');
+                  setAccommodationInfo(accommodationData);
+                }
+              } else {
+                setAccommodationInfo(accommodationData);
+              }
+           } else {
             // 문서가 없으면 employerId로 쿼리 시도 (하위 호환성)
             const accommodationInfoQuery = query(
               collection(db, 'accommodationInfo'),
@@ -881,19 +934,44 @@ const EmployerDashboard: React.FC = () => {
                     
 
                     
-                    {/* 지도 */}
-                    {accommodationInfo?.address && (
-                      <div className="bg-white rounded-lg border p-3">
-                        <h3 className="font-semibold text-gray-900 mb-2 text-sm">위치</h3>
-                      <NaverMap
-                        address={accommodationInfo.address}
-                          latitude={(accommodationInfo as any)?.latitude}
-                          longitude={(accommodationInfo as any)?.longitude}
-                          zoom={15}
-                          height="220px"
-                      />
-                    </div>
-                  )}
+                                         {/* 지도 */}
+                     {accommodationInfo?.address && (
+                       <div className="bg-white rounded-lg border p-3">
+                         <h3 className="font-semibold text-gray-900 mb-2 text-sm">위치</h3>
+                         <div style={{ height: '300px' }}>
+                           <NaverMapScript>
+                             <NaverMap
+                               center={{
+                                 lat: (accommodationInfo as any)?.latitude || 37.5665,
+                                 lng: (accommodationInfo as any)?.longitude || 126.9780
+                               }}
+                               zoom={15}
+                               markers={[
+                                 {
+                                   position: {
+                                     lat: (accommodationInfo as any)?.latitude || 37.5665,
+                                     lng: (accommodationInfo as any)?.longitude || 126.9780
+                                   },
+                                   title: '기숙사',
+                                   content: accommodationInfo.address
+                                 }
+                               ]}
+                             />
+                           </NaverMapScript>
+                         </div>
+                         {/* 디버깅 정보 */}
+                         <div className="mt-2 text-xs text-gray-500">
+                           <p>위도: {(accommodationInfo as any)?.latitude || '설정되지 않음'}</p>
+                           <p>경도: {(accommodationInfo as any)?.longitude || '설정되지 않음'}</p>
+                           <p>주소: {accommodationInfo.address}</p>
+                           <p>기본 좌표 사용: {(!(accommodationInfo as any)?.latitude || !(accommodationInfo as any)?.longitude) ? '예 (서울시청)' : '아니오'}</p>
+                           <p>마커 데이터: {JSON.stringify({
+                             lat: (accommodationInfo as any)?.latitude || 37.5665,
+                             lng: (accommodationInfo as any)?.longitude || 126.9780
+                           })}</p>
+                         </div>
+                       </div>
+                     )}
 
                     {/* 기숙사 이미지 */}
                     {(accommodationInfo?.images || []).length > 0 && (

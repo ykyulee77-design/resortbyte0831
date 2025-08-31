@@ -25,6 +25,10 @@ export interface Address {
   
   // 영어 주소 (국제화 지원)
   engAddress?: string;
+  
+  // 좌표 정보
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface AddressSearchProps {
@@ -66,58 +70,9 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     }
   }, [value, isEditing]);
 
-  // 주소에서 지역 정보 추출
-  const extractRegionInfo = useCallback((address: string): { region: string; sido: string; sigungu: string } => {
-    const parts = address.split(' ');
-    let region = '';
-    let sido = '';
-    let sigungu = '';
+  // 네이버 지도 API의 내장 지오코딩을 통한 주소 검색
 
-    if (parts.length >= 2) {
-      sido = parts[0];
-      sigungu = parts[1];
-      region = `${sido} ${sigungu}`;
-    } else if (parts.length === 1) {
-      sido = parts[0];
-      region = sido;
-    }
-
-    return { region, sido, sigungu };
-  }, []);
-
-  // 공공데이터 포털 API 응답을 Address 객체로 변환
-  const mapApiResponseToAddress = useCallback((juso: any): Address => {
-    const regionInfo = extractRegionInfo(juso.roadAddr || juso.jibunAddr);
-    
-    return {
-      // 기본 주소 정보
-      zipCode: juso.zipNo || '',
-      address: juso.roadAddr || juso.jibunAddr,
-      roadAddress: juso.roadAddr || '',
-      jibunAddress: juso.jibunAddr || '',
-      
-      // 지역 정보
-      region: regionInfo.region,
-      sido: regionInfo.sido,
-      sigungu: regionInfo.sigungu,
-      emdNm: juso.emdNm || '',
-      
-      // 상세 주소 정보
-      buildingName: juso.bdNm || '',
-      roadName: juso.rn || '',
-      buildingNumber: juso.buldMnnm || '',
-      admCd: juso.admCd || '',
-      
-      // 영어 주소
-      engAddress: juso.engAddr || '',
-      
-      // 지도 좌표 (향후 지오코딩 API로 추가 예정)
-      // latitude: 0,
-      // longitude: 0,
-    };
-  }, [extractRegionInfo]);
-
-  // 공공데이터 포털 API를 통한 주소 검색
+  // 네이버 지도 API의 내장 지오코딩을 통한 주소 검색
   const searchAddresses = useCallback(async (keyword: string) => {
     if (keyword.length < minSearchLength) {
       setAddresses([]);
@@ -129,103 +84,73 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     setError(null);
     
     try {
-      // 환경 변수에서 API URL 가져오기 (개발/프로덕션 환경 대응)
-      const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-      const url = `${apiBaseUrl}/api/geocode?query=${encodeURIComponent(keyword)}`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API 호출 실패: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      // 공공데이터 포털 API 응답 처리
-      if (data.results && data.results.juso && data.results.juso.length > 0) {
-        const apiAddresses: Address[] = data.results.juso
-          .slice(0, maxResults) // 결과 수 제한
-          .map(mapApiResponseToAddress);
+      // 네이버 지도 API가 로드되었는지 확인
+      if (window.naver && window.naver.maps && window.naver.maps.Service) {
+        console.log('네이버 지도 API 사용하여 주소 검색:', keyword);
         
-        setAddresses(apiAddresses);
-        setShowDropdown(true);
+        // 네이버 지도 API의 내장 지오코딩 사용
+        window.naver.maps.Service.geocode({
+          query: keyword
+        }, function(status: any, response: any) {
+          console.log('네이버 지오코딩 응답:', status, response);
+          
+          if (status === window.naver.maps.Service.Status.OK) {
+            const result = response.v2;
+            if (result.meta.totalCount > 0) {
+              const apiAddresses: Address[] = result.addresses
+                .slice(0, maxResults)
+                .map((item: any) => ({
+                  zipCode: item.zipcode || '',
+                  address: item.roadAddress || item.jibunAddress,
+                  roadAddress: item.roadAddress || '',
+                  jibunAddress: item.jibunAddress || '',
+                  region: item.region || '',
+                  sido: item.sido || '',
+                  sigungu: item.sigungu || '',
+                  emdNm: item.emdNm || '',
+                  buildingName: item.buildingName || '',
+                  roadName: item.roadName || '',
+                  buildingNumber: item.buildingNumber || '',
+                  admCd: item.admCd || '',
+                  engAddress: item.engAddress || '',
+                  latitude: parseFloat(item.y),
+                  longitude: parseFloat(item.x),
+                }));
+              
+              console.log('네이버 API 주소 검색 결과:', apiAddresses);
+              setAddresses(apiAddresses);
+              setShowDropdown(true);
+            } else {
+              console.log('네이버 API 검색 결과 없음');
+              setError('검색 결과가 없습니다. 정확한 주소를 입력해주세요. (예: 서울특별시 강남구 테헤란로 427)');
+              setAddresses([]);
+              setShowDropdown(false);
+            }
+          } else {
+            console.log('네이버 API 오류');
+            setError('검색 결과가 없습니다. 정확한 주소를 입력해주세요. (예: 서울특별시 강남구 테헤란로 427)');
+            setAddresses([]);
+            setShowDropdown(false);
+          }
+          setIsLoading(false);
+        });
       } else {
-        // 샘플 데이터 사용 (전국 주요 도시 주소)
-        const sampleAddresses: Address[] = getSampleAddresses(keyword);
-        setAddresses(sampleAddresses);
-        setShowDropdown(true);
+        console.log('네이버 지도 API가 로드되지 않음');
+        setError('네이버 지도 API가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+        setAddresses([]);
+        setShowDropdown(false);
+        setIsLoading(false);
       }
     } catch (error) {
       console.error('주소 검색 오류:', error);
       setError('주소 검색 중 오류가 발생했습니다.');
       setAddresses([]);
       setShowDropdown(false);
-    } finally {
       setIsLoading(false);
     }
-  }, [minSearchLength, maxResults, mapApiResponseToAddress]);
+  }, [minSearchLength, maxResults]);
 
-  // 샘플 주소 데이터 (API 실패 시 폴백용)
-  const getSampleAddresses = useCallback((keyword: string): Address[] => {
-    const sampleData: Address[] = [
-      // 서울 강남구
-      {
-        zipCode: '06123',
-        address: '서울특별시 강남구 테헤란로 427',
-        roadAddress: '서울특별시 강남구 테헤란로 427',
-        jibunAddress: '서울특별시 강남구 역삼동 737-32',
-        region: '서울특별시 강남구',
-        sido: '서울특별시',
-        sigungu: '강남구',
-        emdNm: '역삼동',
-        buildingName: '강남파이낸스센터',
-        roadName: '테헤란로',
-        buildingNumber: '427',
-        engAddress: '427 Teheran-ro, Gangnam-gu, Seoul',
-      },
-      {
-        zipCode: '06124',
-        address: '서울특별시 강남구 역삼로 180',
-        roadAddress: '서울특별시 강남구 역삼로 180',
-        jibunAddress: '서울특별시 강남구 역삼동 737-32',
-        region: '서울특별시 강남구',
-        sido: '서울특별시',
-        sigungu: '강남구',
-        emdNm: '역삼동',
-        buildingName: '역삼빌딩',
-        roadName: '역삼로',
-        buildingNumber: '180',
-        engAddress: '180 Yeoksam-ro, Gangnam-gu, Seoul',
-      },
-      // 부산 해운대구
-      {
-        zipCode: '48095',
-        address: '부산광역시 해운대구 해운대해변로 264',
-        roadAddress: '부산광역시 해운대구 해운대해변로 264',
-        jibunAddress: '부산광역시 해운대구 우동 1434',
-        region: '부산광역시 해운대구',
-        sido: '부산광역시',
-        sigungu: '해운대구',
-        emdNm: '우동',
-        buildingName: '해운대해수욕장',
-        roadName: '해운대해변로',
-        buildingNumber: '264',
-        engAddress: '264 Haeundaehaebyeon-ro, Haeundae-gu, Busan',
-      },
-    ];
-
-    return sampleData.filter(addr => 
-      addr.address.toLowerCase().includes(keyword.toLowerCase()) ||
-      addr.roadAddress.toLowerCase().includes(keyword.toLowerCase()) ||
-      addr.jibunAddress.toLowerCase().includes(keyword.toLowerCase()) ||
-      (addr.region && addr.region.toLowerCase().includes(keyword.toLowerCase()))
-    );
-  }, []);
+  // 샘플 데이터 제거 - 실제 API만 사용
 
   // 디바운스 검색
   useEffect(() => {

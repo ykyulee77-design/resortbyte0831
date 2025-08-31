@@ -7,6 +7,8 @@ import { uploadImage, deleteImage, validateImageFile } from '../utils/imageUploa
 import { Building, Home, Camera, Upload, Trash2, Save, ArrowLeft, Users, Edit3, Wifi, Snowflake, Tv, Refrigerator, BookOpen, Bed, Utensils, Thermometer, Star } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ImagePreviewModal from '../components/ImagePreviewModal';
+import AddressSearch, { Address } from '../components/AddressSearch';
+import NaverMapScript from '../components/NaverMapScript';
 
 const AccommodationInfoPage: React.FC = () => {
   const { employerId } = useParams<{ employerId: string }>();
@@ -266,8 +268,8 @@ const AccommodationInfoPage: React.FC = () => {
       
       setAccommodationInfo(accommodationData);
       setIsEditing(false);
-      // 저장 후 조회 모드 URL로 이동
-      navigate(`/accommodation-info/${employerId}`);
+      // 저장 후 대시보드로 이동 (지도 업데이트를 위해)
+      navigate('/employer-dashboard');
       setError(null);
     } catch (error) {
       console.error('기숙사 정보 저장 실패:', error);
@@ -334,7 +336,8 @@ const AccommodationInfoPage: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <NaverMapScript>
+      <div className="min-h-screen bg-gray-50">
       {/* 헤더 */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -386,12 +389,20 @@ const AccommodationInfoPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     주소
                   </label>
-                  <input
-                    type="text"
+                  <AddressSearch
+                    onAddressSelect={(address: Address) => {
+                      console.log('주소 선택됨 - 좌표 포함:', address);
+                      setEditData(prev => ({ 
+                        ...prev, 
+                        address: address.address,
+                        latitude: address.latitude,
+                        longitude: address.longitude
+                      }));
+                    }}
+                    placeholder="기숙사 주소를 검색하세요 (예: 서울특별시 강남구 테헤란로 427)"
                     value={editData.address}
-                    onChange={(e) => setEditData(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="기숙사 주소를 입력하세요"
+                    showDetailAddress={true}
+                    detailAddressPlaceholder="상세주소 (동/호수, 층수 등)"
                   />
                 </div>
                 
@@ -946,7 +957,8 @@ const AccommodationInfoPage: React.FC = () => {
           isOpen={!!previewImage}
         />
       )}
-    </div>
+      </div>
+    </NaverMapScript>
   );
 };
 

@@ -5,6 +5,7 @@ interface ImageOptimizationOptions {
   maxHeight?: number;
   quality?: number;
   maxSizeMB?: number;
+  format?: 'webp' | 'jpeg' | 'png';
 }
 
 /**
@@ -19,6 +20,7 @@ export const optimizeImage = async (
     maxHeight = 1080,
     quality = 0.8,
     maxSizeMB = 1,
+    format = 'webp',
   } = options;
 
   return new Promise((resolve, reject) => {

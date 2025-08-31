@@ -6,9 +6,13 @@ import { uploadImage, deleteImage, validateImageFile } from '../utils/imageUploa
 import { useAuth } from '../contexts/AuthContext';
 import { Building, FileText, Home, Users, MessageSquare, MapPin, Edit, Save, X, Settings, Send, CheckCircle, Star, Share2, Eye, Clock } from 'lucide-react';
 import { JobPost, Application, CompanyInfo, AccommodationInfo, WorkType, TimeSlot } from '../types';
+import { MapLocation } from '../types/naverMap';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ApplicationPreview from '../components/ApplicationPreview';
 import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
+import NaverMap from '../components/NaverMap';
+import NaverMapScript from '../components/NaverMapScript';
+import { searchAddress } from '../utils/geocoding';
 
 import ImagePreviewModal from '../components/ImagePreviewModal';
 
@@ -85,6 +89,14 @@ const JobPostDetail: React.FC = () => {
   // 스케줄 그리드 모달 상태
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedWorkType, setSelectedWorkType] = useState<WorkType | null>(null);
+
+  // 지도 관련 상태
+  const [mapLocation, setMapLocation] = useState<MapLocation>({
+    lat: 37.5665, // 서울 시청 기본 좌표
+    lng: 126.9780
+  });
+  const [showMap, setShowMap] = useState(false);
+  const [mapLoading, setMapLoading] = useState(false);
 
   // 지원 여부 확인
   const checkApplicationStatus = useCallback(async () => {
@@ -275,6 +287,39 @@ const JobPostDetail: React.FC = () => {
       console.error('회사 이미지 삭제 실패:', error);
       alert('회사 이미지 삭제에 실패했습니다.');
     }
+  };
+
+  // 지도 관련 함수들
+  const handleMapToggle = () => {
+    setShowMap(!showMap);
+  };
+
+  const handleLocationSearch = async () => {
+    if (!job?.location) return;
+    
+    setMapLoading(true);
+    try {
+      const result = await searchAddress(job.location);
+      if (result) {
+        setMapLocation({
+          lat: result.lat,
+          lng: result.lng,
+          address: result.address
+        });
+        setShowMap(true);
+      } else {
+        alert('주소를 찾을 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('주소 검색 실패:', error);
+      alert('주소 검색에 실패했습니다.');
+    } finally {
+      setMapLoading(false);
+    }
+  };
+
+  const handleMapClick = (lat: number, lng: number) => {
+    console.log('지도 클릭:', lat, lng);
   };
 
   // 모든 모달 닫기
@@ -833,9 +878,49 @@ const JobPostDetail: React.FC = () => {
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 ) : (
-                  <p className="text-gray-900">{job.location || companyInfo?.address || companyInfo?.region || '미입력'}</p>
+                  <div className="space-y-2">
+                    <p className="text-gray-900">{job.location || companyInfo?.address || companyInfo?.region || '미입력'}</p>
+                    {(job.location || companyInfo?.address || companyInfo?.region) && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleLocationSearch}
+                          disabled={mapLoading}
+                          className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                          <MapPin className="h-4 w-4 mr-1" />
+                          {mapLoading ? '검색 중...' : '지도에서 보기'}
+                        </button>
+                        <button
+                          onClick={handleMapToggle}
+                          className="inline-flex items-center px-3 py-1 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
+                        >
+                          {showMap ? '지도 숨기기' : '지도 보기'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
+              
+              {/* 지도 표시 */}
+              {showMap && !isEditing && (
+                <div className="mt-4">
+                  <NaverMapScript>
+                    <NaverMap
+                      center={mapLocation}
+                      zoom={15}
+                      markers={[
+                        {
+                          position: mapLocation,
+                          title: job.jobTitle || '근무지',
+                          content: job.location || companyInfo?.address || companyInfo?.region || '위치 정보'
+                        }
+                      ]}
+                      onMapClick={handleMapClick}
+                    />
+                  </NaverMapScript>
+                </div>
+              )}
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">급여</label>

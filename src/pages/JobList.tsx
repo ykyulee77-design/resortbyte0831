@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, DollarSign, Calendar, Search, Filter, Home, Eye, Star } from 'lucide-react';
+import { MapPin, DollarSign, Calendar, Search, Filter, Home, Eye, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { JobPost, AccommodationInfo } from '../types';
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import ImagePreviewModal from '../components/ImagePreviewModal';
+import { applyPagination, calculatePagination } from '../utils/pagination';
 
 
 
@@ -27,6 +28,10 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
   const [jobPosts, setJobPosts] = useState<JobPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // 페이지네이션 상태
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(12); // 한 페이지당 12개 아이템
 
   const [accommodationInfoMap, setAccommodationInfoMap] = useState<{ [key: string]: AccommodationInfo }>({});
   const [companyInfoMap, setCompanyInfoMap] = useState<{ [employerId: string]: any }>({});
@@ -113,6 +118,11 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
     .filter((info: any) => getProvince(info.region) === regionProvince)
     .map((info: any) => getDistrict(info.region))
     .filter(Boolean)));
+
+  // 검색/필터 변경 시 페이지 리셋
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, regionProvince, regionDistrict, dormitoryFilter, facilityFilter]);
 
   useEffect(() => {
     const fetchJobPosts = async () => {
@@ -248,8 +258,20 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
     
     return matchesSearch && matchesLocation && matchesSalary && matchesProvince && matchesDistrict && matchesDormitory && matchesFacility;
   });
+  
+  // 페이지네이션 계산
+  const pagination = calculatePagination({
+    page: currentPage,
+    limit: pageSize,
+    total: filteredJobPosts.length
+  });
+  
+  // 현재 페이지에 해당하는 데이터만 가져오기
+  const paginatedJobPosts = applyPagination(filteredJobPosts, currentPage, pageSize);
+  
   console.log('jobPosts.length:', jobPosts.length);
   console.log('filteredJobPosts.length:', filteredJobPosts.length);
+  console.log('paginatedJobPosts.data.length:', paginatedJobPosts.data.length);
 
 
 
@@ -427,7 +449,7 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredJobPosts.map((jobPost) => (
+            {paginatedJobPosts.data.map((jobPost) => (
               <Link
                 key={jobPost.id}
                 to={`/job/${jobPost.id}`}
@@ -535,6 +557,46 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
                 </div>
               </Link>
             ))}
+          </div>
+        )}
+
+        {/* 페이지네이션 UI */}
+        {filteredJobPosts.length > pageSize && (
+          <div className="flex items-center justify-center mt-8">
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              
+              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                const pageNum = i + 1;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-2 text-sm font-medium rounded-md ${
+                      currentPage === pageNum
+                        ? 'bg-resort-600 text-white'
+                        : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(pagination.totalPages, prev + 1))}
+                disabled={currentPage === pagination.totalPages}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         )}
 
