@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { adminAuth } from '../../utils/adminAuth';
+import { db } from '../../firebase/config';
+import { collection, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy, limit } from 'firebase/firestore';
 
 interface Member {
   uid: string;
@@ -110,8 +112,92 @@ const MemberManagement: React.FC = () => {
     const loadMembers = async () => {
       try {
         setLoading(true);
-        // 실제 데이터베이스에서 회원 목록 로드
-        const mockMembers: Member[] = [
+        
+        // 실제 Firebase에서 회원 목록 로드
+        const usersRef = collection(db, 'users');
+        const usersSnapshot = await getDocs(usersRef);
+        
+        const membersData: Member[] = [];
+        
+        for (const userDoc of usersSnapshot.docs) {
+          const userData = userDoc.data();
+          
+          // 기본 사용자 정보
+          const member: Member = {
+            uid: userDoc.id,
+            email: userData.email || '',
+            displayName: userData.displayName || userData.name || '이름 없음',
+            role: userData.role || 'jobseeker',
+            createdAt: userData.createdAt?.toDate() || new Date(),
+            lastLoginAt: userData.lastLoginAt?.toDate(),
+            isActive: userData.isActive !== false,
+            isSuspended: userData.isSuspended || false,
+            isVerified: userData.isVerified || false,
+            profileCompleted: userData.profileCompleted || false,
+            
+            // 구직자 정보
+            jobseekerInfo: userData.role === 'jobseeker' ? {
+              phone: userData.phone || '',
+              birthDate: userData.birthDate?.toDate(),
+              gender: userData.gender,
+              education: userData.education || '',
+              experience: userData.experience || '',
+              skills: userData.skills || [],
+              desiredSalary: userData.desiredSalary || '',
+              desiredLocation: userData.desiredLocation || [],
+              resumeUrl: userData.resumeUrl || '',
+              profileImageUrl: userData.profileImageUrl || ''
+            } : undefined,
+            
+            // 구인자 정보
+            employerInfo: userData.role === 'employer' ? {
+              companyName: userData.companyName || '',
+              companySize: userData.companySize,
+              industry: userData.industry || '',
+              website: userData.website || '',
+              phone: userData.phone || '',
+              address: userData.address || '',
+              workplaceLocation: userData.workplaceLocation || '',
+              businessNumber: userData.businessNumber || '',
+              companyImageUrl: userData.companyImageUrl || '',
+              verifiedBusiness: userData.verifiedBusiness || false
+            } : undefined,
+            
+            // 통계 정보 (기본값)
+            stats: {
+              totalJobPosts: userData.role === 'employer' ? (userData.totalJobPosts || 0) : undefined,
+              totalApplications: userData.totalApplications || 0,
+              totalViews: userData.totalViews || 0,
+              responseRate: userData.responseRate || 0,
+              avgResponseTime: userData.avgResponseTime || 0,
+              lastActivity: userData.lastActivity?.toDate() || new Date()
+            },
+            
+            // 상태 정보
+            status: {
+              emailVerified: userData.emailVerified || false,
+              phoneVerified: userData.phoneVerified || false,
+              profileVerified: userData.profileVerified || false,
+              documentsVerified: userData.documentsVerified || false,
+              premiumMember: userData.premiumMember || false,
+              subscriptionExpiresAt: userData.subscriptionExpiresAt?.toDate()
+            }
+          };
+          
+          membersData.push(member);
+        }
+        
+        setMembers(membersData);
+        setFilteredMembers(membersData);
+      } catch (error) {
+        console.error('회원 데이터 로드 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMembers();
+  }, []);
           {
             uid: '1',
             email: 'jobseeker1@example.com',
@@ -274,6 +360,14 @@ const MemberManagement: React.FC = () => {
     }
 
     try {
+      // Firebase에서 회원 상태 업데이트
+      const userRef = doc(db, 'users', member.uid);
+      await updateDoc(userRef, {
+        isSuspended: !member.isSuspended,
+        updatedAt: new Date()
+      });
+
+      // 로컬 상태 업데이트
       const updatedMembers = members.map(m => 
         m.uid === member.uid 
           ? { ...m, isSuspended: !m.isSuspended }
@@ -300,6 +394,11 @@ const MemberManagement: React.FC = () => {
     }
 
     try {
+      // Firebase에서 회원 삭제
+      const userRef = doc(db, 'users', member.uid);
+      await deleteDoc(userRef);
+
+      // 로컬 상태 업데이트
       const updatedMembers = members.filter(m => m.uid !== member.uid);
       setMembers(updatedMembers);
       
@@ -318,6 +417,14 @@ const MemberManagement: React.FC = () => {
     }
 
     try {
+      // Firebase에서 회원 인증 상태 업데이트
+      const userRef = doc(db, 'users', member.uid);
+      await updateDoc(userRef, {
+        isVerified: !member.isVerified,
+        updatedAt: new Date()
+      });
+
+      // 로컬 상태 업데이트
       const updatedMembers = members.map(m => 
         m.uid === member.uid 
           ? { ...m, isVerified: !m.isVerified }

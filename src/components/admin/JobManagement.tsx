@@ -18,6 +18,8 @@ import {
   Star
 } from 'lucide-react';
 import { adminAuth } from '../../utils/adminAuth';
+import { db } from '../../firebase/config';
+import { collection, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
 
 interface JobPost {
   id: string;
@@ -53,8 +55,49 @@ const JobManagement: React.FC = () => {
     const loadJobPosts = async () => {
       try {
         setLoading(true);
-        // 실제 데이터베이스에서 공고 목록 로드
-        const mockJobPosts: JobPost[] = [
+        
+        // 실제 Firebase에서 공고 목록 로드
+        const jobPostsRef = collection(db, 'jobPosts');
+        const jobPostsSnapshot = await getDocs(jobPostsRef);
+        
+        const jobPostsData: JobPost[] = [];
+        
+        for (const jobDoc of jobPostsSnapshot.docs) {
+          const jobData = jobDoc.data();
+          
+          const jobPost: JobPost = {
+            id: jobDoc.id,
+            title: jobData.title || '',
+            companyName: jobData.companyName || '',
+            location: jobData.location || '',
+            salary: jobData.salary || '',
+            jobType: jobData.jobType || 'full-time',
+            status: jobData.status || 'pending',
+            createdAt: jobData.createdAt?.toDate() || new Date(),
+            expiresAt: jobData.expiresAt?.toDate() || new Date(),
+            employerId: jobData.employerId || '',
+            employerName: jobData.employerName || '',
+            description: jobData.description || '',
+            requirements: jobData.requirements || [],
+            benefits: jobData.benefits || [],
+            applications: jobData.applications || 0,
+            views: jobData.views || 0
+          };
+          
+          jobPostsData.push(jobPost);
+        }
+        
+        setJobPosts(jobPostsData);
+        setFilteredJobPosts(jobPostsData);
+      } catch (error) {
+        console.error('공고 데이터 로드 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadJobPosts();
+  }, []);
           {
             id: '1',
             title: '리조트 프론트 데스크',
@@ -156,7 +199,15 @@ const JobManagement: React.FC = () => {
     }
 
     try {
-      // 실제 데이터베이스 업데이트
+      // Firebase에서 공고 상태 업데이트
+      const jobRef = doc(db, 'jobPosts', job.id);
+      await updateDoc(jobRef, {
+        status: 'approved',
+        approvedAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      // 로컬 상태 업데이트
       const updatedJobs = jobPosts.map(j => 
         j.id === job.id ? { ...j, status: 'approved' as const } : j
       );
@@ -177,7 +228,15 @@ const JobManagement: React.FC = () => {
     }
 
     try {
-      // 실제 데이터베이스 업데이트
+      // Firebase에서 공고 상태 업데이트
+      const jobRef = doc(db, 'jobPosts', job.id);
+      await updateDoc(jobRef, {
+        status: 'rejected',
+        rejectedAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      // 로컬 상태 업데이트
       const updatedJobs = jobPosts.map(j => 
         j.id === job.id ? { ...j, status: 'rejected' as const } : j
       );
@@ -202,7 +261,11 @@ const JobManagement: React.FC = () => {
     }
 
     try {
-      // 실제 데이터베이스에서 삭제
+      // Firebase에서 공고 삭제
+      const jobRef = doc(db, 'jobPosts', job.id);
+      await deleteDoc(jobRef);
+
+      // 로컬 상태 업데이트
       const updatedJobs = jobPosts.filter(j => j.id !== job.id);
       setJobPosts(updatedJobs);
       
