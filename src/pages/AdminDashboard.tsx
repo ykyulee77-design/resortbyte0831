@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import UserManagement from '../components/admin/UserManagement';
 import JobManagement from '../components/admin/JobManagement';
+import MemberManagement from '../components/admin/MemberManagement';
 import { 
   Copy, 
   Shield, 
@@ -362,8 +363,8 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* 사용자 관리 탭 */}
-        {activeTab === 'users' && <UserManagement />}
+        {/* 회원 관리 탭 */}
+        {activeTab === 'users' && <MemberManagement />}
         
         {/* 공고 관리 탭 */}
         {activeTab === 'jobs' && <JobManagement />}

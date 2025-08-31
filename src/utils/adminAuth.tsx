@@ -13,6 +13,7 @@ export enum AdminPermission {
   EDIT_USERS = 'edit_users',
   DELETE_USERS = 'delete_users',
   SUSPEND_USERS = 'suspend_users',
+  VERIFY_USERS = 'verify_users',
   
   // 공고 관리
   VIEW_JOBS = 'view_jobs',
@@ -56,6 +57,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
     AdminPermission.EDIT_USERS,
     AdminPermission.DELETE_USERS,
     AdminPermission.SUSPEND_USERS,
+    AdminPermission.VERIFY_USERS,
     AdminPermission.VIEW_JOBS,
     AdminPermission.APPROVE_JOBS,
     AdminPermission.EDIT_JOBS,
@@ -74,6 +76,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
     AdminPermission.VIEW_USERS,
     AdminPermission.EDIT_USERS,
     AdminPermission.SUSPEND_USERS,
+    AdminPermission.VERIFY_USERS,
     AdminPermission.VIEW_JOBS,
     AdminPermission.APPROVE_JOBS,
     AdminPermission.EDIT_JOBS,
@@ -85,6 +88,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
   [AdminRole.MODERATOR]: [
     AdminPermission.VIEW_USERS,
     AdminPermission.SUSPEND_USERS,
+    AdminPermission.VERIFY_USERS,
     AdminPermission.VIEW_JOBS,
     AdminPermission.APPROVE_JOBS,
     AdminPermission.VIEW_ANALYTICS
@@ -195,6 +199,13 @@ class AdminAuthManager {
    */
   canSuspendUsers(): boolean {
     return this.hasPermission(AdminPermission.SUSPEND_USERS);
+  }
+
+  /**
+   * 회원 인증 권한 확인
+   */
+  canVerifyUsers(): boolean {
+    return this.hasPermission(AdminPermission.VERIFY_USERS);
   }
 
   /**
