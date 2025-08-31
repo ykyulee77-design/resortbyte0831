@@ -157,7 +157,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 헤더 */}
+        {/* 헤더 */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
@@ -182,7 +182,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+        </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 탭 네비게이션 */}
@@ -190,7 +190,7 @@ const AdminDashboard: React.FC = () => {
           <nav className="flex space-x-8 px-6">
             {[
               { id: 'overview', label: '개요', icon: BarChart3 },
-              { id: 'users', label: '사용자 관리', icon: Users },
+                             { id: 'users', label: '회원 관리', icon: Users },
               { id: 'jobs', label: '공고 관리', icon: FileText },
               { id: 'analytics', label: '분석', icon: TrendingUp },
               { id: 'system', label: '시스템', icon: Server },
@@ -199,18 +199,18 @@ const AdminDashboard: React.FC = () => {
             ].map((tab) => {
               const Icon = tab.icon;
               return (
-                <button
+            <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id
                       ? 'border-resort-500 text-resort-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
                   <Icon className="h-4 w-4" />
                   <span>{tab.label}</span>
-                </button>
+            </button>
               );
             })}
           </nav>
@@ -264,30 +264,30 @@ const AdminDashboard: React.FC = () => {
                     <p className="text-sm font-medium text-gray-600">지원서</p>
                     <p className="text-2xl font-bold text-gray-900">{systemStats.totalApplications}</p>
                   </div>
-                </div>
+                      </div>
                 <div className="mt-4 flex items-center text-sm">
                   <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
                   <span className="text-green-600">+15%</span>
                   <span className="text-gray-500 ml-1">이번 주</span>
-                </div>
-              </div>
+                      </div>
+                      </div>
 
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center">
                   <div className="p-2 bg-yellow-100 rounded-lg">
                     <AlertTriangle className="h-6 w-6 text-yellow-600" />
-                  </div>
+                      </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">승인 대기</p>
                     <p className="text-2xl font-bold text-gray-900">{systemStats.pendingApprovals}</p>
-                  </div>
-                </div>
+                      </div>
+                    </div>
                 <div className="mt-4 flex items-center text-sm">
                   <XCircle className="h-4 w-4 text-red-500 mr-1" />
                   <span className="text-red-600">처리 필요</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
             {/* 시스템 상태 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -297,19 +297,19 @@ const AdminDashboard: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">응답 시간</span>
                     <span className="text-sm font-medium">{systemStats.responseTime}ms</span>
-                  </div>
+              </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">가동 시간</span>
                     <span className="text-sm font-medium">{Math.floor(systemStats.uptime / 60)}시간 {systemStats.uptime % 60}분</span>
-                  </div>
+            </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">오류율</span>
                     <span className="text-sm font-medium">{systemStats.errorRate}%</span>
-                  </div>
+                </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">저장소 사용량</span>
                     <span className="text-sm font-medium">{systemStats.storageUsed}GB / {systemStats.storageLimit}GB</span>
-                  </div>
+              </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full ${
@@ -330,8 +330,8 @@ const AdminDashboard: React.FC = () => {
                     className="p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50"
                   >
                     <Users className="h-5 w-5 text-blue-600 mb-2" />
-                    <p className="text-sm font-medium">사용자 관리</p>
-                    <p className="text-xs text-gray-500">사용자 승인/정지</p>
+                                         <p className="text-sm font-medium">회원 관리</p>
+                     <p className="text-xs text-gray-500">회원 승인/정지</p>
                   </button>
                   <button 
                     onClick={() => setActiveTab('jobs')}
@@ -341,22 +341,22 @@ const AdminDashboard: React.FC = () => {
                     <p className="text-sm font-medium">공고 관리</p>
                     <p className="text-xs text-gray-500">공고 승인/거부</p>
                   </button>
-                  <button 
+                              <button
                     onClick={() => setActiveTab('system')}
                     className="p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50"
-                  >
+                              >
                     <Server className="h-5 w-5 text-purple-600 mb-2" />
                     <p className="text-sm font-medium">시스템 모니터링</p>
                     <p className="text-xs text-gray-500">성능 확인</p>
-                  </button>
-                  <button 
+                              </button>
+                            <button
                     onClick={() => setActiveTab('admin-invites')}
                     className="p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50"
-                  >
+                            >
                     <UserPlus className="h-5 w-5 text-orange-600 mb-2" />
                     <p className="text-sm font-medium">관리자 초대</p>
                     <p className="text-xs text-gray-500">새 관리자 추가</p>
-                  </button>
+                            </button>
                 </div>
               </div>
             </div>
@@ -375,10 +375,10 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">데이터 분석</h2>
               <p className="text-gray-600">분석 기능은 개발 중입니다.</p>
+              </div>
             </div>
-          </div>
-        )}
-        
+          )}
+
         {/* 시스템 모니터링 탭 */}
         {activeTab === 'system' && (
           <div className="space-y-6">
@@ -395,13 +395,13 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">메모리 사용률</span>
                       <span className="text-sm font-medium">62%</span>
-                    </div>
+                </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">디스크 사용률</span>
                       <span className="text-sm font-medium">23%</span>
-                    </div>
-                  </div>
                 </div>
+                </div>
+              </div>
                 <div className="p-4 border border-gray-200 rounded-lg">
                   <h3 className="font-medium text-gray-900 mb-2">네트워크</h3>
                   <div className="space-y-2">
@@ -416,13 +416,13 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">가동 시간</span>
                       <span className="text-sm font-medium">24시간</span>
-                    </div>
+                  </div>
+                </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
         
         {/* 관리자 초대 탭 */}
         {activeTab === 'admin-invites' && (
@@ -440,7 +440,7 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">시스템 설정</h2>
               <p className="text-gray-600">시스템 설정 기능은 개발 중입니다.</p>
-            </div>
+        </div>
           </div>
         )}
       </div>

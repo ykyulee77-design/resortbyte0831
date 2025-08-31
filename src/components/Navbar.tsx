@@ -32,10 +32,7 @@ const Navbar: React.FC = () => {
       ];
     case 'admin':
       return [
-        { path: '/dashboard', label: '대시보드', icon: Home },
-        { path: '/admin/users', label: '사용자 관리', icon: Users },
-        { path: '/admin/jobposts', label: '공고 관리', icon: FileText },
-        { path: '/admin/stats', label: '통계', icon: BarChart3 },
+        { path: '/admin-dashboard', label: '관리자 대시보드', icon: Home },
       ];
     default:
       return [];
