@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import UserManagement from '../components/admin/UserManagement';
+import JobManagement from '../components/admin/JobManagement';
 import { 
   Copy, 
   Shield, 
@@ -81,6 +83,14 @@ interface AdminInvite {
 const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  // 관리자 권한 체크
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      navigate('/');
+      return;
+    }
+  }, [user, navigate]);
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'jobs' | 'analytics' | 'system' | 'admin-invites' | 'settings'>('overview');
   const [systemStats, setSystemStats] = useState<SystemStats>({
     totalUsers: 0,
@@ -352,13 +362,86 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* 다른 탭들은 기존 컴포넌트 사용 */}
-        {activeTab === 'users' && <div>사용자 관리 컴포넌트</div>}
-        {activeTab === 'jobs' && <div>공고 관리 컴포넌트</div>}
-        {activeTab === 'analytics' && <div>분석 컴포넌트</div>}
-        {activeTab === 'system' && <div>시스템 모니터링 컴포넌트</div>}
-        {activeTab === 'admin-invites' && <div>관리자 초대 컴포넌트</div>}
-        {activeTab === 'settings' && <div>설정 컴포넌트</div>}
+        {/* 사용자 관리 탭 */}
+        {activeTab === 'users' && <UserManagement />}
+        
+        {/* 공고 관리 탭 */}
+        {activeTab === 'jobs' && <JobManagement />}
+        
+        {/* 분석 탭 */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">데이터 분석</h2>
+              <p className="text-gray-600">분석 기능은 개발 중입니다.</p>
+            </div>
+          </div>
+        )}
+        
+        {/* 시스템 모니터링 탭 */}
+        {activeTab === 'system' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">시스템 모니터링</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-4 border border-gray-200 rounded-lg">
+                  <h3 className="font-medium text-gray-900 mb-2">시스템 상태</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">CPU 사용률</span>
+                      <span className="text-sm font-medium">45%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">메모리 사용률</span>
+                      <span className="text-sm font-medium">62%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">디스크 사용률</span>
+                      <span className="text-sm font-medium">23%</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 border border-gray-200 rounded-lg">
+                  <h3 className="font-medium text-gray-900 mb-2">네트워크</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">응답 시간</span>
+                      <span className="text-sm font-medium">245ms</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">오류율</span>
+                      <span className="text-sm font-medium">0.02%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">가동 시간</span>
+                      <span className="text-sm font-medium">24시간</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* 관리자 초대 탭 */}
+        {activeTab === 'admin-invites' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">관리자 초대</h2>
+              <p className="text-gray-600">관리자 초대 기능은 개발 중입니다.</p>
+            </div>
+          </div>
+        )}
+        
+        {/* 설정 탭 */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">시스템 설정</h2>
+              <p className="text-gray-600">시스템 설정 기능은 개발 중입니다.</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
