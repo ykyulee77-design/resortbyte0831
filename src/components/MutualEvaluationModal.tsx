@@ -123,7 +123,7 @@ const MutualEvaluationModal: React.FC<MutualEvaluationModalProps> = ({
             <h3 className="text-sm font-medium text-gray-700 mb-1">평가 대상</h3>
             <p className="text-sm text-gray-900">{evaluatedUser.name}</p>
             <p className="text-xs text-gray-500">
-              {evaluatedUser.role === 'employer' ? '구인자' : '구직자'}
+              {evaluatedUser.role === 'employer' ? '리조트' : '크루'}
             </p>
           </div>
 

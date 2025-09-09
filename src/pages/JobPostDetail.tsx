@@ -904,21 +904,8 @@ const JobPostDetail: React.FC = () => {
               
               {/* 지도 표시 */}
               {showMap && !isEditing && (
-                <div className="mt-4">
-                  <NaverMapScript>
-                    <NaverMap
-                      center={mapLocation}
-                      zoom={15}
-                      markers={[
-                        {
-                          position: mapLocation,
-                          title: job.jobTitle || '근무지',
-                          content: job.location || companyInfo?.address || companyInfo?.region || '위치 정보'
-                        }
-                      ]}
-                      onMapClick={handleMapClick}
-                    />
-                  </NaverMapScript>
+                <div className="mt-4 h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <p className="text-gray-500">지도가 여기에 표시됩니다</p>
                 </div>
               )}
               
@@ -982,6 +969,31 @@ const JobPostDetail: React.FC = () => {
                   </select>
                 ) : (
                   <p className="text-gray-900">{job.workTimeType}</p>
+                )}
+
+                {/* workTimeType이 설정형이면, 컴팩트 근무유형 표시 */}
+                {!isEditing && job.workTimeType?.includes('설정') && job.workTypes && job.workTypes.length > 0 && (
+                  <div className="mt-2 bg-gray-50 border border-gray-200 rounded-md p-3">
+                    <div className="text-xs text-gray-600 mb-2">근무 유형</div>
+                    <div className="flex flex-wrap gap-2">
+                      {job.workTypes.map((wt) => (
+                        <button
+                          key={wt.id}
+                          onClick={() => handleWorkTypeClick(wt)}
+                          className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-full text-xs bg-white border border-gray-300 text-gray-700 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                          type="button"
+                        >
+                          <span className="font-medium truncate max-w-[120px]">{wt.name}</span>
+                          {wt.hourlyWage && (
+                            <span className="text-gray-400">· {wt.hourlyWage.toLocaleString()}원</span>
+                          )}
+                          {Array.isArray(wt.schedules) && (
+                            <span className="text-gray-400">· 일정 {wt.schedules.length}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
               
@@ -1107,8 +1119,8 @@ const JobPostDetail: React.FC = () => {
           </div>
         </div>
 
-          {/* 근무 유형 */}
-          {job.workTypes && job.workTypes.length > 0 && (
+          {/* 근무 유형 - 설정형일 때는 위에 컴팩트로 표시하므로 큰 섹션 숨김 */}
+          {job.workTypes && job.workTypes.length > 0 && !((job.workTimeType || '').includes('설정')) && (
             <div className="bg-white rounded-lg border p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center">
                 <Settings className="h-5 w-5 mr-2" />
@@ -1362,6 +1374,39 @@ const JobPostDetail: React.FC = () => {
               <p className="text-gray-500">기숙사 정보가 없습니다.</p>
             )}
           </div>
+
+          {/* 지원하기 버튼 */}
+          {user?.role === 'jobseeker' && job.employerId !== user?.uid && (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-center">
+              <div className="max-w-md mx-auto">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">이 공고에 지원하시겠습니까?</h3>
+                <p className="text-gray-600 mb-4">지원하기 전에 이력서가 완성되어 있는지 확인해주세요.</p>
+                {hasApplied ? (
+                  <button
+                    disabled
+                    className="inline-flex items-center px-6 py-3 bg-gray-400 text-white rounded-lg cursor-not-allowed font-medium"
+                  >
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    지원 완료
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (!isResumeFilled) {
+                        setShowResumeConfirmModal(true);
+                      } else {
+                        setShowApplyModal(true);
+                      }
+                    }}
+                    className="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+                  >
+                    <Send className="h-5 w-5 mr-2" />
+                    지원하기
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1387,7 +1432,7 @@ const JobPostDetail: React.FC = () => {
               </div>
 
               {/* 근무 타입 선택 */}
-              {job?.workTypes && job.workTypes.length > 0 ? (
+              {job && job.workTypes && job.workTypes.length > 0 ? (
                 <div>
                   <h4 className="text-sm font-semibold text-gray-800 mb-3">근무 타입 선택 *</h4>
                   <div className="space-y-3">
@@ -1412,7 +1457,7 @@ const JobPostDetail: React.FC = () => {
                     </label>
                     
                     {/* 개별 근무타입 옵션들 */}
-                    {job.workTypes.map((workType) => (
+                    {job && job.workTypes && job.workTypes.map((workType) => (
                       <label key={workType.id} className="flex items-start p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                         <input
                           type="checkbox"
@@ -1485,7 +1530,7 @@ const JobPostDetail: React.FC = () => {
                   // 지원서 상세 페이지로 이동
                   navigate(`/application-detail/preview`);
                 }}
-                disabled={job?.workTypes && job.workTypes.length > 0 && selectedWorkTypes.length === 0}
+                disabled={job && job.workTypes && job.workTypes.length > 0 && selectedWorkTypes.length === 0}
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 <Eye className="w-4 h-4" />
@@ -1566,9 +1611,9 @@ const JobPostDetail: React.FC = () => {
                         <label className="block text-xs font-medium text-gray-600 mb-1">희망 직무</label>
                         <div className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">
                           {user?.resume?.jobType ? 
-                            (Array.isArray(user.resume.jobType) ? 
-                              user.resume.jobType.join(', ') : 
-                              user.resume.jobType
+                            (Array.isArray(user?.resume?.jobType) ? 
+                              user?.resume?.jobType?.join(', ') : 
+                              user?.resume?.jobType
                             ) : 
                             '미입력'
                           }
@@ -1601,8 +1646,8 @@ const JobPostDetail: React.FC = () => {
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">언어 능력</label>
                       <div className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm">
-                        {user?.resume?.languages && user.resume.languages.length > 0 ? 
-                          user.resume.languages.join(', ')
+                        {user?.resume?.languages && user?.resume?.languages.length > 0 ? 
+                          user?.resume?.languages?.join(', ')
                           : '미입력'
                         }
                       </div>
@@ -1687,7 +1732,7 @@ const JobPostDetail: React.FC = () => {
               <div className="flex items-center gap-3">
                 <Clock className="w-6 h-6 text-blue-600" />
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {selectedWorkType.name} - 근무 스케줄
+                  {selectedWorkType?.name} - 근무 스케줄
                 </h3>
               </div>
               <button
@@ -1703,28 +1748,28 @@ const JobPostDetail: React.FC = () => {
                 <div>
                   <span className="font-medium text-gray-700">시급:</span>
                   <span className="ml-2 text-blue-600 font-semibold">
-                    {selectedWorkType.hourlyWage?.toLocaleString()}원
+                    {selectedWorkType?.hourlyWage?.toLocaleString()}원
                   </span>
           </div>
                 <div>
                   <span className="font-medium text-gray-700">스케줄 수:</span>
                   <span className="ml-2 text-blue-600 font-semibold">
-                    {selectedWorkType.schedules?.length || 0}개
+                    {selectedWorkType?.schedules?.length || 0}개
                   </span>
                 </div>
-                {selectedWorkType.description && (
+                {selectedWorkType?.description && (
                   <div className="md:col-span-2">
                     <span className="font-medium text-gray-700">설명:</span>
-                    <span className="ml-2 text-gray-600">{selectedWorkType.description}</span>
-        </div>
-      )}
+                    <span className="ml-2 text-gray-600">{selectedWorkType?.description}</span>
+                  </div>
+                )}
               </div>
             </div>
 
             <UnifiedScheduleGrid
-              selectedTimeSlots={selectedWorkType.schedules || []}
+              selectedTimeSlots={selectedWorkType?.schedules || []}
               mode="view"
-              title={`${selectedWorkType.name} 근무 스케줄`}
+              title={`${selectedWorkType?.name} 근무 스케줄`}
               description="선택된 근무 시간대를 확인하세요"
               showStatistics={true}
               showActions={false}

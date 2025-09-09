@@ -10,11 +10,36 @@ interface ScheduleGridProps {
 const ScheduleGrid: React.FC<ScheduleGridProps> = ({ selectedTimeSlots, onSave, onCancel }) => {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(selectedTimeSlots);
   const [saving, setSaving] = useState(false);
+  
+  // 드래그 관련 상태
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ day: number; time: number } | null>(null);
+  const [dragEnd, setDragEnd] = useState<{ day: number; time: number } | null>(null);
+  const [dragPriority, setDragPriority] = useState<1 | 2>(1);
 
   // Update internal state when props change
   useEffect(() => {
     setTimeSlots(selectedTimeSlots);
   }, [selectedTimeSlots]);
+
+  // 전역 마우스 이벤트 처리
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDragging) {
+        handleMouseUp();
+      }
+    };
+
+    if (isDragging) {
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener('mouseleave', handleGlobalMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('mouseleave', handleGlobalMouseUp);
+    };
+  }, [isDragging]);
 
   const days = ['월', '화', '수', '목', '금', '토', '일'];
   
@@ -59,6 +84,114 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ selectedTimeSlots, onSave, 
     }
   };
 
+  // 드래그 시작
+  const handleMouseDown = (dayOfWeek: number, timeSlotIndex: number, event: React.MouseEvent) => {
+    event.preventDefault();
+    setIsDragging(true);
+    setDragStart({ day: dayOfWeek, time: timeSlotIndex });
+    setDragEnd({ day: dayOfWeek, time: timeSlotIndex });
+    
+    // 기존 슬롯의 우선순위를 확인하여 드래그 우선순위 설정
+    const existingSlot = timeSlots.find(
+      slot => slot.day === dayOfWeek && slot.start === timeSlotIndex && slot.end === (timeSlotIndex + 1) % 24,
+    );
+    setDragPriority(existingSlot ? (existingSlot.priority === 1 ? 2 : 1) : 1);
+  };
+
+  // 드래그 중
+  const handleMouseEnter = (dayOfWeek: number, timeSlotIndex: number) => {
+    if (isDragging && dragStart) {
+      setDragEnd({ day: dayOfWeek, time: timeSlotIndex });
+    }
+  };
+
+  // 드래그 종료
+  const handleMouseUp = () => {
+    if (isDragging && dragStart && dragEnd) {
+      applyDragSelection();
+    }
+    setIsDragging(false);
+    setDragStart(null);
+    setDragEnd(null);
+  };
+
+  // 드래그 선택 적용
+  const applyDragSelection = () => {
+    if (!dragStart || !dragEnd) return;
+
+    const startDay = Math.min(dragStart.day, dragEnd.day);
+    const endDay = Math.max(dragStart.day, dragEnd.day);
+    const startTime = Math.min(dragStart.time, dragEnd.time);
+    const endTime = Math.max(dragStart.time, dragEnd.time);
+
+    const newSlots: TimeSlot[] = [];
+
+    for (let day = startDay; day <= endDay; day++) {
+      for (let time = startTime; time <= endTime; time++) {
+        const endHour = (time + 1) % 24;
+        
+        // 기존 슬롯이 있는지 확인
+        const existingSlot = timeSlots.find(
+          slot => slot.day === day && slot.start === time && slot.end === endHour,
+        );
+
+        if (existingSlot) {
+          // 기존 슬롯이 있으면 우선순위 변경
+          if (existingSlot.priority === 1) {
+            newSlots.push({ ...existingSlot, priority: 2 });
+          } else if (existingSlot.priority === 2) {
+            // 제거 (새 슬롯에 추가하지 않음)
+          }
+        } else {
+          // 새로운 슬롯 추가
+          newSlots.push({
+            day: day as any,
+            start: time,
+            end: endHour,
+            priority: dragPriority,
+            startTime: `${time.toString().padStart(2, '0')}:00`,
+            endTime: `${endHour.toString().padStart(2, '0')}:00`,
+          });
+        }
+      }
+    }
+
+    // 기존 슬롯들 중 드래그 범위에 포함되지 않은 것들은 유지
+    const remainingSlots = timeSlots.filter(slot => {
+      const slotDay = typeof slot.day === 'string' ? parseInt(slot.day) : slot.day;
+      const slotStart = slot.start || 0;
+      
+      const isInDragRange = 
+        slotDay >= startDay && slotDay <= endDay &&
+        slotStart >= startTime && slotStart <= endTime;
+      
+      // 드래그 범위에 있지만 제거되어야 하는 슬롯들
+      if (isInDragRange) {
+        const shouldRemove = newSlots.some(newSlot => 
+          newSlot.day === slot.day && newSlot.start === slot.start && newSlot.end === slot.end
+        );
+        return !shouldRemove;
+      }
+      
+      return true;
+    });
+
+    setTimeSlots([...remainingSlots, ...newSlots]);
+  };
+
+  // 드래그 범위에 포함되는지 확인
+  const isInDragRange = (dayOfWeek: number, timeSlotIndex: number) => {
+    if (!isDragging || !dragStart || !dragEnd) return false;
+    
+    const startDay = Math.min(dragStart.day, dragEnd.day);
+    const endDay = Math.max(dragStart.day, dragEnd.day);
+    const startTime = Math.min(dragStart.time, dragEnd.time);
+    const endTime = Math.max(dragStart.time, dragEnd.time);
+    
+    return dayOfWeek >= startDay && dayOfWeek <= endDay && 
+           timeSlotIndex >= startTime && timeSlotIndex <= endTime;
+  };
+
   const getSlotStatus = (dayOfWeek: number, timeSlotIndex: number) => {
     const startHour = timeSlotIndex;
     const endHour = (timeSlotIndex + 1) % 24;
@@ -68,14 +201,21 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ selectedTimeSlots, onSave, 
     return slot?.priority || 'none';
   };
 
-  const getSlotClassName = (status: number | string) => {
+  const getSlotClassName = (status: number | string, dayOfWeek: number, timeSlotIndex: number) => {
+    const baseClasses = 'transition-all duration-200 text-xs font-medium transform hover:scale-105 active:scale-95';
+    
+    // 드래그 중인 범위 표시
+    if (isInDragRange(dayOfWeek, timeSlotIndex)) {
+      return `${baseClasses} bg-gradient-to-br from-yellow-400 to-orange-400 text-white shadow-lg border-2 border-yellow-300`;
+    }
+    
     switch (status) {
     case 1:
-      return 'bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-sm';
+      return `${baseClasses} bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-sm`;
     case 2:
-      return 'bg-gradient-to-br from-blue-200 to-blue-300 text-blue-800 hover:from-blue-300 hover:to-blue-400 shadow-sm';
+      return `${baseClasses} bg-gradient-to-br from-blue-200 to-blue-300 text-blue-800 hover:from-blue-300 hover:to-blue-400 shadow-sm`;
     default:
-      return 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800';
+      return `${baseClasses} bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800`;
     }
   };
 
@@ -120,9 +260,10 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ selectedTimeSlots, onSave, 
         <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
           <h4 className="text-lg font-semibold text-gray-900 mb-2">근무시간 선택 (24시간)</h4>
           <p className="text-sm text-gray-600">
-            클릭하여 선호하는 시간대를 선택하세요. 
+            <span className="font-medium text-blue-600">클릭</span>하거나 <span className="font-medium text-orange-600">드래그</span>하여 선호하는 시간대를 선택하세요. 
             <span className="font-medium text-blue-600"> 파란색</span>은 매우 선호, 
             <span className="font-medium text-blue-500"> 연한 파란색</span>은 선호를 나타냅니다.
+            <span className="font-medium text-yellow-600"> 노란색</span>은 드래그 중인 범위입니다.
           </p>
         </div>
         
@@ -162,10 +303,13 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ selectedTimeSlots, onSave, 
                             <button
                               key={timeIndex}
                               onClick={() => handleTimeSlotClick(dayIndex, actualTimeIndex)}
-                              className={`w-full h-8 rounded transition-all duration-200 text-xs font-medium ${getSlotClassName(status)} transform hover:scale-105 active:scale-95`}
+                              onMouseDown={(e) => handleMouseDown(dayIndex, actualTimeIndex, e)}
+                              onMouseEnter={() => handleMouseEnter(dayIndex, actualTimeIndex)}
+                              className={`w-full h-8 rounded ${getSlotClassName(status, dayIndex, actualTimeIndex)}`}
                               title={timeSlot}
+                              style={{ userSelect: 'none' }}
                             >
-                              {getSlotText(status)}
+                              {isInDragRange(dayIndex, actualTimeIndex) ? '선택중' : getSlotText(status)}
                             </button>
                           );
                         })}

@@ -12,10 +12,11 @@ import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
 import AddressSearch from '../components/AddressSearch';
 import NaverMap from '../components/NaverMap';
 import NaverMapScript from '../components/NaverMapScript';
+import WorkTypeHelpBanner from '../components/WorkTypeHelpBanner';
 
 import { useAuth } from '../contexts/AuthContext';
 import { workTypeService } from '../utils/scheduleMatchingService';
-import { Clock, Trash2, Maximize2, Building, FileText, Home, Save, CheckCircle, MapPin } from 'lucide-react';
+import { Clock, Trash2, Maximize2, Building, FileText, Home, Save, CheckCircle, MapPin, Settings } from 'lucide-react';
 
 interface JobPostFormData {
   title: string;
@@ -98,6 +99,14 @@ const JobPostForm: React.FC = () => {
   const [showMap, setShowMap] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
   
+  // 페이지 진입 시 상단으로 스크롤 고정
+  useEffect(() => {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+  }, []);
 
 
   const [formData, setFormData] = useState<JobPostFormData>({
@@ -439,7 +448,7 @@ const JobPostForm: React.FC = () => {
       } as any;
 
       // 디버깅을 위한 로그
-      console.log('저장할 구인공고 데이터:', jobPostData);
+      console.log('저장할 리조트 공고 데이터:', jobPostData);
       console.log('선택된 근무 유형:', formData.workTypes);
       console.log('근무 유형 개수:', formData.workTypes.length);
       console.log('현재 사용자 ID:', user?.uid);
@@ -455,11 +464,11 @@ const JobPostForm: React.FC = () => {
         console.log('새 공고 등록 완료, 문서 ID:', docRef.id);
       }
 
-      alert(id ? '구인공고가 수정되었습니다.' : '구인공고가 등록되었습니다.');
+      alert(id ? '리조트 공고가 수정되었습니다.' : '리조트 공고가 등록되었습니다.');
       navigate('/employer-dashboard');
     } catch (error) {
-      console.error('구인공고 저장 실패:', error);
-      alert('구인공고 저장에 실패했습니다. 다시 시도해주세요.');
+      console.error('리조트 공고 저장 실패:', error);
+      alert('리조트 공고 저장에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setSaving(false);
     }
@@ -477,10 +486,10 @@ const JobPostForm: React.FC = () => {
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {id ? '구인공고 수정' : '새 구인공고 등록'}
+                {id ? '리조트 공고 수정' : '새 리조트 공고 등록'}
               </h1>
               <p className="text-gray-600">
-                {id ? '기존 구인공고를 수정합니다.' : '새로운 구인공고를 등록합니다.'}
+                {id ? '기존 리조트 공고를 수정합니다.' : '새로운 리조트 공고를 등록합니다.'}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -495,16 +504,19 @@ const JobPostForm: React.FC = () => {
           </div>
         </div>
 
+        {/* 근무타입 도움말 배너 */}
+        <WorkTypeHelpBanner storageKey="rtb_worktype_help_jobpost" />
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* 폼 제출 버튼 (숨김) */}
           <button type="submit" style={{ display: 'none' }} />
           
-          {/* 구인공고 정보 - 최상단으로 이동 */}
+          {/* 리조트 공고 정보 - 최상단으로 이동 */}
           <div className="bg-blue-50 rounded-lg border-2 border-blue-300 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold flex items-center">
                 <FileText className="h-5 w-5 mr-2" />
-                구인공고 정보
+                리조트 공고 정보
               </h2>
               <span className="px-2 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">입력</span>
             </div>
@@ -565,7 +577,11 @@ const JobPostForm: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">근무시간</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <span className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200">
+                    <Settings className="w-4 h-4" /> 근무타입 설정
+                  </span>
+                </label>
                 <select
                   value={formData.workTimeType}
                   onChange={(e) => handleInputChange('workTimeType', e.target.value)}
@@ -724,8 +740,9 @@ const JobPostForm: React.FC = () => {
             <div className="bg-blue-50 rounded-lg border-2 border-blue-300 p-6">
               <div className="mb-4">
                 <h2 className="text-xl font-semibold flex items-center">
-                  <Clock className="h-5 w-5 mr-2" />
-                  근무시간 유형
+                  <Clock className="h-5 w-5 mr-2 text-blue-600" />
+                  <span className="text-blue-800">근무타입 설정</span>
+                  <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">핵심</span>
                 </h2>
                 <p className="text-sm text-gray-500">근무시간 유형을 생성하고 관리하세요</p>
               </div>
@@ -971,20 +988,19 @@ const JobPostForm: React.FC = () => {
                 {/* 지도 표시 */}
                 {showMap && (companyInfo.address || companyInfo.region) && (
                   <div className="md:col-span-2 mt-4">
-                    <NaverMapScript>
-                      <NaverMap
-                        center={mapLocation}
-                        zoom={15}
-                        markers={[
-                          {
-                            position: mapLocation,
-                            title: companyInfo.name || '회사',
-                            content: companyInfo.address || companyInfo.region || '위치 정보'
-                          }
-                        ]}
-                        onMapClick={handleMapClick}
-                      />
-                    </NaverMapScript>
+                    <NaverMapScript />
+                    <NaverMap
+                      center={mapLocation}
+                      zoom={15}
+                      markers={[
+                        {
+                          position: mapLocation,
+                          title: companyInfo.name || '회사',
+                          content: companyInfo.address || companyInfo.region || '위치 정보'
+                        }
+                      ]}
+                      onMapClick={handleMapClick}
+                    />
                   </div>
                 )}
 

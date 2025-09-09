@@ -51,7 +51,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
   disabled = false,
   minSearchLength = 3,
   maxResults = 10,
-  showDetailAddress = true,
+  showDetailAddress = false, // 기본값을 false로 변경
   detailAddressPlaceholder = '상세주소 (아파트 동/호수, 사무실 번호 등)'
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,7 +72,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
 
   // 네이버 지도 API의 내장 지오코딩을 통한 주소 검색
 
-  // 네이버 지도 API의 내장 지오코딩을 통한 주소 검색
+  // 서버 API를 통한 주소 검색
   const searchAddresses = useCallback(async (keyword: string) => {
     if (keyword.length < minSearchLength) {
       setAddresses([]);
@@ -84,68 +84,58 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     setError(null);
     
     try {
-      // 네이버 지도 API가 로드되었는지 확인
-      if (window.naver && window.naver.maps && window.naver.maps.Service) {
-        console.log('네이버 지도 API 사용하여 주소 검색:', keyword);
+      console.log('서버 API를 사용하여 주소 검색:', keyword);
+      
+      // 서버의 주소 검색 API 호출
+      const response = await fetch(`http://localhost:4000/api/geocode?query=${encodeURIComponent(keyword)}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('서버 API 주소 검색 결과:', data);
         
-        // 네이버 지도 API의 내장 지오코딩 사용
-        window.naver.maps.Service.geocode({
-          query: keyword
-        }, function(status: any, response: any) {
-          console.log('네이버 지오코딩 응답:', status, response);
+        // 공공데이터 포털 API 응답 형식에 맞게 처리
+        if (data.results && data.results.juso && data.results.juso.length > 0) {
+          const apiAddresses: Address[] = data.results.juso
+            .slice(0, maxResults)
+            .map((item: any) => ({
+              zipCode: item.zipNo || '',
+              address: item.roadAddr || item.jibunAddr,
+              roadAddress: item.roadAddr || '',
+              jibunAddress: item.jibunAddr || '',
+              region: item.siNm || '',
+              sido: item.siNm || '',
+              sigungu: item.sggNm || '',
+              emdNm: item.emdNm || '',
+              buildingName: item.bdNm || '',
+              roadName: item.roadNm || '',
+              buildingNumber: item.bdNo || '',
+              admCd: item.admCd || '',
+              engAddress: item.engAddr || '',
+              latitude: 0, // 공공데이터 포털에서는 좌표를 제공하지 않음
+              longitude: 0,
+            }));
           
-          if (status === window.naver.maps.Service.Status.OK) {
-            const result = response.v2;
-            if (result.meta.totalCount > 0) {
-              const apiAddresses: Address[] = result.addresses
-                .slice(0, maxResults)
-                .map((item: any) => ({
-                  zipCode: item.zipcode || '',
-                  address: item.roadAddress || item.jibunAddress,
-                  roadAddress: item.roadAddress || '',
-                  jibunAddress: item.jibunAddress || '',
-                  region: item.region || '',
-                  sido: item.sido || '',
-                  sigungu: item.sigungu || '',
-                  emdNm: item.emdNm || '',
-                  buildingName: item.buildingName || '',
-                  roadName: item.roadName || '',
-                  buildingNumber: item.buildingNumber || '',
-                  admCd: item.admCd || '',
-                  engAddress: item.engAddress || '',
-                  latitude: parseFloat(item.y),
-                  longitude: parseFloat(item.x),
-                }));
-              
-              console.log('네이버 API 주소 검색 결과:', apiAddresses);
-              setAddresses(apiAddresses);
-              setShowDropdown(true);
-            } else {
-              console.log('네이버 API 검색 결과 없음');
-              setError('검색 결과가 없습니다. 정확한 주소를 입력해주세요. (예: 서울특별시 강남구 테헤란로 427)');
-              setAddresses([]);
-              setShowDropdown(false);
-            }
-          } else {
-            console.log('네이버 API 오류');
-            setError('검색 결과가 없습니다. 정확한 주소를 입력해주세요. (예: 서울특별시 강남구 테헤란로 427)');
-            setAddresses([]);
-            setShowDropdown(false);
-          }
-          setIsLoading(false);
-        });
+          console.log('변환된 주소 검색 결과:', apiAddresses);
+          setAddresses(apiAddresses);
+          setShowDropdown(true);
+        } else {
+          console.log('서버 API 검색 결과 없음');
+          setError('검색 결과가 없습니다. 정확한 주소를 입력해주세요. (예: 서울특별시 강남구 테헤란로 427)');
+          setAddresses([]);
+          setShowDropdown(false);
+        }
       } else {
-        console.log('네이버 지도 API가 로드되지 않음');
-        setError('네이버 지도 API가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+        console.log('서버 API 오류:', response.status);
+        setError('주소 검색 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
         setAddresses([]);
         setShowDropdown(false);
-        setIsLoading(false);
       }
     } catch (error) {
       console.error('주소 검색 오류:', error);
-      setError('주소 검색 중 오류가 발생했습니다.');
+      setError('주소 검색 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.');
       setAddresses([]);
       setShowDropdown(false);
+    } finally {
       setIsLoading(false);
     }
   }, [minSearchLength, maxResults]);

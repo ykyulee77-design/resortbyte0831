@@ -40,7 +40,7 @@ const PositiveReviewModal: React.FC<PositiveReviewModalProps> = ({
       const existingReviewSnapshot = await getDocs(existingReviewQuery);
       
       if (!existingReviewSnapshot.empty) {
-        alert('이미 이 구직자에 대한 평가를 작성하셨습니다.');
+        alert('이미 이 크루에 대한 평가를 작성하셨습니다.');
         setIsSubmitting(false);
         return;
       }

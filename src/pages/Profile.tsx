@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { User, LogOut, Trash2, AlertTriangle, FileText, Edit, Save, XCircle, Phone, Briefcase, GraduationCap, Award, DollarSign, Home, Globe, Users, Clock } from 'lucide-react';
 import { doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
@@ -11,11 +11,19 @@ import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
 const Profile: React.FC = () => {
   const { user, logout, updateUserData } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [resumeEdit, setResumeEdit] = useState<Resume>(user?.resume || {});
-  const [resumeMode, setResumeMode] = useState<'view' | 'edit'>(user?.resume ? 'view' : 'edit');
+  const [resumeMode, setResumeMode] = useState<'view' | 'edit'>(() => {
+    // URL 쿼리 파라미터에서 mode=edit이 있으면 edit 모드로 설정
+    if (searchParams.get('mode') === 'edit') {
+      return 'edit';
+    }
+    // 기존 로직: 이력서가 있으면 view, 없으면 edit
+    return user?.resume ? 'view' : 'edit';
+  });
   const [resumeSaving, setResumeSaving] = useState(false);
   const [scheduleCollapsed, setScheduleCollapsed] = useState(true);
   // 구인자용 회사 정보

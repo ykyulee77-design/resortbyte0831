@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 
 const GatePage: React.FC = () => {
+  const [expanded, setExpanded] = React.useState(false);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Hero Section */}
@@ -32,13 +34,13 @@ const GatePage: React.FC = () => {
                 to="/register?type=employer"
                 className="inline-flex items-center px-10 py-4 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl text-lg"
               >
-                구인자 등록
+                리조트 등록
               </Link>
               <Link
                 to="/signup"
                 className="inline-flex items-center px-10 py-4 bg-green-600 text-white font-semibold rounded-full hover:bg-green-700 transition-colors shadow-lg hover:shadow-xl text-lg"
               >
-                구직자 등록
+                크루 등록
               </Link>
               <Link
                 to="/home"
@@ -65,7 +67,7 @@ const GatePage: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
             <div>
-              <h3 className="text-3xl font-bold text-gray-900 mb-8">구인자의 고민</h3>
+              <h3 className="text-3xl font-bold text-gray-900 mb-8">리조트의 고민</h3>
               <div className="space-y-8">
                 <div>
                   <h4 className="text-xl font-semibold text-gray-900 mb-3">성수기 인력 부족</h4>
@@ -83,7 +85,7 @@ const GatePage: React.FC = () => {
             </div>
 
             <div>
-              <h3 className="text-3xl font-bold text-gray-900 mb-8">구직자의 니즈</h3>
+              <h3 className="text-3xl font-bold text-gray-900 mb-8">크루의 니즈</h3>
               <div className="space-y-8">
                 <div>
                   <h4 className="text-xl font-semibold text-gray-900 mb-3">원격근무 불안</h4>
@@ -217,7 +219,7 @@ const GatePage: React.FC = () => {
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">회원가입</h3>
                 <p className="text-gray-600 text-lg leading-relaxed mb-6">
-                  구인자 또는 구직자로 회원가입하고 
+                  리조트 또는 크루로 회원가입하고 
                   기본 정보를 입력해요.
                 </p>
               </div>
@@ -230,7 +232,7 @@ const GatePage: React.FC = () => {
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">정보 등록</h3>
                 <p className="text-gray-600 text-lg leading-relaxed">
-                  구인자는 공고를, 구직자는 이력서를 등록해서 
+                  리조트는 공고를, 크루는 이력서를 등록해서 
                   상세한 정보를 제공해요.
                 </p>
               </div>
@@ -268,14 +270,161 @@ const GatePage: React.FC = () => {
               to="/register?type=employer"
               className="inline-flex items-center px-10 py-4 bg-white text-blue-600 font-semibold rounded-full hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl text-lg"
             >
-               구인자 시작하기
+               리조트 시작하기
             </Link>
             <Link
               to="/signup"
               className="inline-flex items-center px-10 py-4 bg-white text-green-600 font-semibold rounded-full hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl text-lg"
             >
-               구직자 시작하기
+               크루 시작하기
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Essay Section */}
+      <section className="py-20">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="relative">
+            <div
+              className="text-gray-800 leading-6 md:leading-7 text-lg md:text-xl space-y-4"
+              style={{
+                display: (expanded ? 'block' : '-webkit-box') as any,
+                WebkitBoxOrient: 'vertical',
+                WebkitLineClamp: (expanded ? 'unset' : 5) as unknown as number,
+                overflow: 'hidden',
+              }}
+            >
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                  사람을 구하지 못하는 시대, 그리고 인력을 줄이라는 시대
+                </h3>
+                
+                <p>
+                  오랫만에 만난 리조트 총지배인의 얼굴에는 미묘한 웃음과 한숨이 동시에 섞여 있었다.
+                </p>
+                
+                <p>
+                  "장사 잘 되지?"라는 나의 상투적인 인사에 그는 곧바로 "사람을 못 구해서 큰일이에요. 본사에서는 또 인력을 줄이라고 난리예요"라며 한탄을 내뱉었다.
+                </p>
+                
+                <p>
+                  그의 말은 단순한 하소연이 아니라, 오늘날 우리 호텔·리조트 산업이 안고 있는 구조적 모순을 드러내고 있었다.
+                </p>
+                
+                <p>
+                  직원이 필요한데도 채용할 수 없고, 또 남는 인력이 있다고 본사는 줄이라고 한다.
+                </p>
+                
+                <p>
+                  겉으로는 두 개의 문제 같지만, 사실상 하나의 동전 양면처럼 얽혀 있는 현실이다.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xl font-semibold text-gray-800 mb-2">
+                  첫째는 사람을 구하기 어려운 문제다.
+                </h4>
+                
+                <p>
+                  젊은 인구는 줄고, 그나마 있는 인력은 도시로 몰려든다.
+                </p>
+                
+                <p>
+                  지방의 호텔과 리조트는 갈수록 고령화된 노동시장 속에서 외면받고 있다.
+                </p>
+                
+                <p>
+                  숙식 문제, 타지 생활의 막연한 불안, 그리고 '지방 근무는 힘들다'는 고정관념이 노동자를 가로막는다.
+                </p>
+                
+                <p>
+                  결국 일할 사람은 없고, 기업은 채용을 포기하거나 울며 겨자 먹기로 비숙련 인력에 의존한다.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xl font-semibold text-gray-800 mb-2">
+                  둘째는 인력을 줄이라는 압박이다.
+                </h4>
+                
+                <p>
+                  성수기에는 사람이 부족하지만, 비수기에는 오히려 인력이 남아돈다.
+                </p>
+                
+                <p>
+                  과거처럼 뚜렷한 계절성만이 아니라 주중·주말의 수요 변동이 커져, 정규직과 비정규직의 단순한 구도로는 대응하기 어려운 상황이 되었다.
+                </p>
+                
+                <p>
+                  그럼에도 불구하고 여전히 오래된 스케줄에 매달리며, 고객의 생활 패턴 변화에 걸맞은 유연한 인력 운용은 뒷전이다.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xl font-semibold text-gray-800 mb-2">
+                  이 문제의 해법은 분명하다.
+                </h4>
+                
+                <p>
+                  지방 근무를 '기피'가 아니라 '기회'로 바꾸는 일, 그리고 일하는 시간 자체를 다시 설계하는 일이다.
+                </p>
+                
+                <p>
+                  숙식 지원, 지역 경험 프로그램, 레저 혜택 등으로 지방 근무의 매력을 높이고, 구직자와 기업을 정교하게 연결하는 온라인 매칭 플랫폼을 구축해야 한다.
+                </p>
+                
+                <p>
+                  또한 기업은 고객의 변화된 이용 행태를 반영해 근무시간을 재설계하고, 직원이 원하는 시간과 회사가 필요한 시간을 맞물리게 해야 한다.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p>
+                  이것은 단순히 비용을 줄이는 문제가 아니다.
+                </p>
+                
+                <p>
+                  사람을 구하지 못해 한숨 쉬는 현장과, 인력을 줄이라고 목소리 높이는 본사 사이의 모순을 풀어내는 길이다.
+                </p>
+                
+                <p>
+                  그리고 동시에, 서비스업이 지속가능성을 확보하기 위한 가장 기본적인 과제다.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p>
+                  결국 문제는 사람이 아니라 시스템이다.
+                </p>
+                
+                <p>
+                  사람을 탓하기 전에, 우리가 만들어온 일자리의 구조와 문화를 돌아보아야 한다.
+                </p>
+                
+                <p>
+                  그때서야 우리는 "사람이 없어 힘들다"는 탄식과 "인력을 줄이라"는 명령 사이의 간극을 좁힐 수 있을 것이다.
+                </p>
+              </div>
+
+              <div className="text-right text-gray-600 italic mt-4">
+                - 어떤 블로그에서 -
+              </div>
+            </div>
+
+            {!expanded && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent" />
+            )}
+          </div>
+
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
+              {expanded ? '접기' : '더보기'}
+            </button>
           </div>
         </div>
       </section>

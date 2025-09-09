@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage } from '../firebase';
 import { CompanyInfo } from '../types';
-import { Building, MapPin, Phone, Mail, Globe, Users, Calendar, Home, Star, CheckCircle, Edit, Save, X, Plus, Trash2, Briefcase, DollarSign, FileText, Camera, User } from 'lucide-react';
+import { Building, MapPin, Phone, Mail, Globe, Users, Calendar, Home, Star, CheckCircle, Edit, Save, X, Plus, Trash2, Briefcase, DollarSign, FileText, Camera, User, Upload } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
+import { optimizeImage, getFileSizeMB, isFileTooLarge, isImageFile, generateSafeFileName, generateStoragePath } from '../utils/imageOptimizer';
 
 const CompanyInfoPage: React.FC = () => {
   const { employerId } = useParams<{ employerId: string }>();
@@ -19,6 +21,7 @@ const CompanyInfoPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>({});
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   const fetchCompanyInfo = async () => {
     if (!employerId) return;
@@ -75,7 +78,6 @@ const CompanyInfoPage: React.FC = () => {
          phone: userData?.phone || '',
          birth: userData?.birth || '',
          gender: userData?.gender || '',
-         detailAddress: userData?.detailAddress || '',
        };
       
       setFormData(combinedData);
@@ -128,6 +130,94 @@ const CompanyInfoPage: React.FC = () => {
       ...prev,
       [field]: prev[field].filter((_: string, i: number) => i !== index),
     }));
+  };
+
+  // 이미지 업로드 함수
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingImages(true);
+    const uploadedUrls: string[] = [];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        // 파일 유효성 검사
+        if (!isImageFile(file)) {
+          alert(`파일 "${file.name}"은(는) 지원되지 않는 이미지 형식입니다. JPG, PNG, GIF 파일만 업로드 가능합니다.`);
+          continue;
+        }
+
+        if (isFileTooLarge(file)) {
+          alert(`파일 "${file.name}"의 크기가 너무 큽니다. 5MB 이하의 파일만 업로드 가능합니다.`);
+          continue;
+        }
+
+        // 이미지 최적화
+        const optimizedFile = await optimizeImage(file);
+        console.log(`이미지 최적화 완료: ${file.name} (${getFileSizeMB(file).toFixed(2)}MB → ${getFileSizeMB(optimizedFile).toFixed(2)}MB)`);
+
+        // Firebase Storage에 업로드
+        const fileName = generateSafeFileName(employerId!, file.name, i);
+        const storagePath = generateStoragePath(employerId!, fileName);
+        const storageRef = ref(storage, storagePath);
+
+        // 메타데이터 설정
+        const metadata = {
+          contentType: optimizedFile.type,
+          cacheControl: 'public, max-age=31536000',
+        };
+
+        const snapshot = await uploadBytes(storageRef, optimizedFile, metadata);
+        const downloadURL = await getDownloadURL(storageRef);
+        uploadedUrls.push(downloadURL);
+      }
+
+      if (uploadedUrls.length > 0) {
+        setFormData((prev: any) => ({
+          ...prev,
+          images: [...(prev.images || []), ...uploadedUrls],
+        }));
+        alert(`${uploadedUrls.length}개의 이미지가 성공적으로 업로드되었습니다.`);
+      }
+    } catch (error: any) {
+      console.error('이미지 업로드 오류:', error);
+      alert(`이미지 업로드 중 오류가 발생했습니다: ${error.message}`);
+    } finally {
+      setUploadingImages(false);
+      // 파일 입력 초기화
+      event.target.value = '';
+    }
+  };
+
+  // 이미지 삭제 함수
+  const handleImageDelete = async (index: number) => {
+    const imageUrl = formData.images[index];
+    if (!imageUrl) return;
+
+    try {
+      // Firebase Storage에서 이미지 삭제
+      const imageRef = ref(storage, imageUrl);
+      await deleteObject(imageRef);
+      
+      // 폼 데이터에서 이미지 제거
+      setFormData((prev: any) => ({
+        ...prev,
+        images: prev.images.filter((_: string, i: number) => i !== index),
+      }));
+      
+      alert('이미지가 삭제되었습니다.');
+    } catch (error: any) {
+      console.error('이미지 삭제 오류:', error);
+      // Storage 삭제 실패해도 UI에서는 제거
+      setFormData((prev: any) => ({
+        ...prev,
+        images: prev.images.filter((_: string, i: number) => i !== index),
+      }));
+      alert('이미지가 삭제되었습니다.');
+    }
   };
 
   // 복리후생 체크박스 처리
@@ -200,7 +290,6 @@ const CompanyInfoPage: React.FC = () => {
          birth: formData.birth,
          gender: formData.gender,
          address: formData.address,
-         detailAddress: formData.detailAddress,
          // 회원가입 시 입력한 회사 정보도 함께 저장
          companyName: formData.name,
          industry: formData.industry,
@@ -221,9 +310,8 @@ const CompanyInfoPage: React.FC = () => {
       setCompanyInfo(companyDataToSave as CompanyInfo);
       setUserInfo(userDataToSave);
       setIsEditing(false);
-      // 저장 후 조회 모드 URL로 이동
-      navigate(`/company/${employerId}`);
-      alert('회사 정보와 담당자 정보가 저장되었습니다.');
+      // 저장 후 대시보드로 이동
+      navigate('/employer-dashboard');
     } catch (error) {
       console.error('저장 실패:', error);
       alert('저장에 실패했습니다.');
@@ -732,33 +820,58 @@ const CompanyInfoPage: React.FC = () => {
                 회사 이미지
               </h2>
               {isEditing ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {displayInfo.images && displayInfo.images.length > 0 ? (
-                    displayInfo.images.map((image: string, index: number) => (
-                      <div key={index} className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                        <img
-                          src={image}
-                          alt={`회사 이미지 ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          onClick={() => removeArrayItem('images', index)}
-                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-70 hover:opacity-100"
-                          title="이미지 삭제"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 col-span-full text-center py-8">등록된 회사 이미지가 없습니다.</p>
+                <div className="space-y-4">
+                  {/* 이미지 업로드 버튼 */}
+                  <div className="flex items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 transition-colors">
+                    <label className="cursor-pointer flex flex-col items-center">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        disabled={uploadingImages}
+                      />
+                      {uploadingImages ? (
+                        <div className="flex flex-col items-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-2"></div>
+                          <span className="text-gray-600">이미지 업로드 중...</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center">
+                          <Upload className="h-8 w-8 text-purple-600 mb-2" />
+                          <span className="text-gray-600 font-medium">이미지 업로드</span>
+                          <span className="text-sm text-gray-500">JPG, PNG, GIF 파일 (최대 5MB)</span>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+
+                  {/* 업로드된 이미지들 */}
+                  {displayInfo.images && displayInfo.images.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {displayInfo.images.map((image: string, index: number) => (
+                        <div key={index} className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden group">
+                          <img
+                            src={image}
+                            alt={`회사 이미지 ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            onClick={() => handleImageDelete(index)}
+                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="이미지 삭제"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                  <button
-                    onClick={() => addArrayItem('images')}
-                    className="aspect-video bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 hover:bg-purple-200 transition-colors"
-                  >
-                    <Plus className="h-8 w-8" />
-                  </button>
+
+                  {(!displayInfo.images || displayInfo.images.length === 0) && !uploadingImages && (
+                    <p className="text-gray-500 text-center py-4">아직 등록된 회사 이미지가 없습니다. 위의 업로드 버튼을 클릭하여 이미지를 추가해보세요.</p>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -805,33 +918,6 @@ const CompanyInfoPage: React.FC = () => {
               </div>
             </div>
 
-            {/* 주소 */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <MapPin className="w-5 h-5 mr-2 text-red-600" />
-                주소
-              </h2>
-               <div className="space-y-3">
-                 <div>
-                   <div className="text-sm font-medium text-gray-700 mb-2">상세주소</div>
-              <div className="text-gray-900">
-                {isEditing ? (
-                       <input
-                         type="text"
-                         value={displayInfo.detailAddress || ''}
-                         onChange={(e) => handleInputChange('detailAddress', e.target.value)}
-                         className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                         placeholder="상세주소를 입력하세요"
-                  />
-                ) : (
-                  <p className="text-gray-700">
-                         {displayInfo.detailAddress || '상세주소 정보가 없습니다.'}
-                  </p>
-                )}
-                   </div>
-                 </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

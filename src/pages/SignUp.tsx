@@ -5,6 +5,7 @@ import { Eye, EyeOff, AlertCircle, Building, User, Home } from 'lucide-react';
 import { Resume } from '../types';
 import Navbar from '../components/Navbar';
 import AddressSearch, { Address } from '../components/AddressSearch';
+import NaverMapScript from '../components/NaverMapScript';
 
 const SignUp: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -21,6 +22,7 @@ const SignUp: React.FC = () => {
     // 구인자 추가 정보
     companyName: '',
     companyAddress: '',
+    companyDetailAddress: '',
     companyPhone: '',
     companyWebsite: '',
     businessNumber: '',
@@ -87,7 +89,7 @@ const SignUp: React.FC = () => {
     // 구인자 직장 정보 검증
     if (formData.role === 'employer') {
       if (!formData.companyName || !formData.companyAddress || !formData.companyPhone) {
-        setError('구인자 정보의 필수 항목(회사명, 회사주소, 회사전화번호)을 모두 입력해주세요.');
+        setError('리조트 정보의 필수 항목(리조트명, 주소, 연락처)을 모두 입력해주세요.');
         return;
       }
     }
@@ -114,6 +116,7 @@ const SignUp: React.FC = () => {
         contactPerson: formData.contactPerson,
         companyName: formData.companyName,
         companyAddress: formData.companyAddress,
+        companyDetailAddress: formData.companyDetailAddress,
         companyPhone: formData.companyPhone,
         companyWebsite: formData.companyWebsite,
         businessNumber: formData.businessNumber,
@@ -171,8 +174,23 @@ const SignUp: React.FC = () => {
               회원가입
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
-              리조트바이트에 가입하고 일자리를 찾아보세요
+              리조트바이트에 가입하고 크루로 참여하거나 리조트를 등록해보세요
             </p>
+            <div className="mt-4 bg-gray-50 rounded-lg p-4">
+              <div className="text-center">
+                <h3 className="text-sm font-medium text-gray-900 mb-2">🎯 어떤 회원이신가요?</h3>
+                <div className="flex justify-center space-x-6 text-xs text-gray-600">
+                  <div className="flex items-center">
+                    <User className="h-4 w-4 mr-1 text-blue-600" />
+                    <span><strong>크루</strong> - 일자리를 찾는 구직자</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Building className="h-4 w-4 mr-1 text-green-600" />
+                    <span><strong>리조트</strong> - 인재를 찾는 고용주</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -292,8 +310,8 @@ const SignUp: React.FC = () => {
                   onChange={handleInputChange}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-resort-500 focus:border-resort-500 sm:text-sm"
                 >
-                  <option value="jobseeker">구직자</option>
-                  <option value="employer">구인자</option>
+                  <option value="jobseeker">크루 (구직자)</option>
+                  <option value="employer">리조트 (고용주)</option>
                   <option value="admin">관리자</option>
                 </select>
               </div>
@@ -301,10 +319,10 @@ const SignUp: React.FC = () => {
               {/* 구인자 직장 정보 */}
               {formData.role === 'employer' && (
                 <div className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
-                  <h3 className="text-sm font-medium text-green-900 mb-3">🏢 회사 정보</h3>
+                  <h3 className="text-sm font-medium text-green-900 mb-3">🏢 리조트 정보</h3>
                   <div>
                     <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">
-                      회사명 *
+                      리조트명 *
                     </label>
                     <input
                       id="companyName"
@@ -314,13 +332,13 @@ const SignUp: React.FC = () => {
                       value={formData.companyName}
                       onChange={handleInputChange}
                       className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-resort-500 focus:border-resort-500 focus:z-10 sm:text-sm"
-                      placeholder="회사명을 입력하세요"
+                      placeholder="리조트명을 입력하세요"
                     />
                   </div>
 
                   <div>
                     <label htmlFor="companyAddress" className="block text-sm font-medium text-gray-700">
-                      회사 주소 *
+                      리조트 주소 *
                     </label>
                     <AddressSearch
                       onAddressSelect={(address: Address) => {
@@ -328,16 +346,19 @@ const SignUp: React.FC = () => {
                           ...prev,
                           companyAddress: address.address,
                           companyRegion: address.region || '',
+                          companyDetailAddress: address.detailAddress || '',
                         }));
                       }}
                       value={formData.companyAddress}
-                      placeholder="회사 주소를 검색하세요"
+                      placeholder="리조트 주소를 검색하세요"
+                      showDetailAddress={true}
+                      detailAddressPlaceholder="상세주소 (동/호수, 사무실 번호 등)"
                     />
                   </div>
 
                   <div>
                     <label htmlFor="companyPhone" className="block text-sm font-medium text-gray-700">
-                      회사 전화번호 *
+                      리조트 연락처 *
                     </label>
                     <input
                       id="companyPhone"
@@ -347,7 +368,7 @@ const SignUp: React.FC = () => {
                       value={formData.companyPhone}
                       onChange={handleInputChange}
                       className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-resort-500 focus:border-resort-500 focus:z-10 sm:text-sm"
-                      placeholder="회사 전화번호를 입력하세요"
+                      placeholder="리조트 연락처를 입력하세요"
                     />
                   </div>
 
@@ -507,6 +528,7 @@ const SignUp: React.FC = () => {
           </form>
         </div>
       </div>
+      <NaverMapScript />
     </div>
   );
 };

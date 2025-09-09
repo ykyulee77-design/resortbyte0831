@@ -10,6 +10,7 @@ interface User {
   role: string;
   createdAt: Date;
   status: 'active' | 'suspended';
+  isHidden?: boolean;
 }
 
 const AdminUsers: React.FC = () => {
@@ -33,6 +34,7 @@ const AdminUsers: React.FC = () => {
         role: doc.data().role,
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         status: doc.data().status || 'active',
+        isHidden: doc.data().isHidden === true,
       }));
       
       setUsers(fetchedUsers);
@@ -83,6 +85,27 @@ const AdminUsers: React.FC = () => {
     } catch (error) {
       console.error('역할 변경 실패:', error);
       alert('역할 변경에 실패했습니다.');
+    }
+  };
+
+  // 사용자 숨김/복원
+  const hideUser = async (u: User) => {
+    try {
+      await updateDoc(doc(db, 'users', u.uid), { isHidden: true, updatedAt: new Date() });
+      setUsers(prev => prev.map(x => x.uid === u.uid ? { ...x, isHidden: true } : x));
+    } catch (error) {
+      console.error('사용자 숨김 실패:', error);
+      alert('사용자 숨김에 실패했습니다.');
+    }
+  };
+
+  const restoreUser = async (u: User) => {
+    try {
+      await updateDoc(doc(db, 'users', u.uid), { isHidden: false, updatedAt: new Date() });
+      setUsers(prev => prev.map(x => x.uid === u.uid ? { ...x, isHidden: false } : x));
+    } catch (error) {
+      console.error('사용자 복원 실패:', error);
+      alert('사용자 복원에 실패했습니다.');
     }
   };
 
@@ -138,6 +161,9 @@ const AdminUsers: React.FC = () => {
                           {user.displayName}
                         </div>
                         <div className="text-sm text-gray-500">{user.email}</div>
+                        {user.isHidden && (
+                          <div className="text-xs inline-block mt-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full">숨김</div>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -155,12 +181,29 @@ const AdminUsers: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {user.createdAt.toLocaleDateString('ko-KR')}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3">
+                    {user.isHidden ? (
+                      <button
+                        onClick={() => restoreUser(user)}
+                        className="text-emerald-600 hover:text-emerald-900"
+                      >
+                        복원
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => hideUser(user)}
+                        className="text-gray-600 hover:text-gray-900"
+                        disabled={user.role === 'admin'}
+                        title={user.role === 'admin' ? '관리자는 숨길 수 없습니다' : '숨김'}
+                      >
+                        숨김
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDeleteClick(user)}
-                      className="flex items-center text-red-600 hover:text-red-900 transition-colors"
+                      className="inline-flex items-center text-red-600 hover:text-red-900"
                       disabled={user.role === 'admin'}
-                      title={user.role === 'admin' ? '관리자는 삭제할 수 없습니다' : '사용자 삭제'}
+                      title={user.role === 'admin' ? '관리자는 삭제할 수 없습니다' : '영구 삭제'}
                     >
                       <Trash2 className="w-4 h-4 mr-1" />
                       삭제

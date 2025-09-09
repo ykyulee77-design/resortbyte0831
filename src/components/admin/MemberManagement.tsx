@@ -11,6 +11,7 @@ import {
   CheckCircle,
   XCircle,
   Eye,
+  EyeOff,
   Calendar,
   MapPin,
   Building,
@@ -21,7 +22,8 @@ import {
   Download,
   Upload,
   RefreshCw,
-  AlertTriangle,
+  RotateCcw,
+  
   Star,
   Clock,
   TrendingUp,
@@ -29,8 +31,8 @@ import {
   Activity
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { adminAuth } from '../../utils/adminAuth';
-import { db } from '../../firebase/config';
+import { adminAuth, initializeAdminAuth } from '../../utils/adminAuth';
+import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy, limit } from 'firebase/firestore';
 
 interface Member {
@@ -44,6 +46,7 @@ interface Member {
   isSuspended: boolean;
   isVerified: boolean;
   profileCompleted: boolean;
+  isHidden?: boolean;
   
   // 구직자 정보
   jobseekerInfo?: {
@@ -95,6 +98,8 @@ interface Member {
 }
 
 const MemberManagement: React.FC = () => {
+  const { user } = useAuth();
+  const isAdmin = (user as any)?.role === 'admin';
   const [members, setMembers] = useState<Member[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,6 +111,15 @@ const MemberManagement: React.FC = () => {
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+
+  // 관리자 권한 초기화
+  useEffect(() => {
+    if (user?.uid && isAdmin) {
+      initializeAdminAuth(user.uid).catch(() => {
+        console.log('관리자 권한 초기화 실패');
+      });
+    }
+  }, [user, isAdmin]);
 
   // 회원 목록 로드
   useEffect(() => {
@@ -134,6 +148,7 @@ const MemberManagement: React.FC = () => {
             isSuspended: userData.isSuspended || false,
             isVerified: userData.isVerified || false,
             profileCompleted: userData.profileCompleted || false,
+            isHidden: userData.isHidden === true,
             
             // 구직자 정보
             jobseekerInfo: userData.role === 'jobseeker' ? {
@@ -198,118 +213,6 @@ const MemberManagement: React.FC = () => {
 
     loadMembers();
   }, []);
-          {
-            uid: '1',
-            email: 'jobseeker1@example.com',
-            displayName: '김철수',
-            role: 'jobseeker',
-            createdAt: new Date('2024-01-15'),
-            lastLoginAt: new Date('2024-01-20'),
-            isActive: true,
-            isSuspended: false,
-            isVerified: true,
-            profileCompleted: true,
-            jobseekerInfo: {
-              phone: '010-1234-5678',
-              birthDate: new Date('1995-03-15'),
-              gender: 'male',
-              education: '대학교 졸업',
-              experience: '3년',
-              skills: ['JavaScript', 'React', 'Node.js'],
-              desiredSalary: '월 300만원',
-              desiredLocation: ['서울', '경기'],
-              resumeUrl: '/resumes/kim-cheolsu.pdf',
-              profileImageUrl: '/profiles/kim-cheolsu.jpg'
-            },
-            stats: {
-              totalApplications: 15,
-              totalViews: 45,
-              responseRate: 80,
-              avgResponseTime: 2.5,
-              lastActivity: new Date('2024-01-20')
-            },
-            status: {
-              emailVerified: true,
-              phoneVerified: true,
-              profileVerified: true,
-              documentsVerified: true,
-              premiumMember: false
-            }
-          },
-          {
-            uid: '2',
-            email: 'employer1@example.com',
-            displayName: '제주 리조트',
-            role: 'employer',
-            createdAt: new Date('2024-01-10'),
-            lastLoginAt: new Date('2024-01-19'),
-            isActive: true,
-            isSuspended: false,
-            isVerified: true,
-            profileCompleted: true,
-            employerInfo: {
-              companyName: '제주 리조트',
-              companySize: 'large',
-              industry: '관광/숙박',
-              website: 'https://jeju-resort.com',
-              phone: '064-123-4567',
-              address: '제주특별자치도 제주시',
-              workplaceLocation: '제주도',
-              businessNumber: '123-45-67890',
-              companyImageUrl: '/companies/jeju-resort.jpg',
-              verifiedBusiness: true
-            },
-            stats: {
-              totalJobPosts: 8,
-              totalApplications: 45,
-              totalViews: 120,
-              responseRate: 95,
-              avgResponseTime: 1.2,
-              lastActivity: new Date('2024-01-19')
-            },
-            status: {
-              emailVerified: true,
-              phoneVerified: true,
-              profileVerified: true,
-              documentsVerified: true,
-              premiumMember: true,
-              subscriptionExpiresAt: new Date('2024-12-31')
-            }
-          },
-          {
-            uid: '3',
-            email: 'admin@example.com',
-            displayName: '시스템 관리자',
-            role: 'admin',
-            createdAt: new Date('2024-01-01'),
-            lastLoginAt: new Date('2024-01-20'),
-            isActive: true,
-            isSuspended: false,
-            isVerified: true,
-            profileCompleted: true,
-            stats: {
-              lastActivity: new Date('2024-01-20')
-            },
-            status: {
-              emailVerified: true,
-              phoneVerified: true,
-              profileVerified: true,
-              documentsVerified: true,
-              premiumMember: true
-            }
-          }
-        ];
-        setMembers(mockMembers);
-        setFilteredMembers(mockMembers);
-      } catch (error) {
-        console.error('회원 목록 로드 실패:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadMembers();
-  }, []);
 
   // 필터링
   useEffect(() => {
@@ -317,7 +220,7 @@ const MemberManagement: React.FC = () => {
 
     // 검색어 필터
     if (searchTerm) {
-      filtered = filtered.filter(member => 
+      filtered = filtered.filter((member: Member) => 
         member.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (member.employerInfo?.companyName && member.employerInfo.companyName.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -326,26 +229,26 @@ const MemberManagement: React.FC = () => {
 
     // 역할 필터
     if (roleFilter !== 'all') {
-      filtered = filtered.filter(member => member.role === roleFilter);
+      filtered = filtered.filter((member: Member) => member.role === roleFilter);
     }
 
     // 상태 필터
     if (statusFilter !== 'all') {
       if (statusFilter === 'active') {
-        filtered = filtered.filter(member => member.isActive && !member.isSuspended);
+        filtered = filtered.filter((member: Member) => member.isActive && !member.isSuspended);
       } else if (statusFilter === 'suspended') {
-        filtered = filtered.filter(member => member.isSuspended);
+        filtered = filtered.filter((member: Member) => member.isSuspended);
       } else if (statusFilter === 'inactive') {
-        filtered = filtered.filter(member => !member.isActive);
+        filtered = filtered.filter((member: Member) => !member.isActive);
       }
     }
 
     // 인증 필터
     if (verificationFilter !== 'all') {
       if (verificationFilter === 'verified') {
-        filtered = filtered.filter(member => member.isVerified);
+        filtered = filtered.filter((member: Member) => member.isVerified);
       } else if (verificationFilter === 'unverified') {
-        filtered = filtered.filter(member => !member.isVerified);
+        filtered = filtered.filter((member: Member) => !member.isVerified);
       }
     }
 
@@ -354,7 +257,7 @@ const MemberManagement: React.FC = () => {
 
   // 회원 정지/해제
   const toggleMemberSuspension = async (member: Member) => {
-    if (!adminAuth.canSuspendUsers()) {
+    if (!isAdmin) {
       alert('회원 정지 권한이 없습니다.');
       return;
     }
@@ -368,7 +271,7 @@ const MemberManagement: React.FC = () => {
       });
 
       // 로컬 상태 업데이트
-      const updatedMembers = members.map(m => 
+      const updatedMembers = members.map((m: Member) => 
         m.uid === member.uid 
           ? { ...m, isSuspended: !m.isSuspended }
           : m
@@ -384,7 +287,7 @@ const MemberManagement: React.FC = () => {
 
   // 회원 삭제
   const deleteMember = async (member: Member) => {
-    if (!adminAuth.canDeleteUsers()) {
+    if (!isAdmin) {
       alert('회원 삭제 권한이 없습니다.');
       return;
     }
@@ -399,7 +302,7 @@ const MemberManagement: React.FC = () => {
       await deleteDoc(userRef);
 
       // 로컬 상태 업데이트
-      const updatedMembers = members.filter(m => m.uid !== member.uid);
+      const updatedMembers = members.filter((m: Member) => m.uid !== member.uid);
       setMembers(updatedMembers);
       
       alert(`${member.displayName} 회원이 삭제되었습니다.`);
@@ -409,35 +312,39 @@ const MemberManagement: React.FC = () => {
     }
   };
 
-  // 회원 인증 상태 변경
-  const toggleVerification = async (member: Member) => {
-    if (!adminAuth.canVerifyUsers()) {
-      alert('회원 인증 권한이 없습니다.');
+  // 회원 숨김/복원
+  const hideMember = async (member: Member) => {
+    if (!isAdmin) {
+      alert('회원 숨김 권한이 없습니다.');
       return;
     }
-
     try {
-      // Firebase에서 회원 인증 상태 업데이트
       const userRef = doc(db, 'users', member.uid);
-      await updateDoc(userRef, {
-        isVerified: !member.isVerified,
-        updatedAt: new Date()
-      });
-
-      // 로컬 상태 업데이트
-      const updatedMembers = members.map(m => 
-        m.uid === member.uid 
-          ? { ...m, isVerified: !m.isVerified }
-          : m
-      );
-      setMembers(updatedMembers);
-      
-      alert(`${member.displayName} 회원의 인증 상태가 ${member.isVerified ? '해제' : '승인'}되었습니다.`);
+      await updateDoc(userRef, { isHidden: true, updatedAt: new Date() });
+      setMembers(prev => prev.map(m => m.uid === member.uid ? { ...m, isHidden: true } : m));
     } catch (error) {
-      console.error('인증 상태 변경 실패:', error);
-      alert('인증 상태 변경에 실패했습니다.');
+      console.error('회원 숨김 실패:', error);
+      alert('회원 숨김에 실패했습니다.');
     }
   };
+
+  const restoreMember = async (member: Member) => {
+    if (!isAdmin) {
+      alert('회원 복원 권한이 없습니다.');
+      return;
+    }
+    try {
+      const userRef = doc(db, 'users', member.uid);
+      await updateDoc(userRef, { isHidden: false, updatedAt: new Date() });
+      setMembers(prev => prev.map(m => m.uid === member.uid ? { ...m, isHidden: false } : m));
+    } catch (error) {
+      console.error('회원 복원 실패:', error);
+      alert('회원 복원에 실패했습니다.');
+    }
+  };
+
+  // 회원 인증 상태 변경
+  // 인증 승인/해제 기능은 현재 요구사항에서 제외
 
   // 역할 아이콘
   const getRoleIcon = (role: string) => {
@@ -504,6 +411,102 @@ const MemberManagement: React.FC = () => {
             <Upload className="inline h-4 w-4 mr-2" />
             회원 가져오기
           </button>
+          {selectedMembers.length > 0 && (
+            <>
+              <button
+                onClick={async () => {
+                  if (!confirm(`선택된 ${selectedMembers.length}명 회원을 숨기시겠습니까?`)) return;
+                  try {
+                    const updates = selectedMembers.map(async (uid) => {
+                      const userRef = doc(db, 'users', uid);
+                      await updateDoc(userRef, { isHidden: true, updatedAt: new Date() });
+                    });
+                    await Promise.all(updates);
+                    setMembers(prev => prev.map(m => selectedMembers.includes(m.uid) ? { ...m, isHidden: true } : m));
+                    setSelectedMembers([]);
+                    alert('선택된 회원이 숨김 처리되었습니다.');
+                  } catch (e) {
+                    alert('대량 숨김 중 오류가 발생했습니다.');
+                  }
+                }}
+                className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                <EyeOff className="inline h-4 w-4 mr-1" /> 선택 숨김
+              </button>
+              <button
+                onClick={async () => {
+                  if (!confirm(`선택된 ${selectedMembers.length}명 회원을 복원하시겠습니까?`)) return;
+                  try {
+                    const updates = selectedMembers.map(async (uid) => {
+                      const userRef = doc(db, 'users', uid);
+                      await updateDoc(userRef, { isHidden: false, updatedAt: new Date() });
+                    });
+                    await Promise.all(updates);
+                    setMembers(prev => prev.map(m => selectedMembers.includes(m.uid) ? { ...m, isHidden: false } : m));
+                    setSelectedMembers([]);
+                    alert('선택된 회원이 복원되었습니다.');
+                  } catch (e) {
+                    alert('대량 복원 중 오류가 발생했습니다.');
+                  }
+                }}
+                className="px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+              >
+                <RotateCcw className="inline h-4 w-4 mr-1" /> 선택 복원
+              </button>
+            </>
+          )}
+          {selectedMembers.length > 0 && (
+            <>
+              <button
+                onClick={async () => {
+                  if (!isAdmin) {
+                    alert('회원 정지 권한이 없습니다.');
+                    return;
+                  }
+                  if (!confirm(`선택된 ${selectedMembers.length}명 회원을 정지하시겠습니까?`)) return;
+                  try {
+                    const updates = selectedMembers.map(async (uid) => {
+                      const userRef = doc(db, 'users', uid);
+                      await updateDoc(userRef, { isSuspended: true, updatedAt: new Date() });
+                    });
+                    await Promise.all(updates);
+                    setMembers(prev => prev.map(m => selectedMembers.includes(m.uid) ? { ...m, isSuspended: true } : m));
+                    setSelectedMembers([]);
+                    alert('선택된 회원이 정지되었습니다.');
+                  } catch (e) {
+                    alert('대량 정지 중 오류가 발생했습니다.');
+                  }
+                }}
+                className="px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+              >
+                선택 정지
+              </button>
+              <button
+                onClick={async () => {
+                  if (!isAdmin) {
+                    alert('회원 삭제 권한이 없습니다.');
+                    return;
+                  }
+                  if (!confirm(`선택된 ${selectedMembers.length}명 회원을 삭제하시겠습니까?`)) return;
+                  try {
+                    const deletes = selectedMembers.map(async (uid) => {
+                      const userRef = doc(db, 'users', uid);
+                      await deleteDoc(userRef);
+                    });
+                    await Promise.all(deletes);
+                    setMembers(prev => prev.filter(m => !selectedMembers.includes(m.uid)));
+                    setSelectedMembers([]);
+                    alert('선택된 회원이 삭제되었습니다.');
+                  } catch (e) {
+                    alert('대량 삭제 중 오류가 발생했습니다.');
+                  }
+                }}
+                className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                선택 삭제
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -532,8 +535,8 @@ const MemberManagement: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-transparent"
             >
               <option value="all">전체</option>
-              <option value="jobseeker">구직자</option>
-              <option value="employer">구인자</option>
+              <option value="jobseeker">크루</option>
+              <option value="employer">리조트</option>
               <option value="admin">관리자</option>
             </select>
           </div>
@@ -587,6 +590,20 @@ const MemberManagement: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-6 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedMembers.length > 0 && filteredMembers.every(m => selectedMembers.includes(m.uid))}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedMembers(filteredMembers.map(m => m.uid));
+                      } else {
+                        setSelectedMembers([]);
+                      }
+                    }}
+                    className="rounded border-gray-300 text-resort-600 focus:ring-resort-500"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   회원 정보
                 </th>
@@ -615,6 +632,14 @@ const MemberManagement: React.FC = () => {
                 <tr key={member.uid} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedMembers.includes(member.uid)}
+                        onChange={(e) => {
+                          setSelectedMembers(prev => e.target.checked ? [...prev, member.uid] : prev.filter(id => id !== member.uid));
+                        }}
+                        className="mr-3 rounded border-gray-300 text-resort-600 focus:ring-resort-500"
+                      />
                       <div className="flex-shrink-0 h-10 w-10">
                         <div className="h-10 w-10 rounded-full bg-resort-100 flex items-center justify-center">
                           <User className="h-5 w-5 text-resort-600" />
@@ -627,6 +652,9 @@ const MemberManagement: React.FC = () => {
                         <div className="text-sm text-gray-500">
                           {member.email}
                         </div>
+                        {member.isHidden && (
+                          <div className="text-xs inline-block mt-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full">숨김</div>
+                        )}
                         {member.employerInfo?.companyName && (
                           <div className="text-xs text-gray-400">
                             {member.employerInfo.companyName}
@@ -639,8 +667,8 @@ const MemberManagement: React.FC = () => {
                     <div className="flex items-center">
                       {getRoleIcon(member.role)}
                       <span className="ml-2 text-sm text-gray-900">
-                        {member.role === 'jobseeker' ? '구직자' : 
-                         member.role === 'employer' ? '구인자' : '관리자'}
+                        {member.role === 'jobseeker' ? '크루' : 
+                         member.role === 'employer' ? '리조트' : '관리자'}
                       </span>
                     </div>
                   </td>
@@ -649,7 +677,6 @@ const MemberManagement: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex flex-col space-y-1">
-                      {getVerificationBadge(member)}
                       {getPremiumBadge(member)}
                     </div>
                   </td>
@@ -682,16 +709,28 @@ const MemberManagement: React.FC = () => {
                       >
                         <Eye className="h-4 w-4" />
                       </button>
-                      {adminAuth.canVerifyUsers() && (
-                        <button
-                          onClick={() => toggleVerification(member)}
-                          className={member.isVerified ? "text-yellow-600 hover:text-yellow-900" : "text-green-600 hover:text-green-900"}
-                          title={member.isVerified ? "인증 해제" : "인증 승인"}
-                        >
-                          {member.isVerified ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-                        </button>
+                      {isAdmin && (
+                        member.isHidden ? (
+                          <button
+                            onClick={() => restoreMember(member)}
+                            className="text-emerald-600 hover:text-emerald-900"
+                            title="복원"
+                          >
+                            복원
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => hideMember(member)}
+                            className="text-gray-600 hover:text-gray-900"
+                            title="숨김"
+                            disabled={member.role === 'admin'}
+                          >
+                            숨김
+                          </button>
+                        )
                       )}
-                      {adminAuth.canSuspendUsers() && (
+                      {/* 정지/해제 버튼 */}
+                      {isAdmin && (
                         <button
                           onClick={() => toggleMemberSuspension(member)}
                           className={member.isSuspended ? "text-green-600 hover:text-green-900" : "text-yellow-600 hover:text-yellow-900"}
@@ -700,7 +739,8 @@ const MemberManagement: React.FC = () => {
                           {member.isSuspended ? <CheckCircle className="h-4 w-4" /> : <ShieldOff className="h-4 w-4" />}
                         </button>
                       )}
-                      {adminAuth.canDeleteUsers() && (
+                      {/* 삭제 버튼 */}
+                      {isAdmin && (
                         <button
                           onClick={() => deleteMember(member)}
                           className="text-red-600 hover:text-red-900"
@@ -740,8 +780,8 @@ const MemberManagement: React.FC = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700">역할</label>
                       <p className="text-sm text-gray-900">
-                        {selectedMember.role === 'jobseeker' ? '구직자' : 
-                         selectedMember.role === 'employer' ? '구인자' : '관리자'}
+                        {selectedMember.role === 'jobseeker' ? '크루' : 
+                         selectedMember.role === 'employer' ? '리조트' : '관리자'}
                       </p>
                     </div>
                     <div>
@@ -783,10 +823,10 @@ const MemberManagement: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 구직자 정보 */}
+                {/* 크루 정보 */}
                 {selectedMember.jobseekerInfo && (
                   <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">구직자 정보</h4>
+                    <h4 className="font-medium text-gray-900">크루 정보</h4>
                     <div className="space-y-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">연락처</label>
@@ -812,10 +852,10 @@ const MemberManagement: React.FC = () => {
                   </div>
                 )}
 
-                {/* 구인자 정보 */}
+                {/* 리조트 정보 */}
                 {selectedMember.employerInfo && (
                   <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">구인자 정보</h4>
+                    <h4 className="font-medium text-gray-900">리조트 정보</h4>
                     <div className="space-y-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">회사명</label>

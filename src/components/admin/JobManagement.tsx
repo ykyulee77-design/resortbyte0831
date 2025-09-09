@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FileText, 
   Search, 
   Filter, 
   MoreHorizontal, 
-  Edit, 
   Trash2, 
   CheckCircle,
   XCircle,
@@ -15,10 +15,12 @@ import {
   DollarSign,
   Clock,
   AlertTriangle,
-  Star
+  Star,
+  RotateCcw
 } from 'lucide-react';
-import { adminAuth } from '../../utils/adminAuth';
-import { db } from '../../firebase/config';
+import { adminAuth, initializeAdminAuth } from '../../utils/adminAuth';
+import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../../firebase';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
 
 interface JobPost {
@@ -26,7 +28,7 @@ interface JobPost {
   title: string;
   companyName: string;
   location: string;
-  salary: string;
+  salary: string; // 렌더링용 문자열로 정규화
   jobType: 'full-time' | 'part-time' | 'contract' | 'internship';
   status: 'pending' | 'approved' | 'rejected' | 'expired';
   createdAt: Date;
@@ -38,9 +40,13 @@ interface JobPost {
   benefits: string[];
   applications: number;
   views: number;
+  isHidden?: boolean; // 소프트 삭제(숨김)
 }
 
 const JobManagement: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = (user as any)?.role === 'admin';
   const [jobPosts, setJobPosts] = useState<JobPost[]>([]);
   const [filteredJobPosts, setFilteredJobPosts] = useState<JobPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +55,16 @@ const JobManagement: React.FC = () => {
   const [jobTypeFilter, setJobTypeFilter] = useState<'all' | 'full-time' | 'part-time' | 'contract' | 'internship'>('all');
   const [selectedJob, setSelectedJob] = useState<JobPost | null>(null);
   const [showJobModal, setShowJobModal] = useState(false);
+  const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
+
+  // 관리자 권한 초기화
+  useEffect(() => {
+    if (user?.uid && isAdmin) {
+      initializeAdminAuth(user.uid).catch(() => {
+        console.log('관리자 권한 초기화 실패');
+      });
+    }
+  }, [user, isAdmin]);
 
   // 공고 목록 로드
   useEffect(() => {
@@ -64,13 +80,28 @@ const JobManagement: React.FC = () => {
         
         for (const jobDoc of jobPostsSnapshot.docs) {
           const jobData = jobDoc.data();
+
+          // 급여 정규화: 객체 형태({ min, max, type })면 보기 좋은 문자열로 변환
+          let salaryText = '';
+          const rawSalary = jobData.salary;
+          if (rawSalary && typeof rawSalary === 'object') {
+            const min = rawSalary.min ?? '';
+            const max = rawSalary.max ?? '';
+            const type = rawSalary.type ?? '';
+            if (min || max || type) {
+              const range = [min, max].filter(v => v !== '').join(' ~ ');
+              salaryText = [range, type].filter(Boolean).join(' ');
+            }
+          } else if (typeof rawSalary === 'string') {
+            salaryText = rawSalary;
+          }
           
           const jobPost: JobPost = {
             id: jobDoc.id,
             title: jobData.title || '',
             companyName: jobData.companyName || '',
             location: jobData.location || '',
-            salary: jobData.salary || '',
+            salary: salaryText,
             jobType: jobData.jobType || 'full-time',
             status: jobData.status || 'pending',
             createdAt: jobData.createdAt?.toDate() || new Date(),
@@ -81,7 +112,8 @@ const JobManagement: React.FC = () => {
             requirements: jobData.requirements || [],
             benefits: jobData.benefits || [],
             applications: jobData.applications || 0,
-            views: jobData.views || 0
+            views: jobData.views || 0,
+            isHidden: jobData.isHidden === true,
           };
           
           jobPostsData.push(jobPost);
@@ -91,72 +123,6 @@ const JobManagement: React.FC = () => {
         setFilteredJobPosts(jobPostsData);
       } catch (error) {
         console.error('공고 데이터 로드 실패:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadJobPosts();
-  }, []);
-          {
-            id: '1',
-            title: '리조트 프론트 데스크',
-            companyName: '제주 리조트',
-            location: '제주도',
-            salary: '월 250만원',
-            jobType: 'full-time',
-            status: 'pending',
-            createdAt: new Date('2024-01-15'),
-            expiresAt: new Date('2024-02-15'),
-            employerId: 'emp1',
-            employerName: '제주 리조트',
-            description: '리조트 프론트 데스크 업무를 담당할 직원을 모집합니다.',
-            requirements: ['고등학교 졸업 이상', '고객 서비스 경험 우대'],
-            benefits: ['4대보험', '퇴직연금', '연차휴가'],
-            applications: 5,
-            views: 23
-          },
-          {
-            id: '2',
-            title: '리조트 주방 보조',
-            companyName: '부산 리조트',
-            location: '부산',
-            salary: '시급 12,000원',
-            jobType: 'part-time',
-            status: 'approved',
-            createdAt: new Date('2024-01-10'),
-            expiresAt: new Date('2024-02-10'),
-            employerId: 'emp2',
-            employerName: '부산 리조트',
-            description: '리조트 주방 보조 업무를 담당할 직원을 모집합니다.',
-            requirements: ['주방 경험 우대', '체력이 좋은 분'],
-            benefits: ['식대 제공', '교통비 지원'],
-            applications: 12,
-            views: 45
-          },
-          {
-            id: '3',
-            title: '리조트 청소원',
-            companyName: '강릉 리조트',
-            location: '강릉',
-            salary: '월 200만원',
-            jobType: 'full-time',
-            status: 'rejected',
-            createdAt: new Date('2024-01-05'),
-            expiresAt: new Date('2024-02-05'),
-            employerId: 'emp3',
-            employerName: '강릉 리조트',
-            description: '리조트 청소 업무를 담당할 직원을 모집합니다.',
-            requirements: ['청소 경험 우대', '성실한 분'],
-            benefits: ['4대보험', '퇴직연금'],
-            applications: 3,
-            views: 18
-          }
-        ];
-        setJobPosts(mockJobPosts);
-        setFilteredJobPosts(mockJobPosts);
-      } catch (error) {
-        console.error('공고 목록 로드 실패:', error);
       } finally {
         setLoading(false);
       }
@@ -193,7 +159,7 @@ const JobManagement: React.FC = () => {
 
   // 공고 승인
   const approveJob = async (job: JobPost) => {
-    if (!adminAuth.canApproveJobs()) {
+    if (!isAdmin) {
       alert('공고 승인 권한이 없습니다.');
       return;
     }
@@ -222,7 +188,7 @@ const JobManagement: React.FC = () => {
 
   // 공고 거부
   const rejectJob = async (job: JobPost) => {
-    if (!adminAuth.canApproveJobs()) {
+    if (!isAdmin) {
       alert('공고 승인 권한이 없습니다.');
       return;
     }
@@ -249,9 +215,38 @@ const JobManagement: React.FC = () => {
     }
   };
 
+  // 거부된 공고 복원 (다시 pending 상태로)
+  const restoreRejectedJob = async (job: JobPost) => {
+    if (!isAdmin) {
+      alert('공고 복원 권한이 없습니다.');
+      return;
+    }
+
+    try {
+      // Firebase에서 공고 상태 업데이트
+      const jobRef = doc(db, 'jobPosts', job.id);
+      await updateDoc(jobRef, {
+        status: 'pending',
+        rejectedAt: null,
+        updatedAt: new Date()
+      });
+
+      // 로컬 상태 업데이트
+      const updatedJobs = jobPosts.map(j => 
+        j.id === job.id ? { ...j, status: 'pending' as const } : j
+      );
+      setJobPosts(updatedJobs);
+      
+      alert(`${job.title} 공고가 복원되었습니다.`);
+    } catch (error) {
+      console.error('공고 복원 실패:', error);
+      alert('공고 복원에 실패했습니다.');
+    }
+  };
+
   // 공고 삭제
   const deleteJob = async (job: JobPost) => {
-    if (!adminAuth.canDeleteJobs()) {
+    if (!isAdmin) {
       alert('공고 삭제 권한이 없습니다.');
       return;
     }
@@ -273,6 +268,40 @@ const JobManagement: React.FC = () => {
     } catch (error) {
       console.error('공고 삭제 실패:', error);
       alert('공고 삭제에 실패했습니다.');
+    }
+  };
+
+  // 공고 숨김(소프트 삭제)
+  const hideJob = async (job: JobPost) => {
+    if (!isAdmin) {
+      alert('공고 숨김 권한이 없습니다.');
+      return;
+    }
+    try {
+      const jobRef = doc(db, 'jobPosts', job.id);
+      await updateDoc(jobRef, { isHidden: true, updatedAt: new Date() });
+      setJobPosts(prev => prev.map(j => j.id === job.id ? { ...j, isHidden: true } : j));
+      alert('공고가 숨김 처리되었습니다.');
+    } catch (error) {
+      console.error('공고 숨김 실패:', error);
+      alert('공고 숨김에 실패했습니다.');
+    }
+  };
+
+  // 공고 복원
+  const restoreJob = async (job: JobPost) => {
+    if (!isAdmin) {
+      alert('공고 복원 권한이 없습니다.');
+      return;
+    }
+    try {
+      const jobRef = doc(db, 'jobPosts', job.id);
+      await updateDoc(jobRef, { isHidden: false, updatedAt: new Date() });
+      setJobPosts(prev => prev.map(j => j.id === job.id ? { ...j, isHidden: false } : j));
+      alert('공고가 복원되었습니다.');
+    } catch (error) {
+      console.error('공고 복원 실패:', error);
+      alert('공고 복원에 실패했습니다.');
     }
   };
 
@@ -308,6 +337,148 @@ const JobManagement: React.FC = () => {
     }
   };
 
+  // 단체 공고 승인
+  const bulkApproveJobs = async () => {
+    if (!isAdmin) {
+      alert('공고 승인 권한이 없습니다.');
+      return;
+    }
+
+    if (selectedJobs.length === 0) {
+      alert('승인할 공고를 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`선택된 ${selectedJobs.length}개 공고를 승인하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const updates = selectedJobs.map(async (jobId) => {
+        const jobRef = doc(db, 'jobPosts', jobId);
+        await updateDoc(jobRef, {
+          status: 'approved',
+          approvedAt: new Date(),
+          updatedAt: new Date()
+        });
+      });
+
+      await Promise.all(updates);
+      setJobPosts(prev => prev.map(j => 
+        selectedJobs.includes(j.id) ? { ...j, status: 'approved' as const } : j
+      ));
+      setSelectedJobs([]);
+      alert('선택된 공고가 승인되었습니다.');
+    } catch (error) {
+      console.error('단체 승인 실패:', error);
+      alert('단체 승인에 실패했습니다.');
+    }
+  };
+
+  // 단체 공고 거부
+  const bulkRejectJobs = async () => {
+    if (!isAdmin) {
+      alert('공고 거부 권한이 없습니다.');
+      return;
+    }
+
+    if (selectedJobs.length === 0) {
+      alert('거부할 공고를 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`선택된 ${selectedJobs.length}개 공고를 거부하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const updates = selectedJobs.map(async (jobId) => {
+        const jobRef = doc(db, 'jobPosts', jobId);
+        await updateDoc(jobRef, {
+          status: 'rejected',
+          rejectedAt: new Date(),
+          updatedAt: new Date()
+        });
+      });
+
+      await Promise.all(updates);
+      setJobPosts(prev => prev.map(j => 
+        selectedJobs.includes(j.id) ? { ...j, status: 'rejected' as const } : j
+      ));
+      setSelectedJobs([]);
+      alert('선택된 공고가 거부되었습니다.');
+    } catch (error) {
+      console.error('단체 거부 실패:', error);
+      alert('단체 거부에 실패했습니다.');
+    }
+  };
+
+  // 단체 공고 숨김
+  const bulkHideJobs = async () => {
+    if (!isAdmin) {
+      alert('공고 숨김 권한이 없습니다.');
+      return;
+    }
+
+    if (selectedJobs.length === 0) {
+      alert('숨길 공고를 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`선택된 ${selectedJobs.length}개 공고를 숨기시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const updates = selectedJobs.map(async (jobId) => {
+        const jobRef = doc(db, 'jobPosts', jobId);
+        await updateDoc(jobRef, { isHidden: true, updatedAt: new Date() });
+      });
+
+      await Promise.all(updates);
+      setJobPosts(prev => prev.map(j => 
+        selectedJobs.includes(j.id) ? { ...j, isHidden: true } : j
+      ));
+      setSelectedJobs([]);
+      alert('선택된 공고가 숨김 처리되었습니다.');
+    } catch (error) {
+      console.error('단체 숨김 실패:', error);
+      alert('단체 숨김에 실패했습니다.');
+    }
+  };
+
+  // 단체 공고 삭제
+  const bulkDeleteJobs = async () => {
+    if (!isAdmin) {
+      alert('공고 삭제 권한이 없습니다.');
+      return;
+    }
+
+    if (selectedJobs.length === 0) {
+      alert('삭제할 공고를 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`선택된 ${selectedJobs.length}개 공고를 영구 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const deletes = selectedJobs.map(async (jobId) => {
+        const jobRef = doc(db, 'jobPosts', jobId);
+        await deleteDoc(jobRef);
+      });
+
+      await Promise.all(deletes);
+      setJobPosts(prev => prev.filter(j => !selectedJobs.includes(j.id)));
+      setSelectedJobs([]);
+      alert('선택된 공고가 삭제되었습니다.');
+    } catch (error) {
+      console.error('단체 삭제 실패:', error);
+      alert('단체 삭제에 실패했습니다.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -325,11 +496,59 @@ const JobManagement: React.FC = () => {
           <p className="text-sm text-gray-600">총 {filteredJobPosts.length}개의 공고</p>
         </div>
         <div className="flex space-x-2">
+          <button
+            onClick={() => {
+              // 새 공고 등록 페이지로 이동 (관리자용)
+              navigate('/job-post/new');
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            공고 등록
+          </button>
           <button className="px-4 py-2 bg-resort-600 text-white rounded-lg hover:bg-resort-700">
             공고 내보내기
           </button>
         </div>
       </div>
+
+      {/* 단체 관리 버튼들 */}
+      {selectedJobs.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedJobs.length}개 공고 선택됨
+              </span>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={bulkApproveJobs}
+                className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+              >
+                선택 승인
+              </button>
+              <button
+                onClick={bulkRejectJobs}
+                className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+              >
+                선택 거부
+              </button>
+              <button
+                onClick={bulkHideJobs}
+                className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+              >
+                선택 숨김
+              </button>
+              <button
+                onClick={bulkDeleteJobs}
+                className="px-3 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900 text-sm"
+              >
+                선택 삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 필터 */}
       <div className="bg-white rounded-lg shadow-sm p-4">
@@ -399,6 +618,20 @@ const JobManagement: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-6 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedJobs.length > 0 && filteredJobPosts.every(j => selectedJobs.includes(j.id))}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedJobs(filteredJobPosts.map(j => j.id));
+                      } else {
+                        setSelectedJobs([]);
+                      }
+                    }}
+                    className="rounded border-gray-300 text-resort-600 focus:ring-resort-500"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   공고 정보
                 </th>
@@ -426,6 +659,16 @@ const JobManagement: React.FC = () => {
               {filteredJobPosts.map((job) => (
                 <tr key={job.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedJobs.includes(job.id)}
+                      onChange={(e) => {
+                        setSelectedJobs(prev => e.target.checked ? [...prev, job.id] : prev.filter(id => id !== job.id));
+                      }}
+                      className="rounded border-gray-300 text-resort-600 focus:ring-resort-500"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">
                         {job.title}
@@ -447,7 +690,12 @@ const JobManagement: React.FC = () => {
                     {getJobTypeBadge(job.jobType)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(job.status)}
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(job.status)}
+                      {job.isHidden && (
+                        <span className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded-full">숨김</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div>{job.applications} 지원</div>
@@ -467,29 +715,60 @@ const JobManagement: React.FC = () => {
                       >
                         <Eye className="h-4 w-4" />
                       </button>
-                      {job.status === 'pending' && adminAuth.canApproveJobs() && (
+                      {job.status === 'pending' && isAdmin && (
                         <>
                           <button
                             onClick={() => approveJob(job)}
                             className="text-green-600 hover:text-green-900"
+                            title="승인"
                           >
                             <CheckCircle className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => rejectJob(job)}
                             className="text-red-600 hover:text-red-900"
+                            title="거부"
                           >
                             <XCircle className="h-4 w-4" />
                           </button>
                         </>
                       )}
-                      {adminAuth.canDeleteJobs() && (
+                      {job.status === 'rejected' && isAdmin && (
                         <button
-                          onClick={() => deleteJob(job)}
-                          className="text-red-600 hover:text-red-900"
+                          onClick={() => restoreRejectedJob(job)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="복원"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <RotateCcw className="h-4 w-4" />
                         </button>
+                      )}
+                      {isAdmin && (
+                        <>
+                          {job.isHidden ? (
+                            <button
+                              onClick={() => restoreJob(job)}
+                              className="text-emerald-600 hover:text-emerald-900"
+                              title="복원"
+                            >
+                              복원
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => hideJob(job)}
+                              className="text-gray-600 hover:text-gray-900"
+                              title="숨김"
+                            >
+                              숨김
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteJob(job)}
+                            className="text-red-600 hover:text-red-900"
+                            title="영구 삭제"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>
@@ -509,36 +788,36 @@ const JobManagement: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">제목</label>
-                  <p className="text-sm text-gray-900">{selectedJob.title}</p>
+                  <p className="text-sm text-gray-900">{selectedJob?.title}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">회사명</label>
-                  <p className="text-sm text-gray-900">{selectedJob.companyName}</p>
+                  <p className="text-sm text-gray-900">{selectedJob?.companyName}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">지역</label>
-                  <p className="text-sm text-gray-900">{selectedJob.location}</p>
+                  <p className="text-sm text-gray-900">{selectedJob?.location}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">급여</label>
-                  <p className="text-sm text-gray-900">{selectedJob.salary}</p>
+                  <p className="text-sm text-gray-900">{selectedJob?.salary}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">직종</label>
-                  <div className="mt-1">{getJobTypeBadge(selectedJob.jobType)}</div>
+                  <div className="mt-1">{selectedJob && getJobTypeBadge(selectedJob.jobType)}</div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">상태</label>
-                  <div className="mt-1">{getStatusBadge(selectedJob.status)}</div>
+                  <div className="mt-1">{selectedJob && getStatusBadge(selectedJob.status)}</div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">설명</label>
-                  <p className="text-sm text-gray-900">{selectedJob.description}</p>
+                  <p className="text-sm text-gray-900">{selectedJob?.description}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">자격요건</label>
                   <ul className="text-sm text-gray-900 list-disc list-inside">
-                    {selectedJob.requirements.map((req, index) => (
+                    {selectedJob?.requirements?.map((req, index) => (
                       <li key={index}>{req}</li>
                     ))}
                   </ul>
@@ -546,7 +825,7 @@ const JobManagement: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">복리후생</label>
                   <ul className="text-sm text-gray-900 list-disc list-inside">
-                    {selectedJob.benefits.map((benefit, index) => (
+                    {selectedJob?.benefits?.map((benefit, index) => (
                       <li key={index}>{benefit}</li>
                     ))}
                   </ul>
@@ -554,21 +833,21 @@ const JobManagement: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">지원자 수</label>
-                    <p className="text-sm text-gray-900">{selectedJob.applications}명</p>
+                    <p className="text-sm text-gray-900">{selectedJob?.applications}명</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">조회 수</label>
-                    <p className="text-sm text-gray-900">{selectedJob.views}회</p>
+                    <p className="text-sm text-gray-900">{selectedJob?.views}회</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">등록일</label>
-                    <p className="text-sm text-gray-900">{selectedJob.createdAt.toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-900">{selectedJob?.createdAt?.toLocaleDateString()}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">만료일</label>
-                    <p className="text-sm text-gray-900">{selectedJob.expiresAt.toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-900">{selectedJob?.expiresAt?.toLocaleDateString()}</p>
                   </div>
                 </div>
               </div>

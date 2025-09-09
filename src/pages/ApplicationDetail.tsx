@@ -46,6 +46,7 @@ const ApplicationDetail: React.FC = () => {
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedWorkType, setSelectedWorkType] = useState<WorkType | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
 
   useEffect(() => {
     const fetchApplicationDetails = async () => {
@@ -218,43 +219,78 @@ const ApplicationDetail: React.FC = () => {
   };
 
   const handlePreviewApply = async () => {
+    if (isApplying) return; // 이미 지원 중이면 중복 실행 방지
+    
     if (!application || !user?.uid || !jobPost) {
       console.error('필수 데이터 누락:', { application: !!application, user: !!user?.uid, jobPost: !!jobPost });
       alert('필수 데이터가 누락되었습니다. 다시 시도해주세요.');
       return;
     }
 
+    // jobPost.id가 없으면 세션스토리지에서 다시 가져오기
+    if (!jobPost.id) {
+      const tempJobPost = sessionStorage.getItem('tempJobPost');
+      if (tempJobPost) {
+        const jobPostData = JSON.parse(tempJobPost);
+        if (jobPostData.id) {
+          setJobPost(prev => prev ? { ...prev, id: jobPostData.id } : null);
+        } else {
+          alert('공고 정보가 올바르지 않습니다. 다시 시도해주세요.');
+          return;
+        }
+      } else {
+        alert('공고 정보를 찾을 수 없습니다. 다시 시도해주세요.');
+        return;
+      }
+    }
+
+    setIsApplying(true);
     try {
-      console.log('지원 데이터 준비 중...', { jobPostId: jobPost.id, jobseekerId: user.uid });
+      console.log('지원 데이터 준비 중...', { 
+        jobPostId: jobPost.id, 
+        jobseekerId: user.uid,
+        jobPost: jobPost,
+        application: application
+      });
       
       // 지원서 생성
+      const now = new Date();
       const applicationData: any = {
         jobPostId: jobPost.id,
         jobseekerId: user.uid,
         jobseekerName: user.displayName || '',
         status: 'pending',
-        appliedAt: new Date(),
+        appliedAt: now,
         coverLetter: application.coverLetter || '',
         experience: application.experience || '',
         education: application.education || '',
         skills: application.skills || [],
         hourlyWage: application.hourlyWage || 0,
         message: application.message || '',
-        jobTitle: jobPost.title,
-        employerName: jobPost.employerName,
-        location: jobPost.location,
-        salary: jobPost.salary,
+        jobTitle: jobPost.title || '',
+        employerName: jobPost.employerName || jobPost.workplaceName || '회사명 없음',
+        location: jobPost.location || '',
+        salary: jobPost.salary || { min: 0, max: 0, type: '시급' },
         selectedWorkTypeIds: application.selectedWorkTypeIds || [],
         processStage: 'applied',
         priority: 'medium',
         tags: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
       };
 
       // undefined가 아닌 경우에만 필드 추가
       if (application.availableStartDate) {
-        applicationData.availableStartDate = application.availableStartDate;
+        // Date 객체가 유효한지 확인
+        const date = application.availableStartDate;
+        if (date instanceof Date && !isNaN(date.getTime())) {
+          applicationData.availableStartDate = date;
+        } else if (typeof date === 'string' || typeof date === 'number') {
+          const parsedDate = new Date(date);
+          if (!isNaN(parsedDate.getTime())) {
+            applicationData.availableStartDate = parsedDate;
+          }
+        }
       }
 
       console.log('Firestore에 지원서 저장 중...', applicationData);
@@ -270,6 +306,8 @@ const ApplicationDetail: React.FC = () => {
     } catch (error) {
       console.error('지원 실패 상세 오류:', error);
       alert(`지원에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+    } finally {
+      setIsApplying(false);
     }
   };
 
@@ -838,14 +876,33 @@ const ApplicationDetail: React.FC = () => {
                 <div className="flex gap-4">
                   <button
                     onClick={handlePreviewApply}
-                    className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                    disabled={isApplying}
+                    className={`flex-1 px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                      isApplying 
+                        ? 'bg-gray-400 text-white cursor-not-allowed' 
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
                   >
-                    <Send className="w-4 h-4" />
-                    최종 지원하기
+                    {isApplying ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        지원 중...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        최종 지원하기
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={() => navigate(-1)}
-                    className="flex-1 bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+                    disabled={isApplying}
+                    className={`flex-1 px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                      isApplying 
+                        ? 'bg-gray-400 text-white cursor-not-allowed' 
+                        : 'bg-gray-600 text-white hover:bg-gray-700'
+                    }`}
                   >
                     <ArrowLeft className="w-4 h-4" />
                     돌아가기

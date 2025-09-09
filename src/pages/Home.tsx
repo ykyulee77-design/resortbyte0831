@@ -29,8 +29,8 @@ const Home: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-resort-600 py-12 mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-white text-center">리조트 일자리 찾기</h1>
-        <p className="text-lg text-blue-100 text-center mt-2">지역 리조트에서 일할 수 있는 최고의 기회를 찾아보세요</p>
+        <h1 className="text-3xl md:text-4xl font-bold text-white text-center">크루와 리조트를 연결합니다</h1>
+        <p className="text-lg text-blue-100 text-center mt-2">리조트바이트에서 원하는 근무를 찾고, 리조트는 믿을 수 있는 크루를 만나보세요</p>
       </div>
       {/* 완전한 기능을 가진 JobList 컴포넌트 */}
       <JobList simpleMode={false} />

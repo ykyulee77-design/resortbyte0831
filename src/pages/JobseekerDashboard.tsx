@@ -325,7 +325,28 @@ const JobseekerDashboard: React.FC = () => {
     }
   };
 
-  const hasResume = () => !!user?.resume;
+  const hasResume = () => hasActualResumeContent();
+  
+  // 실제 이력서 내용이 있는지 확인하는 함수
+  const hasActualResumeContent = () => {
+    if (!user?.resume) return false;
+    
+    const resume = user.resume;
+    
+    // 핵심 이력서 필드들이 실제로 입력되었는지 확인
+    return !!(
+      resume.phone ||
+      resume.birth ||
+      resume.jobType ||
+      resume.career ||
+      resume.hourlyWage ||
+      resume.availableStartDate ||
+      resume.customerServiceExp ||
+      resume.restaurantExp ||
+      (resume.languages && resume.languages.length > 0) ||
+      resume.intro
+    );
+  };
 
   if (loading) {
     return (
@@ -348,27 +369,18 @@ const JobseekerDashboard: React.FC = () => {
               안녕하세요, {user?.displayName}님!
             </h1>
 
-            {!hasResume() && (
-              <div className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-blue-900 mb-1">
-                      🎉 리조트바이트에 오신 것을 환영합니다!
-                    </h3>
-                    <p className="text-xs text-blue-700 mb-2">
-                      이력서를 작성하시면 맞춤형 일자리를 추천받을 수 있어요
-                    </p>
-                    <Link
-                      to="/profile"
-                      className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      지금 이력서 작성하기
-                    </Link>
-                  </div>
+            {/* 이력서 작성 안내문 - 항상 표시 */}
+            {(
+              <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-md">
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">
+                    이력서를 작성해주세요
+                  </h3>
+                                     <div className="mb-3">
+                     <div className="text-xs text-gray-600 text-center leading-relaxed">
+                       이력서를 작성하면 <span className="font-medium">바로 지원할 수 있고</span>, <span className="font-medium">맞춤 일자리를 추천받으며</span>, <span className="font-medium">합격 확률이 높아지고</span>, <span className="font-medium">신뢰도를 쌓을 수 있어요</span>. 지원할 때 작성해도 됩니다.
+                     </div>
+                   </div>
                 </div>
               </div>
             )}
@@ -388,7 +400,7 @@ const JobseekerDashboard: React.FC = () => {
                    나의 프로필 (이력서)
                 </h3>
                 <div className="flex items-center gap-2">
-                  {user?.resume && (
+                  {hasActualResumeContent() ? (
                     <>
                       <Link
                         to="/profile"
@@ -405,6 +417,14 @@ const JobseekerDashboard: React.FC = () => {
                          일자리
                       </Link>
                     </>
+                  ) : (
+                                         <Link
+                       to="/profile?mode=edit"
+                       className="inline-flex items-center px-2 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
+                     >
+                       <FileText className="w-3 h-3 mr-1" />
+                        이력서 등록
+                     </Link>
                   )}
                   <button
                     onClick={() => setProfileCollapsed(!profileCollapsed)}

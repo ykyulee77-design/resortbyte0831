@@ -80,6 +80,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
+        // 이미 사용자 정보가 있고, 같은 사용자인 경우 중복 처리 방지
+        if (user && user.uid === firebaseUser.uid) {
+          console.log('🔄 이미 로그인된 사용자:', user.email);
+          setLoading(false);
+          return;
+        }
+        
         // Firestore에서 사용자 정보 가져오기
         try {
           const userDoc = await import('firebase/firestore').then(({ getDoc }) => 
@@ -150,12 +157,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } else {
         setUser(null);
+        localStorage.removeItem('user');
       }
       setLoading(false);
     });
 
     return unsubscribe;
-  }, []);
+  }, [user]); // user를 의존성 배열에 추가
 
   const signUp = async (email: string, password: string, displayName: string, role: string, employerInfo?: EmployerInfo, resume?: Resume) => {
     try {
@@ -274,9 +282,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-         } catch (error: unknown) {
-       throw error;
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      // Firestore에서 사용자 정보 가져오기
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const userInfo = {
+          uid: firebaseUser.uid,
+          email: userData.email || firebaseUser.email || '',
+          displayName: userData.displayName || firebaseUser.displayName || '',
+          role: userData.role || 'jobseeker',
+          workplaceName: userData.workplaceName || '',
+          workplaceLocation: userData.workplaceLocation || '',
+          contactPerson: userData.contactPerson || '',
+          resume: userData.resume || {},
+          // 구인자 추가 정보
+          companyName: userData.companyName || '',
+          companyAddress: userData.companyAddress || '',
+          companyDetailAddress: userData.companyDetailAddress || '',
+          companyPhone: userData.companyPhone || '',
+          companyWebsite: userData.companyWebsite || '',
+          businessNumber: userData.businessNumber || '',
+          industry: userData.industry || '',
+          companySize: userData.companySize || '',
+          contactPhone: userData.contactPhone || '',
+        };
+        
+        // 사용자 상태 업데이트
+        setUser(userInfo);
+        localStorage.setItem('user', JSON.stringify(userInfo));
+        
+        console.log('🔐 로그인 성공:', userInfo);
+      }
+    } catch (error: unknown) {
+      throw error;
     }
   };
 

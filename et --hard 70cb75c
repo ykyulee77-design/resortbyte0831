@@ -1,0 +1,10 @@
+[33m56fd909[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m fix: correct Firestore rules to use user document role instead of token role
+[33mb67a300[m fix: update Firestore rules to allow proper access to jobPosts, applications, and other collections
+[33m609cc8a[m fix: improve accessibility and handle missing Naver Maps API gracefully
+[33m3b82c07[m chore(firebase): add firestore targets and fix indexes file for deploy
+[33m5680d66[m chore(security): tighten Firestore/Storage rules, add env-based CORS; restore app index.html for production
+[33m70cb75c[m Connect member management and job management to real Firebase data
+[33mf5d37d3[m Fix navigation: Remove user management from navbar, update admin dashboard path
+[33m394ecc5[m Add comprehensive member management system with detailed member profiles and verification features
+[33m46531f1[m Add admin dashboard functionality with user and job management components
+[33m224aa56[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Update README and add .gitignore for GitHub repository

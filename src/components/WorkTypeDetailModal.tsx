@@ -2,6 +2,7 @@ import React from 'react';
 import { WorkType } from '../types';
 import { X, Building, Calendar, Users, Target } from 'lucide-react';
 import UnifiedScheduleGrid from './UnifiedScheduleGrid';
+import WorkTypeHelpBanner from './WorkTypeHelpBanner';
 
 interface WorkTypeDetailModalProps {
   workType: WorkType | null;
@@ -64,6 +65,8 @@ const WorkTypeDetailModal: React.FC<WorkTypeDetailModalProps> = ({
         </div>
 
         <div className="space-y-6">
+          {/* 도움말 배너 (상세 보기) */}
+          <WorkTypeHelpBanner storageKey="rtb_worktype_help_detailmodal" />
           {/* 기본 정보 */}
           <div className="bg-white border border-gray-200 rounded-xl p-6">
             <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -148,9 +151,9 @@ const WorkTypeDetailModal: React.FC<WorkTypeDetailModalProps> = ({
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white rounded-lg p-4 border border-purple-200">
-                <h5 className="font-medium text-purple-900 mb-2">구직자 매칭</h5>
+                <h5 className="font-medium text-purple-900 mb-2">크루 매칭</h5>
                 <p className="text-sm text-purple-700">
-                  이 근무타입은 구직자의 선호시간과 매칭되어 추천됩니다.
+                  이 근무타입은 크루의 선호시간과 매칭되어 추천됩니다.
                 </p>
               </div>
               <div className="bg-white rounded-lg p-4 border border-purple-200">

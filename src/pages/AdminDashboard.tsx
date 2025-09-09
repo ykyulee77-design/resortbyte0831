@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { initializeAdminAuth } from '../utils/adminAuth';
 import UserManagement from '../components/admin/UserManagement';
 import JobManagement from '../components/admin/JobManagement';
 import MemberManagement from '../components/admin/MemberManagement';
@@ -90,6 +91,12 @@ const AdminDashboard: React.FC = () => {
     if (!user || user.role !== 'admin') {
       navigate('/');
       return;
+    }
+    // 관리자 권한 초기화 (버튼/액션 표시용 권한 로드)
+    if (user?.uid) {
+      initializeAdminAuth(user.uid).catch(() => {
+        // 초기화 실패 시에도 페이지는 접근 가능하되, 제한적 표시
+      });
     }
   }, [user, navigate]);
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'jobs' | 'analytics' | 'system' | 'admin-invites' | 'settings'>('overview');
@@ -219,6 +226,60 @@ const AdminDashboard: React.FC = () => {
         {/* 개요 탭 */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
+            {/* 관리 기능 바로가기 */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">관리 기능</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className="p-4 text-left border border-gray-200 rounded-lg hover:bg-gray-50 flex items-start gap-3"
+                >
+                  <div className="p-2 bg-blue-100 rounded-md">
+                    <Users className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">회원 관리</div>
+                    <div className="text-xs text-gray-500">회원 승인/정지/권한</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('jobs')}
+                  className="p-4 text-left border border-gray-200 rounded-lg hover:bg-gray-50 flex items-start gap-3"
+                >
+                  <div className="p-2 bg-green-100 rounded-md">
+                    <FileText className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">공고 관리</div>
+                    <div className="text-xs text-gray-500">공고 승인/거부/삭제</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('system')}
+                  className="p-4 text-left border border-gray-200 rounded-lg hover:bg-gray-50 flex items-start gap-3"
+                >
+                  <div className="p-2 bg-purple-100 rounded-md">
+                    <Server className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">시스템 모니터링</div>
+                    <div className="text-xs text-gray-500">상태/성능/저장소</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className="p-4 text-left border border-gray-200 rounded-lg hover:bg-gray-50 flex items-start gap-3"
+                >
+                  <div className="p-2 bg-gray-100 rounded-md">
+                    <Settings className="h-5 w-5 text-gray-700" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">설정</div>
+                    <div className="text-xs text-gray-500">시스템 기본 설정</div>
+                  </div>
+                </button>
+              </div>
+            </div>
             {/* 주요 통계 카드 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white rounded-lg shadow-sm p-6">

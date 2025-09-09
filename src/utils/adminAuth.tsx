@@ -302,22 +302,28 @@ export const initializeAdminAuth = async (uid: string): Promise<void> => {
     const { doc, getDoc } = await import('firebase/firestore');
     const { db } = await import('../firebase');
     
-    const adminDoc = await getDoc(doc(db, 'admins', uid));
+    // users 컬렉션에서 관리자 정보 가져오기
+    const userDoc = await getDoc(doc(db, 'users', uid));
     
-    if (adminDoc.exists()) {
-      const adminData = adminDoc.data();
-      const admin: AdminUser = {
-        uid: adminDoc.id,
-        email: adminData.email,
-        role: adminData.role,
-        permissions: adminData.permissions || ROLE_PERMISSIONS[adminData.role as AdminRole] || [],
-        createdAt: adminData.createdAt?.toDate() || new Date(),
-        lastLoginAt: adminData.lastLoginAt?.toDate(),
-        isActive: adminData.isActive !== false,
-        createdBy: adminData.createdBy
-      };
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
       
-      adminAuth.setCurrentAdmin(admin);
+      // 관리자 역할인지 확인
+      if (userData.role === 'admin') {
+        const admin: AdminUser = {
+          uid: userDoc.id,
+          email: userData.email,
+          role: AdminRole.ADMIN, // 기본적으로 ADMIN 역할로 설정
+          permissions: ROLE_PERMISSIONS[AdminRole.ADMIN], // ADMIN 권한 부여
+          createdAt: userData.createdAt?.toDate() || new Date(),
+          lastLoginAt: userData.lastLoginAt?.toDate(),
+          isActive: userData.isActive !== false,
+          createdBy: userData.createdBy
+        };
+        
+        adminAuth.setCurrentAdmin(admin);
+        console.log('관리자 권한 초기화 완료:', admin);
+      }
     }
   } catch (error) {
     console.error('관리자 권한 초기화 실패:', error);

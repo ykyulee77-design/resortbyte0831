@@ -14,10 +14,14 @@ import {
   Calendar,
   MapPin,
   Building,
-  User
+  User,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { adminAuth, AdminPermission } from '../../utils/adminAuth';
+import { db, storage } from '../../firebase';
+import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { ref, listAll, deleteObject } from 'firebase/storage';
 
 interface User {
   uid: string;
@@ -169,6 +173,69 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  // 안전삭제: 연결된 데이터/파일까지 함께 삭제
+  const safeDeleteUser = async (user: User) => {
+    if (!adminAuth.canDeleteUsers()) {
+      alert('사용자 삭제 권한이 없습니다.');
+      return;
+    }
+
+    if (!confirm(`정말로 ${user.displayName} 사용자를 안전삭제 하시겠습니까?\n\n※ 연결된 지원서/공고/알림/리뷰와 업로드 파일이 함께 삭제됩니다.`)) {
+      return;
+    }
+
+    try {
+      // 1) Firestore 연결 데이터 삭제 (존재하는 경우에 한해 안전하게 시도)
+      const deleteByQuery = async (col: string, field: string, value: string) => {
+        try {
+          const q = query(collection(db, col), where(field, '==', value));
+          const snap = await getDocs(q);
+          for (const d of snap.docs) {
+            await deleteDoc(doc(db, col, d.id));
+          }
+        } catch (e) {
+          console.error(`[안전삭제] ${col} 정리 실패:`, e);
+        }
+      };
+
+      // 구직자 기준 데이터
+      await deleteByQuery('applications', 'jobseekerId', user.uid);
+      await deleteByQuery('positiveReviews', 'jobseekerId', user.uid);
+      await deleteByQuery('notifications', 'userId', user.uid);
+
+      // 리조트(고용주) 기준 데이터
+      await deleteByQuery('jobPosts', 'employerId', user.uid);
+      await deleteByQuery('companyInfo', 'id', user.uid); // 프로젝트에 따라 키가 다를 수 있음
+
+      // 2) Storage 업로드 파일 정리 (일반적으로 사용자 uid 기반 경로를 사용한다고 가정)
+      const tryDeleteFolder = async (folderPath: string) => {
+        try {
+          const folderRef = ref(storage, folderPath);
+          const listing = await listAll(folderRef);
+          await Promise.all(listing.items.map(item => deleteObject(item)));
+          // 하위 폴더도 정리
+          for (const prefix of listing.prefixes) {
+            const nested = await listAll(prefix);
+            await Promise.all(nested.items.map(item => deleteObject(item)));
+          }
+        } catch (e) {
+          console.error('[안전삭제] Storage 정리 실패:', folderPath, e);
+        }
+      };
+      await tryDeleteFolder(`uploads/${user.uid}`);
+      await tryDeleteFolder(`resumes/${user.uid}`);
+
+      // 3) 로컬 목록에서도 제거 (현재 화면 반영)
+      const updatedUsers = users.filter(u => u.uid !== user.uid);
+      setUsers(updatedUsers);
+
+      alert(`${user.displayName} 사용자가 안전삭제되었습니다. (연결 데이터/파일 정리 포함)`);
+    } catch (error) {
+      console.error('안전삭제 실패:', error);
+      alert('안전삭제에 실패했습니다. 일부 데이터가 남아있을 수 있습니다. 로그를 확인하세요.');
+    }
+  };
+
   // 역할 아이콘
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -213,6 +280,15 @@ const UserManagement: React.FC = () => {
         </div>
       </div>
 
+      {/* 안내 배너: 안전삭제 설명 */}
+      <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg p-3 flex items-start gap-2">
+        <AlertTriangle className="w-4 h-4 mt-0.5" />
+        <div className="text-sm leading-relaxed">
+          <b>안전삭제</b>는 선택한 사용자를 지우는 것에 더해, 해당 사용자와 연결된 지원서, 공고, 알림, 리뷰 및 업로드 파일까지 함께 정리합니다.
+          일반 <b>삭제</b>는 사용자 레코드만 제거하므로 연결 데이터나 파일이 남을 수 있습니다.
+        </div>
+      </div>
+
       {/* 필터 */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -238,8 +314,8 @@ const UserManagement: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-transparent"
             >
               <option value="all">전체</option>
-              <option value="jobseeker">구직자</option>
-              <option value="employer">구인자</option>
+              <option value="jobseeker">크루</option>
+              <option value="employer">리조트</option>
               <option value="admin">관리자</option>
             </select>
           </div>
@@ -327,8 +403,8 @@ const UserManagement: React.FC = () => {
                     <div className="flex items-center">
                       {getRoleIcon(user.role)}
                       <span className="ml-2 text-sm text-gray-900">
-                        {user.role === 'jobseeker' ? '구직자' : 
-                         user.role === 'employer' ? '구인자' : '관리자'}
+                        {user.role === 'jobseeker' ? '크루' : 
+                         user.role === 'employer' ? '리조트' : '관리자'}
                       </span>
                     </div>
                   </td>
@@ -361,12 +437,22 @@ const UserManagement: React.FC = () => {
                         </button>
                       )}
                       {adminAuth.canDeleteUsers() && (
-                        <button
-                          onClick={() => deleteUser(user)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => deleteUser(user)}
+                            className="text-red-600 hover:text-red-900"
+                            title="삭제 (사용자만 삭제)"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => safeDeleteUser(user)}
+                            className="text-yellow-600 hover:text-yellow-900"
+                            title="안전삭제 (연결 데이터/파일 포함)"
+                          >
+                            <AlertTriangle className="h-4 w-4" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>
@@ -395,8 +481,8 @@ const UserManagement: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">역할</label>
                   <p className="text-sm text-gray-900">
-                    {selectedUser.role === 'jobseeker' ? '구직자' : 
-                     selectedUser.role === 'employer' ? '구인자' : '관리자'}
+                    {selectedUser.role === 'jobseeker' ? '크루' : 
+                     selectedUser.role === 'employer' ? '리조트' : '관리자'}
                   </p>
                 </div>
                 {selectedUser.companyName && (

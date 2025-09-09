@@ -412,7 +412,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/job-post/:id/edit" element={
-              <ProtectedRoute allowedRoles={['employer']}>
+              <ProtectedRoute allowedRoles={['employer', 'admin']}>
                 <Layout>
                   <JobPostForm />
                 </Layout>

@@ -47,6 +47,7 @@ interface Accommodation {
   createdAt: any;
   companyInfo?: CompanyInfo; // 회사 정보 추가
   avgRating?: number; // 평균 평점 추가
+  reviewCount?: number; // 평가 건수 추가
 }
 
 const AccommodationList: React.FC = () => {
@@ -57,6 +58,7 @@ const AccommodationList: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [facilityFilter, setFacilityFilter] = useState<string>('all');
+  const [sortOption, setSortOption] = useState<string>('default');
 
   useEffect(() => {
     const fetchAccommodations = async () => {
@@ -103,6 +105,7 @@ const AccommodationList: React.FC = () => {
           );
           
           let avgRating: number | undefined;
+          const reviewCount = accommodationReviews.length;
           if (accommodationReviews.length > 0) {
             const totalRating = accommodationReviews.reduce((sum: number, review: any) => 
               sum + review.accommodationRating, 0
@@ -113,6 +116,7 @@ const AccommodationList: React.FC = () => {
           return {
             ...accommodation,
             avgRating,
+            reviewCount,
           };
         });
         
@@ -159,6 +163,18 @@ const AccommodationList: React.FC = () => {
 
     return matchesSearch && matchesPrice && matchesType && matchesRegion && matchesFacility;
   });
+
+  // 정렬 옵션 적용 (평점 높은순/낮은순)
+  const sortedAccommodations = (() => {
+    const list = [...filteredAccommodations];
+    if (sortOption === 'rating_desc') {
+      return list.sort((a, b) => (b.avgRating ?? -1) - (a.avgRating ?? -1));
+    }
+    if (sortOption === 'rating_asc') {
+      return list.sort((a, b) => (a.avgRating ?? Number.MAX_SAFE_INTEGER) - (b.avgRating ?? Number.MAX_SAFE_INTEGER));
+    }
+    return list;
+  })();
 
   if (loading) {
     return (
@@ -242,6 +258,19 @@ const AccommodationList: React.FC = () => {
                 <option value="제주도">제주도</option>
               </select>
             </div>
+
+            {/* 정렬 옵션 */}
+            <div>
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-transparent"
+              >
+                <option value="default">정렬: 기본</option>
+                <option value="rating_desc">정렬: 평점 높은순</option>
+                <option value="rating_asc">정렬: 평점 낮은순</option>
+              </select>
+            </div>
           </div>
           
           {/* 편의시설 필터 */}
@@ -315,12 +344,12 @@ const AccommodationList: React.FC = () => {
         {/* 결과 통계 */}
         <div className="mb-6">
           <p className="text-gray-600">
-            총 <span className="font-semibold text-resort-600">{filteredAccommodations.length}</span>개의 기숙사를 찾았습니다
+            총 <span className="font-semibold text-resort-600">{sortedAccommodations.length}</span>개의 기숙사를 찾았습니다
           </p>
         </div>
 
         {/* 기숙사 목록 */}
-        {filteredAccommodations.length === 0 ? (
+        {sortedAccommodations.length === 0 ? (
           <div className="text-center py-12">
             <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">기숙사를 찾을 수 없습니다</h3>
@@ -328,7 +357,7 @@ const AccommodationList: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredAccommodations.map((accommodation) => (
+            {sortedAccommodations.map((accommodation) => (
               <Link 
                 key={accommodation.id} 
                 to={`/accommodation-info/${accommodation.employerId}`}
@@ -358,14 +387,13 @@ const AccommodationList: React.FC = () => {
                     </span>
                   </div>
                   {/* 평점 배지 */}
-                  {accommodation.avgRating && (
-                    <div className="absolute top-3 left-3">
-                      <span className="inline-flex items-center px-2 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full text-xs font-medium">
-                        <Star className="w-3 h-3 mr-1" />
-                        {accommodation.avgRating}
-                      </span>
-                    </div>
-                  )}
+                  <div className="absolute top-3 left-3">
+                    <span className="inline-flex items-center px-2 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full text-xs font-medium">
+                      <Star className="w-3 h-3 mr-1" />
+                      {typeof accommodation.avgRating === 'number' ? accommodation.avgRating : '-'}
+                      {` (${accommodation.reviewCount ?? 0})`}
+                    </span>
+                  </div>
                 </div>
 
                 {/* 정보 */}

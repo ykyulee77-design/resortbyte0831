@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResortByte 특허 출원 자료 PDF 변환</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 20px;
+        }
+        .method {
+            background: #ecf0f1;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        .method h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .step {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 3px solid #27ae60;
+        }
+        .step ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .step li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        .file-list {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .file-list h4 {
+            color: #856404;
+            margin-top: 0;
+        }
+        .file-item {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+            border-left: 3px solid #f39c12;
+        }
+        .btn {
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn-success {
+            background: #27ae60;
+        }
+        .btn-success:hover {
+            background: #229954;
+        }
+        .warning {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 ResortByte 특허 출원 자료 PDF 변환</h1>
+        
+        <div class="info">
+            <strong>📋 완성된 특허 출원 자료:</strong>
+            <ul>
+                <li>1. 스마트 매칭 알고리즘</li>
+                <li>2. 스케줄 매칭 시스템</li>
+                <li>3. 평가 시스템</li>
+                <li>4. 기숙사 추천 시스템</li>
+                <li>5. 종합 요약서</li>
+            </ul>
+        </div>
+
+        <div class="method">
+            <h3>🖨️ 방법 1: 브라우저 인쇄 기능 (가장 간단)</h3>
+            <div class="step">
+                <strong>단계별 가이드:</strong>
+                <ol>
+                    <li>아래 파일들을 차례대로 클릭하여 브라우저에서 열기</li>
+                    <li>브라우저에서 <kbd>Ctrl + P</kbd> (인쇄 단축키) 누르기</li>
+                    <li>대상: "PDF로 저장" 선택</li>
+                    <li>페이지 설정: A4, 여백 최소화</li>
+                    <li>저장 버튼 클릭</li>
+                </ol>
+            </div>
+            
+            <div class="file-list">
+                <h4>📄 변환할 파일들:</h4>
+                <div class="file-item">
+                    <a href="docs/patent-1-smart-matching.md" target="_blank" class="btn">1. 스마트 매칭 알고리즘</a>
+                    <span>→ 1. 스마트매칭알고리즘.pdf</span>
+                </div>
+                <div class="file-item">
+                    <a href="docs/patent-2-schedule-matching.md" target="_blank" class="btn">2. 스케줄 매칭 시스템</a>
+                    <span>→ 2. 스케줄매칭시스템.pdf</span>
+                </div>
+                <div class="file-item">
+                    <a href="docs/patent-3-evaluation-system.md" target="_blank" class="btn">3. 평가 시스템</a>
+                    <span>→ 3. 평가시스템.pdf</span>
+                </div>
+                <div class="file-item">
+                    <a href="docs/patent-4-accommodation-recommendation.md" target="_blank" class="btn">4. 기숙사 추천 시스템</a>
+                    <span>→ 4. 기숙사추천시스템.pdf</span>
+                </div>
+                <div class="file-item">
+                    <a href="docs/patent-summary.md" target="_blank" class="btn">5. 종합 요약서</a>
+                    <span>→ 5. 종합요약서.pdf</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="method">
+            <h3>⚙️ 방법 2: 자동 변환 스크립트</h3>
+            <div class="step">
+                <strong>Pandoc 설치 후 사용:</strong>
+                <ol>
+                    <li>Pandoc 설치: <a href="https://pandoc.org/installing.html" target="_blank">https://pandoc.org/installing.html</a></li>
+                    <li>아래 배치 파일 실행</li>
+                    <li>자동으로 모든 PDF 생성</li>
+                </ol>
+            </div>
+            <a href="convert-to-pdf.bat" class="btn btn-success">🚀 자동 변환 실행</a>
+        </div>
+
+        <div class="method">
+            <h3>🎨 방법 3: VS Code 확장 프로그램</h3>
+            <div class="step">
+                <strong>VS Code 사용자:</strong>
+                <ol>
+                    <li>VS Code에서 "Markdown PDF" 확장 설치</li>
+                    <li>Markdown 파일 열기</li>
+                    <li><kbd>Ctrl + Shift + P</kbd> → "Markdown PDF: Export (pdf)"</li>
+                    <li>PDF 파일 자동 생성</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ 주의사항:</strong>
+            <ul>
+                <li>변환 전 모든 파일이 완성되었는지 확인하세요</li>
+                <li>PDF 파일명은 한글로 저장하세요</li>
+                <li>변리사 상담 후 최종 검토를 받으세요</li>
+                <li>특허청 제출 전 최종 확인을 하세요</li>
+            </ul>
+        </div>
+
+        <div class="info">
+            <strong>💡 다음 단계:</strong>
+            <ol>
+                <li>PDF 파일들을 확인하고 검토</li>
+                <li>변리사와 상담하여 기술 검토</li>
+                <li>특허청에 출원 제출</li>
+                <li>출원 후 심사 과정 진행</li>
+            </ol>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <p><strong>🎉 ResortByte 특허 출원을 통해 핵심 기술을 보호하세요!</strong></p>
+            <p>예상 비용: 약 1,120만원 (4건)</p>
+            <p>예상 기간: 3-6개월</p>
+        </div>
+    </div>
+
+    <script>
+        // 파일 링크 클릭 시 새 탭에서 열기
+        document.querySelectorAll('a[href*=".md"]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.open(this.href, '_blank');
+            });
+        });
+
+        // 배치 파일 실행 확인
+        document.querySelector('a[href="convert-to-pdf.bat"]').addEventListener('click', function(e) {
+            if (!confirm('자동 변환 스크립트를 실행하시겠습니까?\n\nPandoc이 설치되어 있어야 합니다.')) {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
+

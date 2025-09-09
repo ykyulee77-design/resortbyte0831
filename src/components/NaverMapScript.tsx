@@ -1,10 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-interface NaverMapScriptProps {
-  children: React.ReactNode;
-}
-
-const NaverMapScript: React.FC<NaverMapScriptProps> = ({ children }) => {
+const NaverMapScript: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isError, setIsError] = useState(false);
 
@@ -13,7 +9,6 @@ const NaverMapScript: React.FC<NaverMapScriptProps> = ({ children }) => {
     console.log('환경 변수 확인:', {
       REACT_APP_NAVER_CLIENT_ID: process.env.REACT_APP_NAVER_CLIENT_ID,
       NODE_ENV: process.env.NODE_ENV,
-      모든_환경변수: process.env
     });
 
     // 인증 실패 처리 함수 설정
@@ -24,6 +19,9 @@ const NaverMapScript: React.FC<NaverMapScriptProps> = ({ children }) => {
 
     // 이미 로드되어 있는지 확인
     if (window.naver && window.naver.maps) {
+      console.log('네이버 지도 API가 이미 로드되어 있습니다.');
+      console.log('window.naver 상태:', window.naver);
+      console.log('window.naver.maps 상태:', window.naver.maps);
       setIsLoaded(true);
       return;
     }
@@ -36,28 +34,40 @@ const NaverMapScript: React.FC<NaverMapScriptProps> = ({ children }) => {
       return;
     }
 
+    console.log('네이버 지도 API 스크립트 로딩 시작...');
+    console.log('클라이언트 ID:', clientId);
+    
     const script = document.createElement('script');
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder`;
+    // 공식 문서 기준 파라미터명은 ncpClientId 입니다 (이전 ncpKeyId 사용 시 로드 실패)
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}&submodules=geocoder`;
     script.async = true;
     
     script.onload = () => {
-      console.log('네이버 지도 API 로드 완료');
+      console.log('네이버 지도 API 스크립트 로드 완료');
+      console.log('window.naver 상태:', window.naver);
+      console.log('window.naver.maps 상태:', window.naver.maps);
+      
       // API가 완전히 로드될 때까지 잠시 대기
       setTimeout(() => {
         if (window.naver && window.naver.maps) {
+          console.log('네이버 지도 API 초기화 완료');
+          console.log('Service 모듈 확인:', window.naver.maps.Service);
           setIsLoaded(true);
         } else {
+          console.error('네이버 지도 API 초기화 실패');
+          console.log('window.naver 상태:', window.naver);
           setIsError(true);
         }
-      }, 100);
+      }, 500); // 대기 시간을 500ms로 증가
     };
     
-    script.onerror = () => {
-      console.error('네이버 지도 API 로드 실패');
+    script.onerror = (error) => {
+      console.error('네이버 지도 API 스크립트 로드 실패:', error);
       setIsError(true);
     };
 
     document.head.appendChild(script);
+    console.log('스크립트 태그가 head에 추가됨');
 
     return () => {
       if (document.head.contains(script)) {
@@ -66,28 +76,17 @@ const NaverMapScript: React.FC<NaverMapScriptProps> = ({ children }) => {
     };
   }, []);
 
+  // 에러나 로딩 상태는 콘솔에만 표시하고 UI에는 표시하지 않음
   if (isError) {
-    return (
-      <div className="text-center py-8">
-        <div className="text-red-500 text-lg mb-2">지도 로드 실패</div>
-        <p className="text-gray-600">네이버 지도 API를 불러오는데 실패했습니다.</p>
-        <p className="text-sm text-gray-500 mt-2">
-          환경 변수 REACT_APP_NAVER_CLIENT_ID가 올바르게 설정되어 있는지 확인해주세요.
-        </p>
-      </div>
-    );
+    console.error('네이버 지도 API 로드 실패');
   }
 
   if (!isLoaded) {
-    return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">지도를 불러오는 중...</p>
-      </div>
-    );
+    console.log('네이버 지도 API 로딩 중...');
   }
 
-  return <>{children}</>;
+  // 컴포넌트는 아무것도 렌더링하지 않음 (스크립트만 로드)
+  return null;
 };
 
 export default NaverMapScript;

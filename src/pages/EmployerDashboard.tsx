@@ -9,6 +9,7 @@ import { workTypeService } from '../utils/scheduleMatchingService';
 import { uploadImage, deleteImage, compressImage } from '../utils/imageUpload';
 import NaverMap from '../components/NaverMap';
 import NaverMapScript from '../components/NaverMapScript';
+import MapLoadingState from '../components/MapLoadingState';
 
 interface JobPost {
   id: string;
@@ -389,7 +390,7 @@ const EmployerDashboard: React.FC = () => {
           setAccommodationAvgRating(null);
         }
 
-        // 3. 구인공고 로딩
+        // 3. 리조트 공고 로딩
         try {
           const jobPostsQuery = query(
         collection(db, 'jobPosts'),
@@ -932,46 +933,39 @@ const EmployerDashboard: React.FC = () => {
                 {!isAccommodationSectionCollapsed && (
                   <div className="p-4 space-y-3">
                     
-
-                    
-                                         {/* 지도 */}
-                     {accommodationInfo?.address && (
-                       <div className="bg-white rounded-lg border p-3">
-                         <h3 className="font-semibold text-gray-900 mb-2 text-sm">위치</h3>
-                         <div style={{ height: '300px' }}>
-                           <NaverMapScript>
-                             <NaverMap
-                               center={{
-                                 lat: (accommodationInfo as any)?.latitude || 37.5665,
-                                 lng: (accommodationInfo as any)?.longitude || 126.9780
-                               }}
-                               zoom={15}
-                               markers={[
-                                 {
-                                   position: {
-                                     lat: (accommodationInfo as any)?.latitude || 37.5665,
-                                     lng: (accommodationInfo as any)?.longitude || 126.9780
-                                   },
-                                   title: '기숙사',
-                                   content: accommodationInfo.address
-                                 }
-                               ]}
-                             />
-                           </NaverMapScript>
-                         </div>
-                         {/* 디버깅 정보 */}
-                         <div className="mt-2 text-xs text-gray-500">
-                           <p>위도: {(accommodationInfo as any)?.latitude || '설정되지 않음'}</p>
-                           <p>경도: {(accommodationInfo as any)?.longitude || '설정되지 않음'}</p>
-                           <p>주소: {accommodationInfo.address}</p>
-                           <p>기본 좌표 사용: {(!(accommodationInfo as any)?.latitude || !(accommodationInfo as any)?.longitude) ? '예 (서울시청)' : '아니오'}</p>
-                           <p>마커 데이터: {JSON.stringify({
-                             lat: (accommodationInfo as any)?.latitude || 37.5665,
-                             lng: (accommodationInfo as any)?.longitude || 126.9780
-                           })}</p>
-                         </div>
-                       </div>
-                     )}
+                    {/* 지도 */}
+                    {accommodationInfo?.address && (
+                      <div className="bg-white rounded-lg border p-3">
+                        <h3 className="font-semibold text-gray-900 mb-2 text-sm">위치</h3>
+                        <div style={{ height: '300px', position: 'relative' }}>
+                          <NaverMapScript />
+                          <NaverMap
+                            center={{
+                              lat: (accommodationInfo as any)?.latitude || 37.5665,
+                              lng: (accommodationInfo as any)?.longitude || 126.9780
+                            }}
+                            zoom={15}
+                            markers={[
+                              {
+                                position: {
+                                  lat: (accommodationInfo as any)?.latitude || 37.5665,
+                                  lng: (accommodationInfo as any)?.longitude || 126.9780
+                                },
+                                title: '기숙사',
+                                content: accommodationInfo.address
+                              }
+                            ]}
+                          />
+                        </div>
+                        {/* 디버깅 정보 */}
+                        <div className="mt-2 text-xs text-gray-500">
+                          <p>위도: {(accommodationInfo as any)?.latitude || '설정되지 않음'}</p>
+                          <p>경도: {(accommodationInfo as any)?.longitude || '설정되지 않음'}</p>
+                          <p>주소: {accommodationInfo.address}</p>
+                          <p>기본 좌표 사용: {(!(accommodationInfo as any)?.latitude || !(accommodationInfo as any)?.longitude) ? '예 (서울시청)' : '아니오'}</p>
+                        </div>
+                      </div>
+                    )}
 
                     {/* 기숙사 이미지 */}
                     {(accommodationInfo?.images || []).length > 0 && (
@@ -1334,7 +1328,138 @@ const EmployerDashboard: React.FC = () => {
                         </div>
                       </div>
                     </>
-                  ) : null}
+                  ) : (
+                    <>
+                      {/* 기숙사 정보가 있을 때 표시 */}
+                      <div className="space-y-4">
+                        {/* 기숙사 기본 정보 */}
+                        <div className="bg-white rounded-lg border p-4">
+                          <h3 className="font-semibold text-gray-900 mb-3 text-sm">기숙사 정보</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">이름:</span>
+                              <span className="ml-2 font-medium">{accommodationInfo.name}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">유형:</span>
+                              <span className="ml-2 font-medium">{accommodationInfo.type}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">수용 인원:</span>
+                              <span className="ml-2 font-medium">{accommodationInfo.capacity}명</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">현재 거주자:</span>
+                              <span className="ml-2 font-medium">{accommodationInfo.currentOccupancy}명</span>
+                            </div>
+                            {accommodationInfo.monthlyRent && (
+                              <div>
+                                <span className="text-gray-600">월세:</span>
+                                <span className="ml-2 font-medium">{accommodationInfo.monthlyRent.toLocaleString()}원</span>
+                              </div>
+                            )}
+                            {accommodationInfo.deposit && (
+                              <div>
+                                <span className="text-gray-600">보증금:</span>
+                                <span className="ml-2 font-medium">{accommodationInfo.deposit.toLocaleString()}원</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 지도 */}
+                        {accommodationInfo.address && (
+                          <div className="bg-white rounded-lg border p-4">
+                            <h3 className="font-semibold text-gray-900 mb-3 text-sm">위치</h3>
+                            
+                            {/* 지도 로딩 상태 표시 */}
+                            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                              <p><strong>지도 로딩 상태:</strong></p>
+                              <p>• 주소: {accommodationInfo.address}</p>
+                              <p>• 위도: {(accommodationInfo as any)?.latitude || '설정되지 않음'}</p>
+                              <p>• 경도: {(accommodationInfo as any)?.longitude || '설정되지 않음'}</p>
+                              <p>• 기본 좌표 사용: {(!(accommodationInfo as any)?.latitude || !(accommodationInfo as any)?.longitude) ? '예 (서울시청)' : '아니오'}</p>
+                            </div>
+
+                            {/* 지도 컨테이너 */}
+                            <div style={{ height: '300px', position: 'relative' }}>
+                              {/* 네이버 지도 스크립트 로드 */}
+                              <NaverMapScript />
+                              
+                              {/* 지도 로딩 상태 표시 */}
+                              <MapLoadingState />
+                              
+                              {/* 실제 지도 컴포넌트 */}
+                              <div className="absolute inset-0">
+                                <NaverMap
+                                  center={{
+                                    lat: (accommodationInfo as any)?.latitude || 37.5665,
+                                    lng: (accommodationInfo as any)?.longitude || 126.9780
+                                  }}
+                                  zoom={15}
+                                  markers={[
+                                    {
+                                      position: {
+                                        lat: (accommodationInfo as any)?.latitude || 37.5665,
+                                        lng: (accommodationInfo as any)?.longitude || 126.9780
+                                      },
+                                      title: '기숙사',
+                                      content: accommodationInfo.address
+                                    }
+                                  ]}
+                                />
+                              </div>
+                            </div>
+
+                            {/* 지도 로딩 상태 안내 */}
+                            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
+                              <p><strong>지도가 표시되지 않는 경우:</strong></p>
+                              <p>• 네이버 지도 API 키가 설정되어 있는지 확인</p>
+                              <p>• 브라우저 콘솔에서 오류 메시지 확인</p>
+                              <p>• 페이지 새로고침 후 다시 시도</p>
+                              <p>• 환경 변수 파일(.env)에 REACT_APP_NAVER_CLIENT_ID 설정</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 기숙사 설명 */}
+                        {accommodationInfo.description && (
+                          <div className="bg-white rounded-lg border p-4">
+                            <h3 className="font-semibold text-gray-900 mb-2 text-sm">설명</h3>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{accommodationInfo.description}</p>
+                          </div>
+                        )}
+
+                        {/* 시설 정보 */}
+                        {accommodationInfo.facilities && accommodationInfo.facilities.length > 0 && (
+                          <div className="bg-white rounded-lg border p-4">
+                            <h3 className="font-semibold text-gray-900 mb-2 text-sm">시설</h3>
+                            <div className="flex flex-wrap gap-2">
+                              {accommodationInfo.facilities.map((facility: string, index: number) => (
+                                <span key={index} className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                  {facility}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 편의시설 */}
+                        {(accommodationInfo as any)?.amenities && (accommodationInfo as any).amenities.length > 0 && (
+                          <div className="bg-white rounded-lg border p-4">
+                            <h3 className="font-semibold text-gray-900 mb-2 text-sm">편의시설</h3>
+                            <div className="flex flex-wrap gap-2">
+                              {(accommodationInfo as any).amenities.map((amenity: string, index: number) => (
+                                <span key={index} className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                                  {amenity}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -1368,7 +1493,7 @@ const EmployerDashboard: React.FC = () => {
             </div>
           </div> */}
 
-          {/* 4. 구인공고 */}
+          {/* 4. 리조트 공고 */}
           <div id="job-posts" className="mt-8 lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-purple-100 bg-purple-50 shadow-sm">
@@ -1377,7 +1502,7 @@ const EmployerDashboard: React.FC = () => {
                     <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center shadow-sm">
                       <FileText className="w-5 h-5 text-purple-600" />
                     </div>
-                    구인공고
+                    리조트 공고
                   </h3>
                   <div className="flex items-center gap-2">
               <Link

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { doc, getDoc, updateDoc, serverTimestamp, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp, collection, getDocs, query, where, orderBy, limit, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadImage, deleteImage, validateImageFile } from '../utils/imageUpload';
@@ -9,6 +9,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ImagePreviewModal from '../components/ImagePreviewModal';
 import AddressSearch, { Address } from '../components/AddressSearch';
 import NaverMapScript from '../components/NaverMapScript';
+import NaverMap from '../components/NaverMap';
 
 const AccommodationInfoPage: React.FC = () => {
   const { employerId } = useParams<{ employerId: string }>();
@@ -67,6 +68,10 @@ const AccommodationInfoPage: React.FC = () => {
     otherAmenities: '',
     nearbyFacilities: ''
   });
+
+  // 댓글 관련 상태
+  const [commentInputs, setCommentInputs] = useState<{ [reviewId: string]: string }>({});
+  const [showCommentForms, setShowCommentForms] = useState<{ [reviewId: string]: boolean }>({});
 
   useEffect(() => {
     if (!employerId) {
@@ -185,7 +190,7 @@ const AccommodationInfoPage: React.FC = () => {
           setAvgRating(null);
         }
       } catch (error) {
-        console.error('기숙사 정보 불러오기 실패:', error);
+
         setError('기숙사 정보를 불러오는데 실패했습니다.');
       } finally {
         setLoading(false);
@@ -223,7 +228,7 @@ const AccommodationInfoPage: React.FC = () => {
       setImages(newImages);
       setError(null);
     } catch (error) {
-      console.error('이미지 업로드 실패:', error);
+      
       setError('이미지 업로드에 실패했습니다.');
     } finally {
       setUploadingImages(false);
@@ -239,7 +244,7 @@ const AccommodationInfoPage: React.FC = () => {
       const newImages = images.filter((_, i) => i !== index);
       setImages(newImages);
     } catch (error) {
-      console.error('이미지 삭제 실패:', error);
+      
       setError('이미지 삭제에 실패했습니다.');
     }
   };
@@ -251,6 +256,91 @@ const AccommodationInfoPage: React.FC = () => {
   };
 
   // 저장 처리
+  // 댓글 삭제 함수
+  const handleDeleteComment = async (reviewId: string, commentIndex: number) => {
+    if (!user) return;
+
+    try {
+      const reviewRef = doc(db, 'reviews', reviewId);
+      const reviewDoc = await getDoc(reviewRef);
+      
+      if (reviewDoc.exists()) {
+        const currentComments = reviewDoc.data().comments || [];
+        const commentToDelete = currentComments[commentIndex];
+        
+        // 권한 확인 (작성자 또는 리조트 담당자만 삭제 가능)
+        if (user.uid !== commentToDelete.userId && user.uid !== employerId) {
+          alert('댓글을 삭제할 권한이 없습니다.');
+          return;
+        }
+
+        const updatedComments = currentComments.filter((_: any, index: number) => index !== commentIndex);
+        
+        await updateDoc(reviewRef, {
+          comments: updatedComments,
+          updatedAt: new Date()
+        });
+
+        // 로컬 상태 업데이트
+        setReviews(prev => prev.map(review => 
+          review.id === reviewId 
+            ? { ...review, comments: updatedComments }
+            : review
+        ));
+
+        alert('댓글이 삭제되었습니다.');
+      }
+    } catch (error) {
+      
+      alert('댓글 삭제에 실패했습니다.');
+    }
+  };
+
+  // 댓글 추가 함수
+  const handleAddComment = async (reviewId: string, content: string) => {
+    if (!user || !content.trim()) return;
+
+    try {
+      const commentData = {
+        content: content.trim(),
+        userName: user.displayName || user.email || '익명',
+        userId: user.uid,
+        isEmployer: user.uid === employerId,
+        createdAt: new Date(),
+        reviewId: reviewId
+      };
+
+      // Firestore에 댓글 추가
+      const reviewRef = doc(db, 'reviews', reviewId);
+      const reviewDoc = await getDoc(reviewRef);
+      
+      if (reviewDoc.exists()) {
+        const currentComments = reviewDoc.data().comments || [];
+        const updatedComments = [...currentComments, commentData];
+        
+        await updateDoc(reviewRef, {
+          comments: updatedComments,
+          updatedAt: new Date()
+        });
+
+        // 로컬 상태 업데이트
+        setReviews(prev => prev.map(review => 
+          review.id === reviewId 
+            ? { ...review, comments: updatedComments }
+            : review
+        ));
+
+        // 댓글 입력 필드 초기화
+        setCommentInputs(prev => ({ ...prev, [reviewId]: '' }));
+
+        alert('댓글이 추가되었습니다.');
+      }
+    } catch (error) {
+      
+      alert('댓글 추가에 실패했습니다.');
+    }
+  };
+
   const handleSave = async () => {
     if (!employerId || !user) return;
 
@@ -264,16 +354,22 @@ const AccommodationInfoPage: React.FC = () => {
         createdAt: accommodationInfo?.createdAt || serverTimestamp()
       };
 
-      await updateDoc(doc(db, 'accommodationInfo', employerId), accommodationData);
+      const targetRef = doc(db, 'accommodationInfo', employerId);
+      const existing = await getDoc(targetRef);
+
+      if (existing.exists()) {
+        await updateDoc(targetRef, accommodationData);
+      } else {
+        await setDoc(targetRef, accommodationData);
+      }
       
       setAccommodationInfo(accommodationData);
       setIsEditing(false);
-      // 저장 후 대시보드로 이동 (지도 업데이트를 위해)
       navigate('/employer-dashboard');
       setError(null);
     } catch (error) {
-      console.error('기숙사 정보 저장 실패:', error);
-      setError('기숙사 정보 저장에 실패했습니다.');
+      
+      setError('기숙사 정보 저장에 실패했습니다. (권한/네트워크/규칙 확인)');
     } finally {
       setSaving(false);
     }
@@ -336,8 +432,8 @@ const AccommodationInfoPage: React.FC = () => {
 
 
   return (
-    <NaverMapScript>
-      <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
+      <NaverMapScript />
       {/* 헤더 */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -391,7 +487,7 @@ const AccommodationInfoPage: React.FC = () => {
                   </label>
                   <AddressSearch
                     onAddressSelect={(address: Address) => {
-                      console.log('주소 선택됨 - 좌표 포함:', address);
+              
                       setEditData(prev => ({ 
                         ...prev, 
                         address: address.address,
@@ -761,6 +857,58 @@ const AccommodationInfoPage: React.FC = () => {
                   )}
                 </div>
 
+                {/* 지도 섹션 */}
+                {accommodationInfo?.address && (
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <Building className="w-5 h-5 mr-2 text-green-600" />
+                      위치
+                    </h2>
+                    <div style={{ height: '400px', position: 'relative' }}>
+                      <NaverMap
+                        center={{
+                          lat: accommodationInfo.latitude || 37.5665,
+                          lng: accommodationInfo.longitude || 126.9780
+                        }}
+                        zoom={15}
+                        markers={[
+                          {
+                            position: {
+                              lat: accommodationInfo.latitude || 37.5665,
+                              lng: accommodationInfo.longitude || 126.9780
+                            },
+                            title: accommodationInfo.name || '기숙사',
+                            content: accommodationInfo.address
+                          }
+                        ]}
+                      />
+                    </div>
+                    {/* 위치 정보 */}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600 font-medium">주소:</span>
+                          <span className="ml-2 text-gray-900">{accommodationInfo.address}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 font-medium">위도:</span>
+                          <span className="ml-2 text-gray-900">{accommodationInfo.latitude || '설정되지 않음'}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 font-medium">경도:</span>
+                          <span className="ml-2 text-gray-900">{accommodationInfo.longitude || '설정되지 않음'}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 font-medium">기본 좌표 사용:</span>
+                          <span className="ml-2 text-gray-900">
+                            {(!accommodationInfo.latitude || !accommodationInfo.longitude) ? '예 (서울시청)' : '아니오'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* 객실 유형 */}
                 {accommodationInfo.roomTypeOptions && (
                   <div className="bg-white rounded-lg shadow p-6">
@@ -900,6 +1048,164 @@ const AccommodationInfoPage: React.FC = () => {
                           ) : (
                             <p className="text-gray-500 text-sm">내용이 없습니다.</p>
                           )}
+                          
+                          {/* 댓글 섹션 */}
+                          <div className="mt-4 border-t border-gray-100 pt-4">
+                            <h4 className="text-sm font-medium text-gray-700 mb-3">댓글</h4>
+                            
+                            {/* 기존 댓글들 */}
+                            {rev.comments && rev.comments.length > 0 ? (
+                              <div className="space-y-3 mb-4">
+                                {rev.comments.map((comment: any, commentIndex: number) => (
+                                  <div key={commentIndex} className="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+                                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                      <span className="text-blue-600 text-xs font-medium">
+                                        {comment.isEmployer ? '리' : '크'}
+                                      </span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-sm font-medium text-gray-900">
+                                          {comment.isEmployer ? '리조트 담당자' : comment.userName || '익명'}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                          {comment.createdAt?.toDate?.()?.toLocaleDateString?.('ko-KR') || 
+                                           comment.timestamp?.toDate?.()?.toLocaleDateString?.('ko-KR') || ''}
+                                        </span>
+                                        {comment.isEmployer && (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                                            공식
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+                                      
+                                      {/* 댓글 삭제 버튼 (작성자 또는 리조트 담당자만) */}
+                                      {(user?.uid === comment.userId || user?.uid === employerId) && (
+                                        <button
+                                          onClick={() => handleDeleteComment(rev.id, commentIndex)}
+                                          className="mt-2 text-xs text-red-600 hover:text-red-800 transition-colors"
+                                        >
+                                          삭제
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500 mb-4">아직 댓글이 없습니다.</p>
+                            )}
+                            
+                            {/* 댓글 작성 섹션 */}
+                            {!showCommentForms[rev.id] ? (
+                              // 댓글 작성 버튼
+                              <div className="flex justify-end">
+                                {user ? (
+                                  <button
+                                    onClick={() => setShowCommentForms(prev => ({
+                                      ...prev,
+                                      [rev.id]: true
+                                    }))}
+                                    className="text-xs text-blue-600 hover:text-blue-800 transition-colors px-2 py-1 rounded hover:bg-blue-50"
+                                  >
+                                    작성
+                                  </button>
+                                ) : (
+                                  <div className="text-right">
+                                    <button
+                                      onClick={() => {
+                                        const current = location.pathname + location.search;
+                                        navigate(`/login?redirect=${encodeURIComponent(current)}`);
+                                      }}
+                                      className="text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-1 rounded hover:bg-gray-50"
+                                    >
+                                      작성
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              // 댓글 작성 폼
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h5 className="text-sm font-medium text-blue-800 flex items-center gap-2">
+                                    <span className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center">
+                                      <span className="text-blue-600 text-xs">💬</span>
+                                    </span>
+                                    댓글 작성
+                                  </h5>
+                                  
+                                  {/* 폼 닫기 버튼 */}
+                                  <button
+                                    onClick={() => setShowCommentForms(prev => ({
+                                      ...prev,
+                                      [rev.id]: false
+                                    }))}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                
+                                {user ? (
+                                  <div className="space-y-3">
+                                    <div className="flex items-start gap-3">
+                                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <span className="text-green-600 text-xs font-medium">
+                                          {user.uid === employerId ? '리' : '크'}
+                                        </span>
+                                      </div>
+                                      <div className="flex-1">
+                                        <textarea
+                                          placeholder={user.uid === employerId ? 
+                                            "리조트 담당자로서 댓글을 작성해주세요..." : 
+                                            "댓글을 작성해주세요..."
+                                          }
+                                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                          rows={3}
+                                          value={commentInputs[rev.id] || ''}
+                                          onChange={(e) => {
+                                            setCommentInputs(prev => ({
+                                              ...prev,
+                                              [rev.id]: e.target.value
+                                            }));
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          {user.uid === employerId ? '리조트 담당자로 댓글 작성' : '크루로 댓글 작성'}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                          ({commentInputs[rev.id]?.length || 0}자)
+                                        </span>
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          handleAddComment(rev.id, commentInputs[rev.id] || '');
+                                          // 폼 닫기
+                                          setShowCommentForms(prev => ({
+                                            ...prev,
+                                            [rev.id]: false
+                                          }));
+                                        }}
+                                        disabled={!commentInputs[rev.id] || commentInputs[rev.id].trim().length === 0}
+                                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+                                      >
+                                        댓글 작성
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -957,8 +1263,7 @@ const AccommodationInfoPage: React.FC = () => {
           isOpen={!!previewImage}
         />
       )}
-      </div>
-    </NaverMapScript>
+    </div>
   );
 };
 

@@ -1,12 +1,30 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { User, LogOut, Menu, X, UserPlus, Home, Users, FileText, BarChart3, Building } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const isActivePath = (path: string) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
+  const navLinkClass = (path: string) => {
+    const base = 'text-gray-700 hover:text-resort-600 px-3 py-2 rounded-md text-sm font-medium transition-colors';
+    const active = 'text-resort-700 border-b-2 border-resort-600';
+    return isActivePath(path) ? `${base} ${active}` : base;
+  };
+
+  const navLinkClassMobile = (path: string) => {
+    const base = 'text-gray-700 hover:text-resort-600 block px-3 py-2 rounded-md text-base font-medium transition-colors';
+    const active = 'text-resort-700 border-b-2 border-resort-600';
+    return isActivePath(path) ? `${base} ${active}` : base;
+  };
 
   const handleLogout = async () => {
     try {
@@ -55,16 +73,16 @@ const Navbar: React.FC = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
             {/* 공개 메뉴 */}
-            <Link to="/" className="text-gray-700 hover:text-resort-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+            <Link to="/" className={navLinkClass('/')}>
               소개
             </Link>
-            <Link to="/home" className="text-gray-700 hover:text-resort-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+            <Link to="/home" className={navLinkClass('/home')}>
               홈
             </Link>
-            <Link to="/reviews" className="bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 px-3 py-2 rounded-md text-sm font-semibold flex items-center gap-1 shadow-sm transition-colors">
+            <Link to="/reviews" className={`${navLinkClass('/reviews')} flex items-center gap-1`}>
               <span role="img" aria-label="life">🌴</span> 리조트바이트 생활
             </Link>
-            <Link to="/accommodations" className="bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 px-3 py-2 rounded-md text-sm font-semibold flex items-center gap-1 shadow-sm transition-colors">
+            <Link to="/accommodations" className={`bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 px-3 py-2 rounded-md text-sm font-semibold flex items-center gap-1 shadow-sm transition-colors ${isActivePath('/accommodations') ? 'border-b-2 border-resort-600' : ''}`}>
               <Building className="w-4 h-4" />
               기숙사
             </Link>
@@ -79,7 +97,7 @@ const Navbar: React.FC = () => {
                     <Link
                       key={item.path}
                       to={item.path}
-                      className="text-gray-700 hover:text-resort-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                      className={navLinkClass(item.path)}
                     >
                       <Icon className="w-4 h-4 inline mr-1" />
                       {item.label}
@@ -89,7 +107,7 @@ const Navbar: React.FC = () => {
 
                 
                 <div className="relative group">
-                  <Link to="/profile" className="flex items-center text-gray-700 hover:text-resort-600 px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                  <Link to="/profile" className={`flex items-center ${navLinkClass('/profile')}`}>
                     <User className="w-4 h-4 mr-1" />
                     {user.displayName}
                   </Link>
@@ -143,16 +161,17 @@ const Navbar: React.FC = () => {
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t border-gray-200">
             {/* 공개 메뉴 */}
-            <Link to="/" className="text-gray-700 hover:text-resort-600 block px-3 py-2 rounded-md text-base font-medium transition-colors">
+            <Link to="/" className={navLinkClassMobile('/')}
+            >
               소개
             </Link>
-            <Link to="/home" className="text-gray-700 hover:text-resort-600 block px-3 py-2 rounded-md text-base font-medium transition-colors">
+            <Link to="/home" className={navLinkClassMobile('/home')}>
               홈
             </Link>
-            <Link to="/reviews" className="bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 block px-3 py-2 rounded-md text-base font-semibold flex items-center gap-2 shadow-sm transition-colors">
+            <Link to="/reviews" className={`${navLinkClassMobile('/reviews')} flex items-center gap-2`}>
               <span role="img" aria-label="life">🌴</span> 리조트바이트 생활
             </Link>
-            <Link to="/accommodations" className="bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 block px-3 py-2 rounded-md text-base font-semibold flex items-center gap-2 shadow-sm transition-colors">
+            <Link to="/accommodations" className={`bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 block px-3 py-2 rounded-md text-base font-semibold flex items-center gap-2 shadow-sm transition-colors ${isActivePath('/accommodations') ? 'border-b-2 border-resort-600' : ''}`}>
               <Building className="w-4 h-4" />
               기숙사
             </Link>
@@ -166,7 +185,7 @@ const Navbar: React.FC = () => {
                     <Link
                       key={item.path}
                       to={item.path}
-                      className="text-gray-700 hover:text-resort-600 block px-3 py-2 rounded-md text-base font-medium transition-colors"
+                      className={navLinkClassMobile(item.path)}
                     >
                       <Icon className="w-4 h-4 inline mr-2" />
                       {item.label}
@@ -174,7 +193,7 @@ const Navbar: React.FC = () => {
                   );
                 })}
 
-                <Link to="/profile" className="flex items-center text-gray-700 hover:text-resort-600 block px-3 py-2 rounded-md text-base font-medium transition-colors">
+                <Link to="/profile" className={`flex items-center ${navLinkClassMobile('/profile')}`}>
                   <User className="w-4 h-4 mr-2" />
                   프로필
                 </Link>

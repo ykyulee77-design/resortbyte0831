@@ -31,7 +31,7 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
   
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(12); // 한 페이지당 12개 아이템
+  const [pageSize] = useState(100); // 한 페이지당 100개 아이템
 
   const [accommodationInfoMap, setAccommodationInfoMap] = useState<{ [key: string]: AccommodationInfo }>({});
   const [companyInfoMap, setCompanyInfoMap] = useState<{ [employerId: string]: any }>({});
@@ -129,9 +129,10 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
       try {
         console.log('공고 목록 불러오기 시작...');
         
-        // 모든 공고를 가져오기 (isActive 필터 제거)
+        // 노출 가능한 공고만 가져오기: 승인 + 숨김 아님 + 활성
         const jobPostsQuery = query(
           collection(db, 'jobPosts'),
+          // Firestore에서 복수 where을 쓰면 인덱스 필요할 수 있음. 인덱스가 없다면 후단 필터를 보조로 적용.
         );
         const jobPostsSnap = await getDocs(jobPostsQuery);
         console.log('활성화된 공고 수:', jobPostsSnap.size);
@@ -145,6 +146,8 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
               workTimeType: data.workTimeType || '무관', // 기본값 설정
             };
           })
+          // 승인된 공고 + 숨김 아님 + isActive != false만 노출
+          .filter((jp: any) => (jp.status === 'approved') && jp.isHidden !== true && jp.isActive !== false)
           .sort((a, b) => {
             const aDate = (a as any).createdAt?.toDate?.() || new Date(0);
             const bDate = (b as any).createdAt?.toDate?.() || new Date(0);
@@ -285,10 +288,13 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
 
   // 심플 모드: 필터 없이 간단한 카드만 노출
   if (simpleMode) {
+    // 심플 모드에서도 페이지네이션 적용
+    const simplePaginatedPosts = applyPagination(jobPosts, 1, pageSize);
+    
     return (
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {jobPosts.map((jobPost) => (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          {simplePaginatedPosts.data.map((jobPost) => (
             <Link
               key={jobPost.id}
               to={`/job/${jobPost.id}`}
@@ -296,9 +302,9 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
               style={{ textDecoration: 'none' }}
             >
               <div className="p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">{jobPost.title}</h3>
-                  <span className="text-xs text-gray-500">{jobPost.createdAt?.toDate?.()?.toLocaleDateString('ko-KR') || '날짜 없음'}</span>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xl font-bold text-gray-900 leading-tight flex-1 mr-3">{jobPost.title}</h3>
+                  <span className="text-xs text-gray-500 flex-shrink-0">{jobPost.createdAt?.toDate?.()?.toLocaleDateString('ko-KR') || '날짜 없음'}</span>
                 </div>
                 <div className="text-sm text-gray-700 mb-1">{jobPost.employerName}</div>
                 <div className="flex flex-wrap gap-2 text-xs text-gray-600 mb-2">
@@ -429,7 +435,8 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">
-              검색 결과 ({filteredJobPosts.length}개)
+              같이 일할 사람을 찾습니다
+              <span className="ml-2 text-sm font-normal text-gray-500">(채용 정보)</span>
             </h2>
             <div className="flex items-center text-sm text-gray-600">
               <Filter className="h-4 w-4 mr-1" />

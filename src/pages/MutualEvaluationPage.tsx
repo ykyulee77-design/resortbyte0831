@@ -113,7 +113,7 @@ const MutualEvaluationPage: React.FC = () => {
                         <div>
                           <p className="font-medium text-gray-900">{targetUser.displayName || '사용자'}</p>
                           <p className="text-sm text-gray-500">
-                            {targetUser.role === 'employer' ? '구인자' : '구직자'}
+                            {targetUser.role === 'employer' ? '리조트' : '크루'}
                           </p>
                         </div>
                       </div>
@@ -163,7 +163,7 @@ const MutualEvaluationPage: React.FC = () => {
                           <div>
                             <p className="font-medium text-gray-900">{evaluation.evaluatorName}</p>
                             <p className="text-xs text-gray-500">
-                              {evaluation.evaluatorRole === 'employer' ? '구인자' : '구직자'}
+                              {evaluation.evaluatorRole === 'employer' ? '리조트' : '크루'}
                             </p>
                           </div>
                         </div>

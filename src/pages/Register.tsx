@@ -141,11 +141,11 @@ const Register: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {searchParams.get('type') === 'employer' ? '구인자 회원가입' : '회원가입'}
+            {searchParams.get('type') === 'employer' ? '리조트 회원가입' : '회원가입'}
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             {searchParams.get('type') === 'employer' 
-              ? '리조트바이트에 구인자로 가입하고 인력을 찾아보세요'
+              ? '리조트바이트에 리조트로 가입하고 크루를 찾아보세요'
               : '리조트바이트에 가입하고 일자리를 찾아보세요'
             }
           </p>
@@ -269,13 +269,13 @@ const Register: React.FC = () => {
                 disabled={searchParams.get('type') === 'employer'}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-resort-500 focus:border-resort-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
-                <option value="jobseeker">구직자</option>
-                <option value="employer">구인자</option>
+                <option value="jobseeker">크루</option>
+                <option value="employer">리조트</option>
                 <option value="admin">관리자</option>
               </select>
               {searchParams.get('type') === 'employer' && (
                 <p className="mt-1 text-sm text-blue-600">
-                  구인자로 회원가입하시는 경우입니다.
+                  리조트로 회원가입하시는 경우입니다.
                 </p>
               )}
             </div>

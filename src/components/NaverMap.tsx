@@ -61,8 +61,18 @@ const NaverMap: React.FC<NaverMapProps> = ({
       }
 
       return () => {
-        if (mapInstance.current) {
-          window.naver.maps.Event.clearListeners(mapInstance.current, 'click');
+        try {
+          if (
+            mapInstance.current &&
+            typeof window !== 'undefined' &&
+            (window as any).naver &&
+            (window as any).naver.maps &&
+            (window as any).naver.maps.Event
+          ) {
+            (window as any).naver.maps.Event.clearListeners(mapInstance.current, 'click');
+          }
+        } catch (_) {
+          // ignore cleanup errors
         }
       };
     } catch (err) {
@@ -87,9 +97,11 @@ const NaverMap: React.FC<NaverMapProps> = ({
 
     // 기존 마커들 제거
     markersRef.current.forEach(marker => {
-      if (marker && marker.setMap) {
-        marker.setMap(null);
-      }
+      try {
+        if (marker && marker.setMap) {
+          marker.setMap(null);
+        }
+      } catch (_) {}
     });
     markersRef.current = [];
 
@@ -125,8 +137,14 @@ const NaverMap: React.FC<NaverMapProps> = ({
         markersRef.current.push(marker);
 
         // 마커 클릭 이벤트
-        if (onMarkerClick && marker) {
-          window.naver.maps.Event.addListener(marker, 'click', () => {
+        if (
+          onMarkerClick &&
+          marker &&
+          (window as any).naver &&
+          (window as any).naver.maps &&
+          (window as any).naver.maps.Event
+        ) {
+          (window as any).naver.maps.Event.addListener(marker, 'click', () => {
             onMarkerClick(marker);
           });
         }
@@ -147,13 +165,19 @@ const NaverMap: React.FC<NaverMapProps> = ({
             anchorColor: '#fff'
           });
 
-          window.naver.maps.Event.addListener(marker, 'click', () => {
-            if (infoWindow.getMap()) {
-              infoWindow.close();
-            } else {
-              infoWindow.open(mapInstance.current, marker);
-            }
-          });
+          if (
+            (window as any).naver &&
+            (window as any).naver.maps &&
+            (window as any).naver.maps.Event
+          ) {
+            (window as any).naver.maps.Event.addListener(marker, 'click', () => {
+              if (infoWindow.getMap()) {
+                infoWindow.close();
+              } else {
+                infoWindow.open(mapInstance.current, marker);
+              }
+            });
+          }
         }
       } catch (error) {
         console.error(`마커 ${index} 생성 실패:`, error);
@@ -164,11 +188,21 @@ const NaverMap: React.FC<NaverMapProps> = ({
     console.log('마커 생성 완료, 총 마커 수:', markersRef.current.length);
 
     return () => {
-      markersRef.current.forEach(marker => {
-        if (marker) {
-          window.naver.maps.Event.clearListeners(marker, 'click');
+      try {
+        if (
+          (window as any).naver &&
+          (window as any).naver.maps &&
+          (window as any).naver.maps.Event
+        ) {
+          markersRef.current.forEach(marker => {
+            try {
+              if (marker) {
+                (window as any).naver.maps.Event.clearListeners(marker, 'click');
+              }
+            } catch (_) {}
+          });
         }
-      });
+      } catch (_) {}
     };
   }, [markers, onMarkerClick, isMapReady]);
 

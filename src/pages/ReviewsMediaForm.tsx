@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { storage } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import HomeLayout from '../components/HomeLayout';
 import VideoPreviewModal from '../components/VideoPreviewModal';
 import ShareModal from '../components/ShareModal';
@@ -157,6 +157,61 @@ const ReviewsMediaForm: React.FC = () => {
     });
   };
 
+  // 게시자 삭제
+  const handleDelete = async () => {
+    if (!uploadedMedia) return;
+    if (!user?.uid) {
+      alert('로그인 후 삭제할 수 있습니다.');
+      return;
+    }
+    if (uploadedMedia.userId && uploadedMedia.userId !== user.uid) {
+      alert('게시자만 삭제할 수 있습니다.');
+      return;
+    }
+    if (!confirm('정말 이 미디어를 삭제하시겠습니까?')) return;
+    try {
+      // 1) Storage에서 파일 삭제
+      const fileRef = ref(storage, uploadedMedia.fileUrl);
+      await deleteObject(fileRef).catch(() => {});
+      // 2) Firestore 문서 삭제
+      await deleteDoc(doc(db, 'media', uploadedMedia.id));
+      setUploadedMedia(null);
+      alert('삭제되었습니다.');
+    } catch (e) {
+      console.error('삭제 실패:', e);
+      alert('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    }
+  };
+
+  // 간편 공유: 링크만 공유 (업로드/연동 없음)
+  const handleQuickShare = async (platform: 'youtube' | 'tiktok' | 'instagram') => {
+    if (!uploadedMedia) return;
+    const shareTitle = uploadedMedia.description || '리조트바이트 생활';
+    const shareUrl = uploadedMedia.fileUrl;
+    const text = `${shareTitle}\n${shareUrl}`;
+
+    // 1) Web Share API 우선 사용
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: shareTitle, text: shareTitle, url: shareUrl });
+        return;
+      } catch {}
+    }
+
+    // 2) 지원 안 되면 클립보드 복사 + 플랫폼 열기
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('링크가 클립보드에 복사되었습니다. 열리는 페이지에서 붙여넣기 해주세요.');
+    } catch {}
+
+    const targets: Record<typeof platform, string> = {
+      youtube: 'https://www.youtube.com/',
+      tiktok: 'https://www.tiktok.com/upload?lang=ko-KR',
+      instagram: 'https://www.instagram.com/',
+    } as const;
+    window.open(targets[platform], '_blank');
+  };
+
   // 공유 모달 닫기
   const handleShareModalClose = () => {
     setShareModal({
@@ -251,12 +306,46 @@ const ReviewsMediaForm: React.FC = () => {
                     <p className="text-xs text-green-600">이제 친구들과 공유해보세요</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleShareModalOpen}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    공유하기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+
+              {/* 간편 공유 버튼 그룹 */}
+              <div className="mt-3 flex flex-wrap gap-2">
                 <button
-                  onClick={handleShareModalOpen}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                  type="button"
+                  onClick={() => handleQuickShare('youtube')}
+                  className="px-3 py-1.5 text-xs bg-red-50 text-red-700 border border-red-200 rounded hover:bg-red-100"
                 >
-                  <Share2 className="w-4 h-4" />
-                  공유하기
+                  YouTube로 공유 (링크)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickShare('tiktok')}
+                  className="px-3 py-1.5 text-xs bg-black text-white border border-gray-800 rounded hover:opacity-90"
+                >
+                  TikTok로 공유 (링크)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickShare('instagram')}
+                  className="px-3 py-1.5 text-xs bg-pink-50 text-pink-700 border border-pink-200 rounded hover:bg-pink-100"
+                >
+                  Instagram으로 공유 (링크)
                 </button>
               </div>
             </div>
