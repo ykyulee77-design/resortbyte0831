@@ -86,15 +86,45 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     try {
       console.log('서버 API를 사용하여 주소 검색:', keyword);
       
-      // 서버의 주소 검색 API 호출
-      const response = await fetch(`http://localhost:4000/api/geocode?query=${encodeURIComponent(keyword)}`);
+      // 배포/개발 모두 동작하도록 상대 경로 사용
+      const response = await fetch(`/api/geocode?query=${encodeURIComponent(keyword)}`);
       
       if (response.ok) {
         const data = await response.json();
         console.log('서버 API 주소 검색 결과:', data);
         
-        // 공공데이터 포털 API 응답 형식에 맞게 처리
-        if (data.results && data.results.juso && data.results.juso.length > 0) {
+        // 1) 네이버 지도 지오코딩 응답 처리
+        if (Array.isArray(data.addresses) && data.addresses.length > 0) {
+          const mapped: Address[] = data.addresses.slice(0, maxResults).map((item: any) => {
+            // postalCode 추출 시도
+            let zip = '';
+            if (Array.isArray(item.addressElements)) {
+              const postal = item.addressElements.find((el: any) => el.types?.includes('POSTAL_CODE'));
+              zip = postal?.longName || postal?.shortName || '';
+            }
+            return {
+              zipCode: zip,
+              address: item.roadAddress || item.jibunAddress || item.address || '',
+              roadAddress: item.roadAddress || '',
+              jibunAddress: item.jibunAddress || '',
+              region: item.region || '',
+              sido: item.region || '',
+              sigungu: item.city || item.district || '',
+              emdNm: item.town || '',
+              buildingName: item.buildingName || '',
+              roadName: item.roadName || '',
+              buildingNumber: item.mainAddressNo || '',
+              admCd: '',
+              engAddress: item.englishAddress || '',
+              latitude: item.y ? Number(item.y) : undefined,
+              longitude: item.x ? Number(item.x) : undefined,
+            } as Address;
+          });
+          setAddresses(mapped);
+          setShowDropdown(true);
+        }
+        // 2) 공공데이터 포털 응답 처리 (호환성)
+        else if (data.results && data.results.juso && data.results.juso.length > 0) {
           const apiAddresses: Address[] = data.results.juso
             .slice(0, maxResults)
             .map((item: any) => ({
@@ -111,11 +141,9 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
               buildingNumber: item.bdNo || '',
               admCd: item.admCd || '',
               engAddress: item.engAddr || '',
-              latitude: 0, // 공공데이터 포털에서는 좌표를 제공하지 않음
-              longitude: 0,
+              latitude: undefined,
+              longitude: undefined,
             }));
-          
-          console.log('변환된 주소 검색 결과:', apiAddresses);
           setAddresses(apiAddresses);
           setShowDropdown(true);
         } else {
