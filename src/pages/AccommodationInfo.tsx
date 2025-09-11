@@ -35,6 +35,8 @@ const AccommodationInfoPage: React.FC = () => {
   // 리조트바이트 생활(후기/평점) 상태
   const [reviews, setReviews] = useState<any[]>([]);
   const [avgRating, setAvgRating] = useState<number | null>(null);
+  // 전체화면 지도 모달
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
 
   // 편집 데이터
   const [editData, setEditData] = useState({
@@ -66,7 +68,10 @@ const AccommodationInfoPage: React.FC = () => {
     capacity: 0,
     currentOccupancy: 0,
     otherAmenities: '',
-    nearbyFacilities: ''
+    nearbyFacilities: '',
+    // 좌표 정보 추가
+    latitude: null as number | null,
+    longitude: null as number | null
   });
 
   // 댓글 관련 상태
@@ -128,7 +133,10 @@ const AccommodationInfoPage: React.FC = () => {
             capacity: data.capacity || 0,
             currentOccupancy: data.currentOccupancy || 0,
             otherAmenities: data.otherAmenities || '',
-            nearbyFacilities: data.nearbyFacilities || ''
+            nearbyFacilities: data.nearbyFacilities || '',
+            // 좌표 정보 포함
+            latitude: data.latitude || null,
+            longitude: data.longitude || null
           });
           setImages(data.images || []);
         } else {
@@ -350,9 +358,14 @@ const AccommodationInfoPage: React.FC = () => {
         employerId,
         ...editData,
         images,
+        // 좌표 정보 명시적으로 포함
+        latitude: editData.latitude,
+        longitude: editData.longitude,
         updatedAt: serverTimestamp(),
         createdAt: accommodationInfo?.createdAt || serverTimestamp()
       };
+      
+      console.log('저장할 기숙사 데이터:', accommodationData);
 
       const targetRef = doc(db, 'accommodationInfo', employerId);
       const existing = await getDoc(targetRef);
@@ -365,7 +378,8 @@ const AccommodationInfoPage: React.FC = () => {
       
       setAccommodationInfo(accommodationData);
       setIsEditing(false);
-      navigate('/employer-dashboard');
+      // 편집 모드에서 조회 모드로 URL 변경
+      navigate(`/accommodation-info/${employerId}`);
       setError(null);
     } catch (error) {
       
@@ -487,18 +501,18 @@ const AccommodationInfoPage: React.FC = () => {
                   </label>
                   <AddressSearch
                     onAddressSelect={(address: Address) => {
-              
+                      console.log('주소 선택됨:', address);
                       setEditData(prev => ({ 
                         ...prev, 
                         address: address.address,
-                        latitude: address.latitude,
-                        longitude: address.longitude
+                        latitude: address.latitude || null,
+                        longitude: address.longitude || null
                       }));
                     }}
                     placeholder="기숙사 주소를 검색하세요 (예: 서울특별시 강남구 테헤란로 427)"
                     value={editData.address}
                     showDetailAddress={true}
-                    detailAddressPlaceholder="상세주소 (동/호수, 층수 등)"
+                    detailAddressPlaceholder="동/호수, 층수, 사무실 번호 등 (선택사항)"
                   />
                 </div>
                 
@@ -819,59 +833,71 @@ const AccommodationInfoPage: React.FC = () => {
           <div className="space-y-6">
             {accommodationInfo ? (
               <>
-                {/* 기본 정보 */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <Home className="w-5 h-5 mr-2 text-blue-600" />
-                    기본 정보
-                  </h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
-                      <p className="text-gray-900">{accommodationInfo.address || '미입력'}</p>
+                {/* 기본 정보와 지도를 2열로 배치 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* 기본 정보 */}
+                  <div className="bg-white rounded-lg border p-4">
+                    <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+                      <Home className="w-5 h-5 mr-2 text-blue-600" />
+                      기본 정보
+                    </h2>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
+                        <p className="text-gray-900 text-sm">{accommodationInfo.address || '미입력'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">연락처</label>
+                        <p className="text-gray-900 text-sm">{accommodationInfo.contactInfo?.phone || '미입력'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
+                        <p className="text-gray-900 text-sm">{accommodationInfo.contactInfo?.email || '미입력'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
+                        <p className="text-gray-900 text-sm">{accommodationInfo.contactPerson || '미입력'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">수용 인원</label>
+                        <p className="text-gray-900 text-sm">{accommodationInfo.capacity || 0}명</p>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">연락처</label>
-                      <p className="text-gray-900">{accommodationInfo.contactInfo?.phone || '미입력'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
-                      <p className="text-gray-900">{accommodationInfo.contactInfo?.email || '미입력'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
-                      <p className="text-gray-900">{accommodationInfo.contactPerson || '미입력'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">수용 인원</label>
-                      <p className="text-gray-900">{accommodationInfo.capacity || 0}명</p>
-                    </div>
+
+                    {accommodationInfo.description && (
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">설명</label>
+                        <p className="text-gray-900 text-sm whitespace-pre-wrap">{accommodationInfo.description}</p>
+                      </div>
+                    )}
                   </div>
 
-                  {accommodationInfo.description && (
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">설명</label>
-                      <p className="text-gray-900 whitespace-pre-wrap">{accommodationInfo.description}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* 지도 섹션 */}
-                {accommodationInfo?.address && (
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  {/* 지도 섹션 */}
+                  <div className="bg-white rounded-lg border p-4">
+                    <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
                       <Building className="w-5 h-5 mr-2 text-green-600" />
                       위치
                     </h2>
-                    <div style={{ height: '400px', position: 'relative' }}>
+                    {/* 
+                      중요: NaverMap 컴포넌트는 항상 렌더링되어야 함!
+                      조건부 렌더링({accommodationInfo?.address && ...})을 사용하면 
+                      mapRef.current가 null이 되어 무한 루프 발생
+                      마커만 조건부로 설정: markers={accommodationInfo?.address ? [...] : []}
+                    */}
+                    <div
+                      style={{ height: '280px', position: 'relative' }}
+                      className="cursor-pointer group"
+                      onClick={() => setIsMapFullscreen(true)}
+                      title="지도를 클릭하면 전체화면으로 확대됩니다"
+                    >
                       <NaverMap
                         center={{
-                          lat: accommodationInfo.latitude || 37.5665,
-                          lng: accommodationInfo.longitude || 126.9780
+                          lat: accommodationInfo?.latitude || 37.5665,
+                          lng: accommodationInfo?.longitude || 126.9780
                         }}
                         zoom={15}
-                        markers={[
+                        markers={accommodationInfo?.address ? [
                           {
                             position: {
                               lat: accommodationInfo.latitude || 37.5665,
@@ -880,34 +906,48 @@ const AccommodationInfoPage: React.FC = () => {
                             title: accommodationInfo.name || '기숙사',
                             content: accommodationInfo.address
                           }
-                        ]}
+                        ] : []}
                       />
+                      <div className="absolute bottom-2 right-2 text-xs bg-black/50 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                        전체화면 보기
+                      </div>
                     </div>
                     {/* 위치 정보 */}
-                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="space-y-2 text-sm">
                         <div>
                           <span className="text-gray-600 font-medium">주소:</span>
-                          <span className="ml-2 text-gray-900">{accommodationInfo.address}</span>
+                          <span className="ml-2 text-gray-900">{accommodationInfo?.address || '미입력'}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-gray-600 font-medium">위도:</span>
+                            <span className="ml-1 text-gray-900">
+                              {accommodationInfo?.latitude ? accommodationInfo.latitude.toFixed(6) : '미설정'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600 font-medium">경도:</span>
+                            <span className="ml-1 text-gray-900">
+                              {accommodationInfo?.longitude ? accommodationInfo.longitude.toFixed(6) : '미설정'}
+                            </span>
+                          </div>
                         </div>
                         <div>
-                          <span className="text-gray-600 font-medium">위도:</span>
-                          <span className="ml-2 text-gray-900">{accommodationInfo.latitude || '설정되지 않음'}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600 font-medium">경도:</span>
-                          <span className="ml-2 text-gray-900">{accommodationInfo.longitude || '설정되지 않음'}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600 font-medium">기본 좌표 사용:</span>
-                          <span className="ml-2 text-gray-900">
-                            {(!accommodationInfo.latitude || !accommodationInfo.longitude) ? '예 (서울시청)' : '아니오'}
+                          <span className="text-gray-600 font-medium">상태:</span>
+                          <span className={`ml-2 ${(accommodationInfo?.latitude && accommodationInfo?.longitude) ? 'text-green-600' : 'text-orange-600'}`}>
+                            {(accommodationInfo?.latitude && accommodationInfo?.longitude) ? '정확한 위치' : '기본 위치'}
                           </span>
                         </div>
                       </div>
+                      {(!accommodationInfo?.latitude || !accommodationInfo?.longitude) && (
+                        <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
+                          💡 정확한 위치를 표시하려면 편집 모드에서 주소를 다시 검색해주세요.
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* 객실 유형 */}
                 {accommodationInfo.roomTypeOptions && (
@@ -1262,6 +1302,45 @@ const AccommodationInfoPage: React.FC = () => {
           onClose={() => setPreviewImage(null)}
           isOpen={!!previewImage}
         />
+      )}
+
+      {/* 전체화면 지도 모달 */}
+      {isMapFullscreen && accommodationInfo?.address && (
+        <div className="fixed inset-0 z-[1000] bg-black/70 flex items-center justify-center">
+          <div className="w-[95vw] h-[85vh] bg-white rounded-lg overflow-hidden shadow-2xl flex flex-col">
+            {/* 헤더 영역 */}
+            <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">기숙사 위치</h3>
+              <button
+                className="bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-600 transition-colors shadow-lg flex items-center gap-2"
+                onClick={() => setIsMapFullscreen(false)}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                닫기
+              </button>
+            </div>
+            {/* 지도 영역 */}
+            <div className="flex-1 relative">
+              <NaverMap
+                center={{
+                  lat: accommodationInfo.latitude || 37.5665,
+                  lng: accommodationInfo.longitude || 126.9780
+                }}
+                zoom={16}
+                markers={[{
+                  position: {
+                    lat: accommodationInfo.latitude || 37.5665,
+                    lng: accommodationInfo.longitude || 126.9780
+                  },
+                  title: accommodationInfo.name || '기숙사',
+                  content: accommodationInfo.address
+                }]}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

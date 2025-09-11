@@ -508,7 +508,7 @@ const EmployerDashboard: React.FC = () => {
                       onClick={handleCompanyEdit}
                         className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
                       >
-                      {companyInfo ? '수정' : '등록'}
+                      등록 및 수정
                       </button>
               </div>
               </div>
@@ -871,7 +871,7 @@ const EmployerDashboard: React.FC = () => {
                         className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
                       >
                         <Edit3 className="h-4 w-4 mr-2" />
-                          수정
+                          등록 및 수정
                         </button>
               </div>
             </div>
@@ -1293,7 +1293,7 @@ const EmployerDashboard: React.FC = () => {
                           onClick={handleAccommodationEdit}
                           className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 transition-colors"
                         >
-                          {accommodationInfo ? '수정' : '등록'}
+                          등록 및 수정
                         </button>
                       )}
                     </div>

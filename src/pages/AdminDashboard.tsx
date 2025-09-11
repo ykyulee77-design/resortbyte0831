@@ -2,9 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { initializeAdminAuth } from '../utils/adminAuth';
+// Firebase import 제거됨
 import UserManagement from '../components/admin/UserManagement';
 import JobManagement from '../components/admin/JobManagement';
 import MemberManagement from '../components/admin/MemberManagement';
+import ReportManagement from '../components/admin/ReportManagement';
+import LinkManagement from '../components/admin/LinkManagement';
+import ResortLifeManagement from '../components/admin/ResortLifeManagement';
+import { 
+  cleanupAllData, 
+  cleanupCollection, 
+  cleanupJobPostsByStatus,
+  cleanupOldApplications,
+  cleanupInactiveUsers,
+  cleanupResolvedReports,
+  cleanupSampleData
+} from '../utils/dataCleanup';
+import { addSampleLinks } from '../utils/sampleLinks';
 import { 
   Copy, 
   Shield, 
@@ -35,6 +49,7 @@ import {
   Calendar,
   MapPin,
   Building,
+  Heart,
   Home,
   Star,
   MessageSquare,
@@ -99,7 +114,7 @@ const AdminDashboard: React.FC = () => {
       });
     }
   }, [user, navigate]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'jobs' | 'analytics' | 'system' | 'admin-invites' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'jobs' | 'analytics' | 'system' | 'admin-invites' | 'settings' | 'reports' | 'links' | 'resort-life'>('overview');
   const [systemStats, setSystemStats] = useState<SystemStats>({
     totalUsers: 0,
     totalJobPosts: 0,
@@ -116,6 +131,83 @@ const AdminDashboard: React.FC = () => {
   });
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDataCleanupModal, setShowDataCleanupModal] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  // 신고 개수 관련 코드 제거됨
+
+  // 데이터 초기화 함수들
+  const handleFullDataCleanup = async () => {
+    if (!confirm('⚠️ 경고: 모든 데이터가 삭제됩니다. 관리자 계정만 보존됩니다. 계속하시겠습니까?')) {
+      return;
+    }
+    
+    setCleanupLoading(true);
+    try {
+      const result = await cleanupAllData(true);
+      if (result.success) {
+        alert('데이터 초기화가 완료되었습니다.');
+        setShowDataCleanupModal(false);
+        // 페이지 새로고침
+        window.location.reload();
+      } else {
+        alert('데이터 초기화에 실패했습니다: ' + result.message);
+      }
+    } catch (error) {
+      console.error('데이터 초기화 오류:', error);
+      alert('데이터 초기화 중 오류가 발생했습니다.');
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
+
+  const handleCollectionCleanup = async (collectionName: string) => {
+    if (!confirm(`⚠️ ${collectionName} 컬렉션의 모든 데이터가 삭제됩니다. 계속하시겠습니까?`)) {
+      return;
+    }
+    
+    setCleanupLoading(true);
+    try {
+      const result = await cleanupCollection(collectionName);
+      if (result.success) {
+        alert(`${collectionName} 컬렉션이 삭제되었습니다.`);
+        setShowDataCleanupModal(false);
+        // 페이지 새로고침
+        window.location.reload();
+      } else {
+        alert(`${collectionName} 삭제에 실패했습니다: ` + result.message);
+      }
+    } catch (error) {
+      console.error(`${collectionName} 삭제 오류:`, error);
+      alert(`${collectionName} 삭제 중 오류가 발생했습니다.`);
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
+
+  // 선택적 삭제 함수들
+  const handleSelectiveCleanup = async (cleanupFunction: () => Promise<{success: boolean, message: string}>, confirmMessage: string) => {
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+    
+    setCleanupLoading(true);
+    try {
+      const result = await cleanupFunction();
+      if (result.success) {
+        alert(result.message);
+        setShowDataCleanupModal(false);
+        // 페이지 새로고침
+        window.location.reload();
+      } else {
+        alert('삭제에 실패했습니다: ' + result.message);
+      }
+    } catch (error) {
+      console.error('선택적 삭제 오류:', error);
+      alert('삭제 중 오류가 발생했습니다.');
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
 
   // 시스템 통계 로드
   useEffect(() => {
@@ -197,8 +289,11 @@ const AdminDashboard: React.FC = () => {
           <nav className="flex space-x-8 px-6">
             {[
               { id: 'overview', label: '개요', icon: BarChart3 },
-                             { id: 'users', label: '회원 관리', icon: Users },
+              { id: 'users', label: '회원 관리', icon: Users },
               { id: 'jobs', label: '공고 관리', icon: FileText },
+              { id: 'reports', label: '신고 관리', icon: Flag },
+              { id: 'links', label: '링크 관리', icon: Globe },
+              { id: 'resort-life', label: '리조트바이트 생활', icon: Heart },
               { id: 'analytics', label: '분석', icon: TrendingUp },
               { id: 'system', label: '시스템', icon: Server },
               { id: 'admin-invites', label: '관리자 초대', icon: UserPlus },
@@ -206,7 +301,7 @@ const AdminDashboard: React.FC = () => {
             ].map((tab) => {
               const Icon = tab.icon;
               return (
-            <button
+                <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
@@ -430,6 +525,15 @@ const AdminDashboard: React.FC = () => {
         {/* 공고 관리 탭 */}
         {activeTab === 'jobs' && <JobManagement />}
         
+        {/* 신고 관리 탭 */}
+        {activeTab === 'reports' && <ReportManagement />}
+        
+        {/* 링크 관리 탭 */}
+        {activeTab === 'links' && <LinkManagement />}
+        
+        {/* 리조트바이트 생활 관리 탭 */}
+        {activeTab === 'resort-life' && <ResortLifeManagement />}
+        
         {/* 분석 탭 */}
         {activeTab === 'analytics' && (
           <div className="space-y-6">
@@ -443,6 +547,27 @@ const AdminDashboard: React.FC = () => {
         {/* 시스템 모니터링 탭 */}
         {activeTab === 'system' && (
           <div className="space-y-6">
+            {/* 데이터 관리 섹션 */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">데이터 관리</h2>
+              <div className="space-y-4">
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <h3 className="text-lg font-medium text-red-800 mb-2">⚠️ 데이터 초기화</h3>
+                  <p className="text-red-700 mb-4">
+                    배포 전 샘플 데이터를 정리하거나 전체 데이터를 초기화할 수 있습니다.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowDataCleanupModal(true)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      데이터 초기화 관리
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">시스템 모니터링</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -502,6 +627,178 @@ const AdminDashboard: React.FC = () => {
               <h2 className="text-xl font-semibold text-gray-900 mb-4">시스템 설정</h2>
               <p className="text-gray-600">시스템 설정 기능은 개발 중입니다.</p>
         </div>
+          </div>
+        )}
+
+        {/* 데이터 초기화 모달 */}
+        {showDataCleanupModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between p-6 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">데이터 초기화 관리</h3>
+                <button
+                  onClick={() => setShowDataCleanupModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  disabled={cleanupLoading}
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h4 className="font-medium text-yellow-800 mb-2">⚠️ 주의사항</h4>
+                  <ul className="text-sm text-yellow-700 space-y-1">
+                    <li>• 데이터 삭제는 되돌릴 수 없습니다</li>
+                    <li>• 전체 초기화 시 관리자 계정은 보존됩니다</li>
+                    <li>• 개별 컬렉션 삭제 시 해당 데이터만 삭제됩니다</li>
+                  </ul>
+                </div>
+
+                {/* 샘플 데이터 관리 */}
+                <div className="border border-orange-200 rounded-lg p-4">
+                  <h4 className="font-medium text-orange-800 mb-2">🎯 샘플 데이터 관리</h4>
+                  <p className="text-sm text-orange-700 mb-3">
+                    샘플 데이터를 삭제하거나 유용한 링크 샘플을 추가할 수 있습니다.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleSelectiveCleanup(
+                        cleanupSampleData,
+                        '⚠️ 샘플 데이터(sample-employer로 시작하는 데이터)를 삭제하시겠습니까?'
+                      )}
+                      disabled={cleanupLoading}
+                      className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
+                    >
+                      {cleanupLoading ? '처리 중...' : '샘플 데이터 삭제'}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm('샘플 링크를 추가하시겠습니까?')) return;
+                        setCleanupLoading(true);
+                        try {
+                          const result = await addSampleLinks();
+                          if (result.success) {
+                            alert(result.message);
+                          } else {
+                            alert(result.message);
+                          }
+                        } catch (error) {
+                          console.error('샘플 링크 추가 오류:', error);
+                          alert('샘플 링크 추가 중 오류가 발생했습니다.');
+                        } finally {
+                          setCleanupLoading(false);
+                        }
+                      }}
+                      disabled={cleanupLoading}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                    >
+                      {cleanupLoading ? '처리 중...' : '샘플 링크 추가'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 전체 데이터 초기화 */}
+                <div className="border border-red-200 rounded-lg p-4">
+                  <h4 className="font-medium text-red-800 mb-2">전체 데이터 초기화</h4>
+                  <p className="text-sm text-red-700 mb-3">
+                    모든 샘플 데이터를 삭제하고 관리자 계정만 보존합니다.
+                  </p>
+                  <button
+                    onClick={handleFullDataCleanup}
+                    disabled={cleanupLoading}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    {cleanupLoading ? '처리 중...' : '전체 데이터 초기화'}
+                  </button>
+                </div>
+
+                {/* 선택적 삭제 옵션 */}
+                <div className="border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 mb-3">🎯 선택적 삭제</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => handleSelectiveCleanup(
+                        () => cleanupJobPostsByStatus('pending'),
+                        '⚠️ 대기 중인 공고를 모두 삭제하시겠습니까?'
+                      )}
+                      disabled={cleanupLoading}
+                      className="px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors disabled:opacity-50 text-sm"
+                    >
+                      대기 중인 공고 삭제
+                    </button>
+                    
+                    <button
+                      onClick={() => handleSelectiveCleanup(
+                        () => cleanupJobPostsByStatus('rejected'),
+                        '⚠️ 거부된 공고를 모두 삭제하시겠습니까?'
+                      )}
+                      disabled={cleanupLoading}
+                      className="px-3 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50 text-sm"
+                    >
+                      거부된 공고 삭제
+                    </button>
+                    
+                    <button
+                      onClick={() => handleSelectiveCleanup(
+                        () => cleanupOldApplications(30),
+                        '⚠️ 30일 이전의 지원서를 모두 삭제하시겠습니까?'
+                      )}
+                      disabled={cleanupLoading}
+                      className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50 text-sm"
+                    >
+                      30일 이전 지원서 삭제
+                    </button>
+                    
+                    <button
+                      onClick={() => handleSelectiveCleanup(
+                        cleanupInactiveUsers,
+                        '⚠️ 관리자를 제외한 모든 사용자를 삭제하시겠습니까?'
+                      )}
+                      disabled={cleanupLoading}
+                      className="px-3 py-2 bg-indigo-100 text-indigo-800 rounded-lg hover:bg-indigo-200 transition-colors disabled:opacity-50 text-sm"
+                    >
+                      비관리자 사용자 삭제
+                    </button>
+                    
+                    <button
+                      onClick={() => handleSelectiveCleanup(
+                        cleanupResolvedReports,
+                        '⚠️ 처리된 신고를 모두 삭제하시겠습니까?'
+                      )}
+                      disabled={cleanupLoading}
+                      className="px-3 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-50 text-sm"
+                    >
+                      처리된 신고 삭제
+                    </button>
+                  </div>
+                </div>
+
+                {/* 개별 컬렉션 삭제 */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">전체 컬렉션 삭제</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { name: 'jobPosts', label: '공고 데이터' },
+                      { name: 'applications', label: '지원 데이터' },
+                      { name: 'companyInfo', label: '회사 정보' },
+                      { name: 'accommodationInfo', label: '기숙사 정보' },
+                      { name: 'reports', label: '신고 데이터' },
+                      { name: 'evaluations', label: '평가 데이터' }
+                    ].map((collection) => (
+                      <button
+                        key={collection.name}
+                        onClick={() => handleCollectionCleanup(collection.name)}
+                        disabled={cleanupLoading}
+                        className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 text-sm"
+                      >
+                        {collection.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

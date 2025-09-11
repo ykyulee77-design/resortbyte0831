@@ -42,6 +42,11 @@ import JobPostForm from './pages/JobPostForm';
 import GatePage from './pages/GatePage';
 import MutualEvaluationPage from './pages/MutualEvaluationPage';
 import UserDebug from './pages/UserDebug';
+import ResortLife from './pages/ResortLife';
+import ResortShorts from './pages/ResortShorts';
+import ResortReviews from './pages/ResortReviews';
+import ResortLifeGuide from './pages/ResortLifeGuide';
+import DormGate from './pages/DormGate';
 
 
 // 레이아웃 컴포넌트
@@ -159,6 +164,11 @@ function App() {
                 <GatePage />
               </HomeLayout>
             } />
+            <Route path="/gate" element={
+              <HomeLayout>
+                <GatePage />
+              </HomeLayout>
+            } />
             <Route path="/home" element={
               <HomeLayout>
                 <Home />
@@ -216,6 +226,34 @@ function App() {
             <Route path="/accommodations" element={
               <HomeLayout>
                 <AccommodationList />
+              </HomeLayout>
+            } />
+
+            {/* 리조트바이트 생활 페이지 */}
+            <Route path="/resort-life" element={
+              <HomeLayout>
+                <ResortLife />
+              </HomeLayout>
+            } />
+
+            {/* 리조트바이트 숏츠 페이지 */}
+            <Route path="/resort-shorts" element={
+              <HomeLayout>
+                <ResortShorts />
+              </HomeLayout>
+            } />
+
+            {/* 리조트바이트 후기 페이지 */}
+            <Route path="/resort-reviews" element={
+              <HomeLayout>
+                <ResortReviews />
+              </HomeLayout>
+            } />
+
+            {/* 리조트바이트 생활 가이드 페이지 */}
+            <Route path="/resort-life-guide" element={
+              <HomeLayout>
+                <ResortLifeGuide />
               </HomeLayout>
             } />
 

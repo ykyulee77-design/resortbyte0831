@@ -127,7 +127,8 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
   useEffect(() => {
     const fetchJobPosts = async () => {
       try {
-        console.log('공고 목록 불러오기 시작...');
+        console.log('📱 모바일 디버깅: 공고 목록 불러오기 시작...');
+        console.log('📱 모바일 디버깅: Firebase 연결 상태:', db);
         
         // 노출 가능한 공고만 가져오기: 승인 + 숨김 아님 + 활성
         const jobPostsQuery = query(
@@ -154,7 +155,8 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
             return bDate.getTime() - aDate.getTime();
           }) as JobPost[];
         
-        console.log('공고 목록:', activeJobPosts);
+        console.log('📱 모바일 디버깅: 공고 목록:', activeJobPosts);
+        console.log('📱 모바일 디버깅: 공고 개수:', activeJobPosts.length);
         setJobPosts(activeJobPosts);
 
         // 고유한 employerId 목록
@@ -236,8 +238,10 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
           setReviewInfoMap(reviewMap);
         }
       } catch (error) {
-        console.error('공고 목록 불러오기 실패:', error);
+        console.error('📱 모바일 디버깅: 공고 목록 불러오기 실패:', error);
+        console.error('📱 모바일 디버깅: 오류 상세:', error);
       } finally {
+        console.log('📱 모바일 디버깅: 로딩 완료');
         setLoading(false);
       }
     };
@@ -280,8 +284,12 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-resort-500"></div>
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-resort-500 mb-4"></div>
+        <p className="text-gray-600 text-center">
+          📱 모바일에서 데이터를 불러오는 중...<br/>
+          <span className="text-sm text-gray-500">잠시만 기다려주세요</span>
+        </p>
       </div>
     );
   }
@@ -502,13 +510,6 @@ const JobList: React.FC<JobListProps> = ({ simpleMode = false }) => {
                     </div>
                   </div>
                   
-                  <div className="space-y-3 mb-4">
-                    {/* 카드 본문에서는 중복 최소화: 근무일자(기간)만 기본 노출 */}
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      {(jobPost as any)?.startDate?.toDate?.()?.toLocaleDateString?.('ko-KR') || '-'} ~ {(jobPost as any)?.endDate?.toDate?.()?.toLocaleDateString?.('ko-KR') || '-'}
-                    </div>
-                  </div>
                   
                   {/* 상세보기 버튼 제거, 날짜만 남김 */}
                   <div className="flex justify-end items-center">

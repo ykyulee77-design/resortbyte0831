@@ -4,6 +4,11 @@ import { Timestamp } from 'firebase/firestore';
 export type DateOrTimestamp = Date | Timestamp;
 export type StatusType = 'pending' | 'reviewing' | 'interview_scheduled' | 'interview_completed' | 'offer_sent' | 'accepted' | 'rejected' | 'withdrawn';
 
+// 신고 시스템 타입 정의
+export type ReportReason = 'spam' | 'fake' | 'inappropriate' | 'scam' | 'other';
+export type ReportStatus = 'pending' | 'resolved';
+export type ReportTargetType = 'jobPost' | 'user';
+
 // 기본 인터페이스들
 export interface BaseEntity {
   id: string;
@@ -620,4 +625,37 @@ export interface MutualEvaluation {
   positiveReason?: string; // 추가
   evaluationType?: string; // 추가
   isVisible?: boolean; // 추가
-} 
+}
+
+// 신고 시스템 인터페이스
+export interface Report extends BaseEntity {
+  reporterId: string;        // 신고자 ID
+  targetType: ReportTargetType; // 신고 대상 타입
+  targetId: string;          // 신고 대상 ID
+  reason: ReportReason;      // 신고 사유
+  description: string;       // 신고 사유 상세
+  status: ReportStatus;      // 신고 상태
+  resolvedAt?: Timestamp;    // 처리 완료 시간
+  resolvedBy?: string;       // 처리한 관리자 ID
+  reporterName?: string;     // 신고자 이름 (관리자용)
+  targetName?: string;       // 신고 대상 이름 (관리자용)
+  adminMemo?: string;        // 관리자 메모
+  action?: 'approve' | 'dismiss'; // 처리 액션
+}
+
+// 유용한 링크 시스템 타입 정의
+export type LinkCategory = 'blog' | 'cafe' | 'resort_info' | 'lifestyle' | 'job_tips' | 'accommodation';
+export type LinkStatus = 'active' | 'inactive';
+
+export interface UsefulLink extends BaseEntity {
+  title: string;             // 링크 제목
+  url: string;               // 링크 URL
+  description: string;       // 링크 설명
+  category: LinkCategory;    // 링크 카테고리
+  status: LinkStatus;        // 링크 상태
+  imageUrl?: string;         // 링크 이미지 (선택사항)
+  tags: string[];            // 태그
+  clickCount: number;        // 클릭 수
+  isRecommended: boolean;    // 추천 링크 여부
+  addedBy: string;           // 추가한 관리자 ID
+}

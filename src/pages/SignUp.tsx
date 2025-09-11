@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, AlertCircle, Building, User, Home } from 'lucide-react';
@@ -8,12 +8,14 @@ import AddressSearch, { Address } from '../components/AddressSearch';
 import NaverMapScript from '../components/NaverMapScript';
 
 const SignUp: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const roleParam = searchParams.get('role') as 'jobseeker' | 'employer' | 'admin' | null;
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     confirmPassword: '',
     displayName: '',
-    role: 'jobseeker' as 'jobseeker' | 'employer' | 'admin',
+    role: (roleParam || 'jobseeker') as 'jobseeker' | 'employer' | 'admin',
     adminCode: '',
     // 구인자 직장 정보
     workplaceName: '',
@@ -36,8 +38,13 @@ const SignUp: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/dashboard';
+
+  useEffect(() => {
+    if (roleParam && roleParam !== formData.role) {
+      setFormData(prev => ({ ...prev, role: roleParam as 'jobseeker' | 'employer' | 'admin' }));
+    }
+  }, [roleParam]);
 
   // 관리자 등록 코드 (실제 환경에서는 환경변수나 보안된 설정에서 관리)
   const ADMIN_REGISTRATION_CODE = 'RESORT_ADMIN_2024';
@@ -348,6 +355,9 @@ const SignUp: React.FC = () => {
                           companyRegion: address.region || '',
                           companyDetailAddress: address.detailAddress || '',
                         }));
+                      }}
+                      onInputChange={(text: string) => {
+                        setFormData(prev => ({ ...prev, companyAddress: text }));
                       }}
                       value={formData.companyAddress}
                       placeholder="리조트 주소를 검색하세요"

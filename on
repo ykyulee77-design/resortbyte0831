@@ -1,0 +1,5 @@
+[33m98658db[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix: redirect manifest.json to 404 to resolve syntax error
+[33mec07818[m fix: remove manifest.json to resolve syntax error
+[33m25aea4c[m feat: Add comprehensive user manuals and deployment configuration
+[33m70cb75c[m Connect member management and job management to real Firebase data
+[33mf5d37d3[m Fix navigation: Remove user management from navbar, update admin dashboard path

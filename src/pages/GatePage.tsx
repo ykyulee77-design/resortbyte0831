@@ -113,7 +113,7 @@ const GatePage: React.FC = () => {
               리조트바이트의 핵심 가치
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              지역 리조트와 크루를 연결하는 5가지 핵심 가치예요
+              지역 리조트와 크루를 연결하는 6가지 핵심 가치예요
             </p>
           </div>
 

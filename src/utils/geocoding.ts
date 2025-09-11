@@ -2,36 +2,38 @@ import { AddressSearchResult } from '../types/naverMap';
 
 export const searchAddress = async (address: string): Promise<AddressSearchResult | null> => {
   try {
-    const response = await fetch(
-      `https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode?query=${encodeURIComponent(address)}`,
-      {
-        headers: {
-          'X-NCP-APIGW-API-KEY-ID': process.env.REACT_APP_NAVER_CLIENT_ID!,
-          'X-NCP-APIGW-API-KEY': process.env.REACT_APP_NAVER_CLIENT_SECRET!
-        }
-      }
-    );
+    console.log('🔍 searchAddress 호출:', address);
+    
+    // 서버의 지오코딩 API 프록시 사용
+    const url = `http://localhost:4000/api/geocode/coordinates?address=${encodeURIComponent(address)}`;
+    console.log('🌐 API 요청 URL:', url);
+    
+    const response = await fetch(url);
+    console.log('📡 API 응답 상태:', response.status, response.statusText);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('📦 API 응답 데이터:', data);
     
-    if (data.addresses && data.addresses.length > 0) {
-      const addressData = data.addresses[0];
-      return {
-        lat: parseFloat(addressData.y),
-        lng: parseFloat(addressData.x),
-        address: addressData.roadAddress || addressData.jibunAddress,
-        roadAddress: addressData.roadAddress,
-        jibunAddress: addressData.jibunAddress
+    if (data.success && data.data) {
+      const result = {
+        lat: data.data.lat,
+        lng: data.data.lng,
+        address: data.data.address,
+        roadAddress: data.data.roadAddress,
+        jibunAddress: data.data.jibunAddress
       };
+      console.log('✅ 지오코딩 결과:', result);
+      return result;
     }
     
+    console.log('❌ 지오코딩 실패 - data.success:', data.success, 'data.data:', data.data);
     return null;
   } catch (error) {
-    console.error('주소 검색 실패:', error);
+    console.error('❌ 주소 검색 실패:', error);
     return null;
   }
 };

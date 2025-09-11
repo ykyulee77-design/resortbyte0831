@@ -465,6 +465,42 @@ const AccommodationList: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* 하단 접이식 안내 섹션 */}
+      <div className="max-w-7xl mx-auto py-10 px-4">
+        <details open className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <summary className="cursor-pointer select-none px-6 py-4 text-gray-900 font-semibold">
+            리조트바이트에서 기숙사란?
+          </summary>
+          <div className="px-6 py-6 text-gray-800 space-y-6">
+            <section className="space-y-3">
+              <h3 className="text-2xl font-bold text-gray-900">왜 ‘기숙사 이야기’인가</h3>
+              <p className="leading-relaxed">
+                원격지 리조트에서 일할 때, 일 자체보다 먼저 확인해야 하는 것이 있습니다. 바로 <span className="font-semibold">숙식과 생활</span>입니다.
+                방의 실제 모습, 위치와 이동, 편의시설, 규칙, 함께 사는 리듬까지 — 이 정보가 불확실하면 합의도, 근무도, 만족도도 흔들립니다.
+              </p>
+              <p className="leading-relaxed">
+                그래서 우리는 ‘채용 공고’보다 먼저 <span className="font-semibold">기숙사 정보의 신뢰</span>를 세우려 합니다. 사진과 위치, 편의와 규칙, 그리고 실제로 살았던 사람들의 후기까지 쌓여야
+                다음 크루가 겪는 불안이 줄어듭니다. 정확한 생활 정보가 있어야 합리적인 매칭과 공정한 보상이 가능합니다.
+              </p>
+            </section>
+
+            <section className="space-y-3">
+              <h4 className="text-xl font-semibold text-gray-900">기숙사가 먼저 바뀌면 생기는 변화</h4>
+              <ul className="list-disc ml-5 space-y-2 text-gray-700">
+                <li><span className="font-medium">결정이 쉬워집니다.</span> 살 환경이 보이면 지원 판단이 빨라집니다.</li>
+                <li><span className="font-medium">갈등이 줄어듭니다.</span> 미리 합의된 규칙이 생활의 분쟁을 줄입니다.</li>
+                <li><span className="font-medium">매칭의 질이 올라갑니다.</span> 생활 조건이 맞아야 일의 집중도도 높아집니다.</li>
+              </ul>
+            </section>
+
+            <section className="space-y-2">
+              <h4 className="text-xl font-semibold text-gray-900">우리가 지키는 원칙</h4>
+              <p className="leading-relaxed">실제 사진과 위치, 편의/규칙의 투명한 표기, 솔직한 후기 — 생활의 ‘맥락’을 먼저 공유합니다.</p>
+            </section>
+          </div>
+        </details>
+      </div>
     </div>
   );
 };

@@ -3,6 +3,7 @@ import JobList from './JobList';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { Building, Sparkles } from 'lucide-react';
 
 const Home: React.FC = () => {
   const { user } = useAuth();
@@ -32,8 +33,13 @@ const Home: React.FC = () => {
         <h1 className="text-3xl md:text-4xl font-bold text-white text-center">크루와 리조트를 연결합니다</h1>
         <p className="text-lg text-blue-100 text-center mt-2">리조트바이트에서 원하는 근무를 찾고, 리조트는 믿을 수 있는 크루를 만나보세요</p>
       </div>
-      {/* 완전한 기능을 가진 JobList 컴포넌트 */}
-      <JobList simpleMode={false} />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* 상단 권유 카드 제거 요청 반영 */}
+        
+        {/* 완전한 기능을 가진 JobList 컴포넌트 */}
+        <JobList simpleMode={false} />
+      </div>
     </div>
   );
 };

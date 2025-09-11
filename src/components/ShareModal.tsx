@@ -25,6 +25,7 @@ declare global {
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSkipShare?: () => void;
   mediaUrl: string;
   mediaType: 'image' | 'video';
   title: string;
@@ -35,6 +36,7 @@ interface ShareModalProps {
 const ShareModal: React.FC<ShareModalProps> = ({
   isOpen,
   onClose,
+  onSkipShare,
   mediaUrl,
   mediaType,
   title,
@@ -244,6 +246,18 @@ const ShareModal: React.FC<ShareModalProps> = ({
               <span className="text-sm">Instagram</span>
             </button>
           </div>
+
+          {/* 공유하지 않기 버튼 */}
+          {onSkipShare && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={onSkipShare}
+                className="w-full py-2 px-4 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                공유하지 않기
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

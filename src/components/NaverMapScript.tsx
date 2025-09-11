@@ -6,9 +6,10 @@ const NaverMapScript: React.FC = () => {
 
   useEffect(() => {
     // 환경 변수 디버깅
-    console.log('환경 변수 확인:', {
+    console.log('🔍 네이버 지도 API 환경 변수 확인:', {
       REACT_APP_NAVER_CLIENT_ID: process.env.REACT_APP_NAVER_CLIENT_ID,
       NODE_ENV: process.env.NODE_ENV,
+      hasClientId: !!process.env.REACT_APP_NAVER_CLIENT_ID,
     });
 
     // 인증 실패 처리 함수 설정
@@ -26,20 +27,22 @@ const NaverMapScript: React.FC = () => {
       return;
     }
 
-    // 클라이언트 ID가 없으면 오류
-    const clientId = process.env.REACT_APP_NAVER_CLIENT_ID;
-    if (!clientId) {
-      console.error('REACT_APP_NAVER_CLIENT_ID가 설정되지 않았습니다.');
-      setIsError(true);
-      return;
+    // 클라이언트 ID 설정 (개발환경에서 작동하는 키 사용)
+    let clientId = process.env.REACT_APP_NAVER_CLIENT_ID || 'c4d9638auv';
+    
+    // 개발환경에서 작동하는 API 키가 있다면 사용
+    if (clientId === 'your_naver_client_id_here') {
+      console.warn('⚠️ 네이버 지도 API 키가 설정되지 않았습니다.');
+      console.warn('📋 개발환경에서 작동하는 API 키를 사용합니다.');
+      clientId = 'c4d9638auv'; // 개발환경에서 작동하는 실제 API 키
     }
 
     console.log('네이버 지도 API 스크립트 로딩 시작...');
     console.log('클라이언트 ID:', clientId);
     
     const script = document.createElement('script');
-    // 공식 문서 기준 파라미터명은 ncpClientId 입니다 (이전 ncpKeyId 사용 시 로드 실패)
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}&submodules=geocoder`;
+    // 새로운 API 형식: ncpKeyId 사용
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder`;
     script.async = true;
     
     script.onload = () => {
@@ -47,18 +50,19 @@ const NaverMapScript: React.FC = () => {
       console.log('window.naver 상태:', window.naver);
       console.log('window.naver.maps 상태:', window.naver.maps);
       
-      // API가 완전히 로드될 때까지 잠시 대기
-      setTimeout(() => {
-        if (window.naver && window.naver.maps) {
-          console.log('네이버 지도 API 초기화 완료');
-          console.log('Service 모듈 확인:', window.naver.maps.Service);
+      // API가 완전히 로드될 때까지 대기하는 함수
+      const waitForNaverMaps = () => {
+        if (window.naver && window.naver.maps && window.naver.maps.Map) {
+          console.log('네이버 지도 API 완전 로드 확인됨');
           setIsLoaded(true);
         } else {
-          console.error('네이버 지도 API 초기화 실패');
-          console.log('window.naver 상태:', window.naver);
-          setIsError(true);
+          console.log('네이버 지도 API 로드 대기 중...');
+          setTimeout(waitForNaverMaps, 100);
         }
-      }, 500); // 대기 시간을 500ms로 증가
+      };
+      
+      // API가 완전히 로드될 때까지 대기
+      waitForNaverMaps();
     };
     
     script.onerror = (error) => {

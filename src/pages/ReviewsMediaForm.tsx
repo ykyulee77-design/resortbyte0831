@@ -134,7 +134,8 @@ const ReviewsMediaForm: React.FC = () => {
       };
       setUploadedMedia(uploadedMediaData);
 
-      alert('사진/쇼츠가 등록되었습니다! 공유하시겠습니까?');
+      // 공유 모달 자동으로 열기
+      handleShareModalOpen();
     } catch (err) {
       alert('업로드 중 오류가 발생했습니다.');
     } finally {
@@ -222,8 +223,22 @@ const ReviewsMediaForm: React.FC = () => {
       description: '',
       resortName: '',
     });
-    // 공유 모달이 닫히면 리뷰 페이지로 이동
-    navigate('/reviews');
+    // 공유 모달이 닫히면 숏츠 페이지로 이동
+    navigate('/resort-shorts');
+  };
+
+  // 공유하지 않기
+  const handleSkipShare = () => {
+    setShareModal({
+      isOpen: false,
+      mediaUrl: '',
+      mediaType: 'image',
+      title: '',
+      description: '',
+      resortName: '',
+    });
+    // 공유하지 않고 숏츠 페이지로 이동
+    navigate('/resort-shorts');
   };
 
   return (
@@ -365,6 +380,7 @@ const ReviewsMediaForm: React.FC = () => {
       <ShareModal
         isOpen={shareModal.isOpen}
         onClose={handleShareModalClose}
+        onSkipShare={handleSkipShare}
         mediaUrl={shareModal.mediaUrl}
         mediaType={shareModal.mediaType}
         title={shareModal.title}

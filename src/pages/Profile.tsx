@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, LogOut, Trash2, AlertTriangle, FileText, Edit, Save, XCircle, Phone, Briefcase, GraduationCap, Award, DollarSign, Home, Globe, Users, Clock } from 'lucide-react';
+import { User, LogOut, Trash2, AlertTriangle, FileText, Edit, Save, XCircle, Phone, Briefcase, GraduationCap, Award, DollarSign, Home, Globe, Users, Clock, Flag } from 'lucide-react';
 import { doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { deleteUser, getAuth } from 'firebase/auth';
 import { Resume } from '../types';
 import UnifiedScheduleGrid from '../components/UnifiedScheduleGrid';
+import ReportButton from '../components/ReportButton';
 
 const Profile: React.FC = () => {
   const { user, logout, updateUserData } = useAuth();
@@ -198,6 +199,17 @@ const Profile: React.FC = () => {
                 : '회사에 제출할 이력서를 작성하고 관리하세요. 지원 시 이 정보가 이력서로 사용됩니다.'
               }
             </p>
+          </div>
+          
+          {/* 신고 버튼 - 다른 사용자의 프로필을 볼 때만 표시 */}
+          <div className="flex items-center gap-2">
+            <ReportButton
+              targetType="user"
+              targetId={user.uid}
+              targetName={user.displayName || '사용자'}
+              variant="icon"
+              size="sm"
+            />
           </div>
 
         </div>

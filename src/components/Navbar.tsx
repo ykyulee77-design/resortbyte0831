@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, LogOut, Menu, X, UserPlus, Home, Users, FileText, BarChart3, Building } from 'lucide-react';
+import { User, LogOut, Menu, X, UserPlus, Home, Users, FileText, BarChart3, Building, Briefcase } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -76,13 +76,14 @@ const Navbar: React.FC = () => {
             <Link to="/" className={navLinkClass('/')}>
               소개
             </Link>
-            <Link to="/home" className={navLinkClass('/home')}>
-              홈
+            <Link to="/home" className={`${navLinkClass('/home')} flex items-center gap-1`}>
+              <Briefcase className="w-4 h-4" />
+              채용정보
             </Link>
-            <Link to="/reviews" className={`${navLinkClass('/reviews')} flex items-center gap-1`}>
+            <Link to="/resort-life" className={`${navLinkClass('/resort-life')} flex items-center gap-1`}>
               <span role="img" aria-label="life">🌴</span> 리조트바이트 생활
             </Link>
-            <Link to="/accommodations" className={`bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 px-3 py-2 rounded-md text-sm font-semibold flex items-center gap-1 shadow-sm transition-colors ${isActivePath('/accommodations') ? 'border-b-2 border-resort-600' : ''}`}>
+            <Link to="/accommodations" className={`${navLinkClass('/accommodations')} flex items-center gap-1`}>
               <Building className="w-4 h-4" />
               기숙사
             </Link>
@@ -165,13 +166,14 @@ const Navbar: React.FC = () => {
             >
               소개
             </Link>
-            <Link to="/home" className={navLinkClassMobile('/home')}>
-              홈
+            <Link to="/home" className={`${navLinkClassMobile('/home')} flex items-center gap-2`}>
+              <Briefcase className="w-4 h-4" />
+              채용정보
             </Link>
-            <Link to="/reviews" className={`${navLinkClassMobile('/reviews')} flex items-center gap-2`}>
+            <Link to="/resort-life" className={`${navLinkClassMobile('/resort-life')} flex items-center gap-2`}>
               <span role="img" aria-label="life">🌴</span> 리조트바이트 생활
             </Link>
-            <Link to="/accommodations" className={`bg-resort-50 text-resort-700 hover:bg-resort-100 border border-resort-200 block px-3 py-2 rounded-md text-base font-semibold flex items-center gap-2 shadow-sm transition-colors ${isActivePath('/accommodations') ? 'border-b-2 border-resort-600' : ''}`}>
+            <Link to="/accommodations" className={`${navLinkClassMobile('/accommodations')} flex items-center gap-2`}>
               <Building className="w-4 h-4" />
               기숙사
             </Link>
