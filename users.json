@@ -1,0 +1,73 @@
+{"users": [
+{
+  "localId": "Aok8quvbOhfM8KWLRUGNNUiEnYs1",
+  "email": "superadmin@test.com",
+  "emailVerified": false,
+  "passwordHash": "JCwBDb/k8oga7nRhA18YFH59+KUkpQzQXctIB2xhdrY/Prt1WzQb/ammJkAeAHsdHzFMcBL+hwQs39KM8P25Nw==",
+  "salt": "ZqgNS6bQIyXkUA==",
+  "displayName": "시스템관리자",
+  "lastSignedInAt": "1758091987939",
+  "createdAt": "1758088616754",
+  "customAttributes": "{\"role\":\"admin\"}",
+  "providerUserInfo": []
+},
+{
+  "localId": "RP0iqS_9ae921idaUg8kP9Dv6IBus9qrdIMuwzMrkt8",
+  "lastSignedInAt": "1758085557643",
+  "createdAt": "1758073797597"
+},
+{
+  "localId": "UWTBpQSbP9fyEMe14I3YnL6zu3o1",
+  "email": "admin@test.com",
+  "emailVerified": false,
+  "passwordHash": "hpUNx9ujgCe1jjJ53k/y+lN4bni64LNmIi4kmrPYYAiCET8tTJszrYIaz6rCtbrvPiTNIYZnlxQhfsjOKSuabg==",
+  "salt": "aRYzE3XLJsp61g==",
+  "displayName": "관리자 ",
+  "lastSignedInAt": "1758087497982",
+  "createdAt": "1758087497982",
+  "providerUserInfo": []
+},
+{
+  "localId": "Ys90zeq83JcNTE5dC2BztACJS4N2",
+  "email": "admin@naver.com",
+  "emailVerified": false,
+  "passwordHash": "JB/PMK3AznRK12Gl/z9Mjy8fxkh9k5g85FxkNQtHiV5DNQTtV0Qve4Vjr+DUJ6BSpyklAZb0eGYcnP9hWIUe1w==",
+  "salt": "qubCOCC9RvTjYw==",
+  "displayName": "이윤규",
+  "lastSignedInAt": "1758086101599",
+  "createdAt": "1758086101599",
+  "providerUserInfo": []
+},
+{
+  "localId": "rayPRgyrdxPJG9olL32lIYZWdI13",
+  "email": "admin2@test.com",
+  "emailVerified": false,
+  "passwordHash": "YW+jXd6pn1vaj+FrXZSeUHk2eLaHHtX9r1zo9K97EeC3SOKi1pBF4HDRnu4e3PZ6kGjqDd8B9QCMWEFXCXIJFg==",
+  "salt": "jbXHB7fEG8zIRw==",
+  "displayName": "관리자 ",
+  "lastSignedInAt": "1758087727416",
+  "createdAt": "1758087727416",
+  "providerUserInfo": []
+},
+{
+  "localId": "t2Qu4tS7hEWV0JpFkjkFMi9uOwC3",
+  "email": "admin1@naver.com",
+  "emailVerified": false,
+  "passwordHash": "WKU0WTSdLBL7l9KI5nZIevK0GD+izZJkRI+yONtE7WOvAhXlHBIgM3U1QhW+6lAlo98PaQb0khOpwRMqrbn5Tw==",
+  "salt": "OWcm2Kdg+3q81A==",
+  "displayName": "이윤규",
+  "lastSignedInAt": "1758086165101",
+  "createdAt": "1758086165101",
+  "providerUserInfo": []
+},
+{
+  "localId": "xpr2H8RNqkNrxXOmqgc95Jto3Fe2",
+  "email": "admin2@naver.com",
+  "emailVerified": false,
+  "passwordHash": "159y2fDg54++6O1QNeLwORtiqVWSh4DKFcQpAI5fezJsU2TGWqAr/M56t3zgo9OO6puvWGjTdrqrB125xtgXuA==",
+  "salt": "AVXpD/6eDdYDzw==",
+  "displayName": "이윤규",
+  "lastSignedInAt": "1758087430572",
+  "createdAt": "1758087430572",
+  "providerUserInfo": []
+}]}

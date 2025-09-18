@@ -9,7 +9,7 @@ import {
 import { db } from '../firebase';
 
 // Firebase 데이터 초기화 유틸리티
-export const cleanupAllData = async (preserveAdminUsers: boolean = true) => {
+export const cleanupAllData = async (preserveAdminUsers = true) => {
   try {
     console.log('데이터 초기화 시작...');
     
@@ -85,7 +85,7 @@ export const cleanupJobPostsByStatus = async (status: string) => {
   }
 };
 
-export const cleanupOldApplications = async (daysOld: number = 30) => {
+export const cleanupOldApplications = async (daysOld = 30) => {
   try {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);

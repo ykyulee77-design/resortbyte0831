@@ -142,8 +142,8 @@ const MemberManagement: React.FC = () => {
             email: userData.email || '',
             displayName: userData.displayName || userData.name || '이름 없음',
             role: userData.role || 'jobseeker',
-            createdAt: userData.createdAt?.toDate() || new Date(),
-            lastLoginAt: userData.lastLoginAt?.toDate(),
+            createdAt: userData.createdAt?.toDate ? userData.createdAt.toDate() : (userData.createdAt ? new Date(userData.createdAt) : new Date()),
+            lastLoginAt: userData.lastLoginAt?.toDate ? userData.lastLoginAt.toDate() : (userData.lastLoginAt ? new Date(userData.lastLoginAt) : undefined),
             isActive: userData.isActive !== false,
             isSuspended: userData.isSuspended || false,
             isVerified: userData.isVerified || false,
@@ -153,7 +153,7 @@ const MemberManagement: React.FC = () => {
             // 구직자 정보
             jobseekerInfo: userData.role === 'jobseeker' ? {
               phone: userData.phone || '',
-              birthDate: userData.birthDate?.toDate(),
+              birthDate: userData.birthDate?.toDate ? userData.birthDate.toDate() : (userData.birthDate ? new Date(userData.birthDate) : undefined),
               gender: userData.gender,
               education: userData.education || '',
               experience: userData.experience || '',
@@ -185,7 +185,7 @@ const MemberManagement: React.FC = () => {
               totalViews: userData.totalViews || 0,
               responseRate: userData.responseRate || 0,
               avgResponseTime: userData.avgResponseTime || 0,
-              lastActivity: userData.lastActivity?.toDate() || new Date()
+              lastActivity: userData.lastActivity?.toDate ? userData.lastActivity.toDate() : (userData.lastActivity ? new Date(userData.lastActivity) : new Date())
             },
             
             // 상태 정보
@@ -195,7 +195,7 @@ const MemberManagement: React.FC = () => {
               profileVerified: userData.profileVerified || false,
               documentsVerified: userData.documentsVerified || false,
               premiumMember: userData.premiumMember || false,
-              subscriptionExpiresAt: userData.subscriptionExpiresAt?.toDate()
+              subscriptionExpiresAt: userData.subscriptionExpiresAt?.toDate ? userData.subscriptionExpiresAt.toDate() : (userData.subscriptionExpiresAt ? new Date(userData.subscriptionExpiresAt) : undefined)
             }
           };
           

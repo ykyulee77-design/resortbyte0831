@@ -5,6 +5,10 @@ import { Eye, EyeOff, AlertCircle, Home } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import Navbar from '../components/Navbar';
+import NaverLogin from '../components/NaverLogin';
+import KakaoLogin from '../components/KakaoLogin';
+import GoogleLogin from '../components/GoogleLogin';
+import AppleLogin from '../components/AppleLogin';
 
 const Login: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -14,10 +18,13 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const [selectedRole, setSelectedRole] = useState<'jobseeker' | 'employer'>('jobseeker');
+  const { signIn, setUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/dashboard';
+
+  // 관리자 페이지 로그인 함수 제거됨 - 보안상 문제로 삭제
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -38,6 +45,8 @@ const Login: React.FC = () => {
 
     try {
       setLoading(true);
+      
+      // 모든 사용자 동일한 Firebase Auth 로그인
       await signIn(formData.email, formData.password);
       // 로그인 후 사용자 정보 확인
       const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -154,6 +163,91 @@ const Login: React.FC = () => {
               >
                 {loading ? '로그인 중...' : '로그인'}
               </button>
+            </div>
+
+            {/* 구분선 */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-50 text-gray-500">또는</span>
+              </div>
+            </div>
+
+            {/* 역할 선택 */}
+            <div className="space-y-3">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-2">간편 로그인</p>
+                <p className="text-xs text-gray-500 mb-4">로그인할 계정 유형을 선택하세요</p>
+              </div>
+              
+              <div className="flex space-x-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole('jobseeker')}
+                  className={`flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors ${
+                    selectedRole === 'jobseeker'
+                      ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                      : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                  }`}
+                >
+                  크루 (구직자)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole('employer')}
+                  className={`flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors ${
+                    selectedRole === 'employer'
+                      ? 'bg-green-100 text-green-700 border border-green-300'
+                      : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
+                  }`}
+                >
+                  리조트 (고용주)
+                </button>
+              </div>
+              
+              <NaverLogin 
+                selectedRole={selectedRole}
+                onSuccess={() => {
+                  // 로그인 성공 시 처리는 NaverCallback에서 처리됨
+                }}
+                onError={(error) => {
+                  setError(error);
+                }}
+              />
+              
+              <KakaoLogin 
+                selectedRole={selectedRole}
+                onSuccess={() => {
+                  // 로그인 성공 시 처리
+                }}
+                onError={(error) => {
+                  setError(error);
+                }}
+              />
+              
+              <GoogleLogin 
+                selectedRole={selectedRole}
+                onSuccess={() => {
+                  // 로그인 성공 시 처리
+                }}
+                onError={(error) => {
+                  setError(error);
+                }}
+              />
+              
+              <AppleLogin 
+                selectedRole={selectedRole}
+                onSuccess={() => {
+                  // 로그인 성공 시 처리
+                }}
+                onError={(error) => {
+                  setError(error);
+                }}
+              />
+
+              {/* 관리자 페이지 임시 버튼 제거됨 - 보안상 문제로 삭제 */}
             </div>
 
             <div className="text-center space-y-2">

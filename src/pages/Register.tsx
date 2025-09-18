@@ -29,8 +29,17 @@ const Register: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp } = useAuth();
+  const { signUp, user, logout } = useAuth();
   const navigate = useNavigate();
+
+  // 이미 로그인된 사용자가 있으면 처리
+  useEffect(() => {
+    if (user) {
+      console.log('⚠️ 이미 로그인된 사용자:', user.displayName);
+      // 기존 사용자를 로그아웃시키고 새 회원가입 진행
+      logout();
+    }
+  }, [user, logout]);
 
   // URL 파라미터에서 회원유형 자동 설정
   useEffect(() => {
@@ -116,10 +125,18 @@ const Register: React.FC = () => {
         };
         await signUp(formData.email, formData.password, formData.displayName, formData.userType, employerInfo);
       } else {
+        // 관리자 또는 일반 구직자 등록 (모두 동일한 Firebase 시스템 사용)
         await signUp(formData.email, formData.password, formData.displayName, formData.userType);
       }
       
-      navigate('/dashboard');
+      // 역할별 대시보드로 이동
+      if (formData.userType === 'admin') {
+        navigate('/admin-dashboard');
+      } else if (formData.userType === 'employer') {
+        navigate('/employer-dashboard');
+      } else {
+        navigate('/jobseeker-dashboard');
+      }
     } catch (error: any) {
       console.error('회원가입 실패:', error);
       if (error.code === 'auth/email-already-in-use') {

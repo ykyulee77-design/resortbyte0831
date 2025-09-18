@@ -14,6 +14,15 @@
   "functions": {
     "source": "functions"
   },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "functions": {
+      "port": 5002
+    }
+  },
   "storage": {
     "rules": "firebase-storage.rules"
   }

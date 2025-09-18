@@ -298,32 +298,58 @@ export const isAdminLoggedIn = (): boolean => {
 // 관리자 권한 초기화
 export const initializeAdminAuth = async (uid: string): Promise<void> => {
   try {
-    // Firebase에서 관리자 정보 가져오기
-    const { doc, getDoc } = await import('firebase/firestore');
-    const { db } = await import('../firebase');
-    
-    // users 컬렉션에서 관리자 정보 가져오기
-    const userDoc = await getDoc(doc(db, 'users', uid));
-    
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
+    // localStorage에서 현재 사용자 확인 (우선순위)
+    const currentUser = localStorage.getItem('user');
+    if (currentUser) {
+      const user = JSON.parse(currentUser);
       
       // 관리자 역할인지 확인
-      if (userData.role === 'admin') {
+      if (user.role === 'admin') {
         const admin: AdminUser = {
-          uid: userDoc.id,
-          email: userData.email,
-          role: AdminRole.ADMIN, // 기본적으로 ADMIN 역할로 설정
-          permissions: ROLE_PERMISSIONS[AdminRole.ADMIN], // ADMIN 권한 부여
-          createdAt: userData.createdAt?.toDate() || new Date(),
-          lastLoginAt: userData.lastLoginAt?.toDate(),
-          isActive: userData.isActive !== false,
-          createdBy: userData.createdBy
+          uid: user.uid,
+          email: user.email,
+          role: AdminRole.ADMIN,
+          permissions: ROLE_PERMISSIONS[AdminRole.ADMIN],
+          createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
+          lastLoginAt: new Date(),
+          isActive: true,
+          createdBy: 'system'
         };
         
         adminAuth.setCurrentAdmin(admin);
-        console.log('관리자 권한 초기화 완료:', admin);
+        console.log('✅ 관리자 권한 초기화 완료 (localStorage):', admin.email);
+        return;
       }
+    }
+    
+    // Firebase fallback (권한 오류 시 조용히 실패)
+    try {
+      const { doc, getDoc } = await import('firebase/firestore');
+      const { db } = await import('../firebase');
+      
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        if (userData.role === 'admin') {
+          const admin: AdminUser = {
+            uid: userDoc.id,
+            email: userData.email,
+            role: AdminRole.ADMIN,
+            permissions: ROLE_PERMISSIONS[AdminRole.ADMIN],
+            createdAt: userData.createdAt?.toDate() || new Date(),
+            lastLoginAt: userData.lastLoginAt?.toDate(),
+            isActive: userData.isActive !== false,
+            createdBy: userData.createdBy
+          };
+          
+          adminAuth.setCurrentAdmin(admin);
+          console.log('✅ 관리자 권한 초기화 완료 (Firebase):', admin.email);
+        }
+      }
+    } catch (firebaseError) {
+      console.log('📝 Firebase 관리자 조회 실패 - localStorage 기반 관리자 사용');
     }
   } catch (error) {
     console.error('관리자 권한 초기화 실패:', error);

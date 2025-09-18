@@ -9,6 +9,8 @@ import VersionInfo from './components/VersionInfo';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
+import CrewSignUp from './pages/CrewSignUp';
+import ResortSignUp from './pages/ResortSignUp';
 import Register from './pages/Register';
 import JobseekerDashboard from './pages/JobseekerDashboard';
 import EmployerDashboard from './pages/EmployerDashboard';
@@ -47,6 +49,8 @@ import ResortShorts from './pages/ResortShorts';
 import ResortReviews from './pages/ResortReviews';
 import ResortLifeGuide from './pages/ResortLifeGuide';
 import DormGate from './pages/DormGate';
+import SimpleNaverCallback from './pages/SimpleNaverCallback';
+import KakaoCallback from './pages/KakaoCallback';
 
 
 // 레이아웃 컴포넌트
@@ -100,19 +104,33 @@ const ProtectedRoute: React.FC<{
 }) => {
   const { user, loading } = useAuth();
 
+  console.log('🔐 ProtectedRoute 체크:', { 
+    user: user?.displayName, 
+    role: user?.role, 
+    loading, 
+    allowedRoles,
+    localStorage: localStorage.getItem('user') ? '있음' : '없음'
+  });
+
+  // 사용자가 있으면 즉시 권한 체크 후 렌더링
+  if (user) {
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
+      console.log('🚫 ProtectedRoute: 권한 없음 - 역할:', user.role, '허용된 역할:', allowedRoles);
+      return <>{fallback}</>;
+    }
+    console.log('✅ ProtectedRoute: 접근 허용 (사용자 존재)');
+    return <>{children}</>;
+  }
+
+  // 로딩 중일 때만 스피너 표시
   if (loading) {
+    console.log('⏳ ProtectedRoute: 로딩 중...');
     return <LoadingSpinner />;
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <>{fallback}</>;
-  }
-
-  return <>{children}</>;
+  // 로딩 완료 후 사용자가 없으면 로그인으로 리다이렉트
+  console.log('❌ ProtectedRoute: 사용자 없음 - 로그인으로 리다이렉트');
+  return <Navigate to="/login" replace />;
 };
 
 // 대시보드 라우팅 컴포넌트 - 제거
@@ -176,7 +194,11 @@ function App() {
             } />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
+            <Route path="/signup/crew" element={<CrewSignUp />} />
+            <Route path="/signup/resort" element={<ResortSignUp />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/auth/naver/callback" element={<SimpleNaverCallback />} />
+            <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
             
             {/* 구인공고 관련 라우트 */}
             <Route path="/jobs" element={<Navigate to="/" replace />} />
@@ -482,8 +504,8 @@ function App() {
             <VersionInfo />
           </div>
         </div>
-      </Router>
-    </AuthProvider>
+        </Router>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }
