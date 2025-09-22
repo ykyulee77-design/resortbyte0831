@@ -23,6 +23,13 @@ const NaverMapScript: React.FC = () => {
       console.log('네이버 지도 API가 이미 로드되어 있습니다.');
       console.log('window.naver 상태:', window.naver);
       console.log('window.naver.maps 상태:', window.naver.maps);
+      
+      // 이미 로드된 경우에도 한국어 설정 적용
+      if (window.naver.maps.Service && window.naver.maps.Service.setLanguage) {
+        window.naver.maps.Service.setLanguage('ko');
+        console.log('네이버 지도 API 한국어 설정 적용됨 (이미 로드된 상태)');
+      }
+      
       setIsLoaded(true);
       return;
     }
@@ -41,8 +48,8 @@ const NaverMapScript: React.FC = () => {
     console.log('클라이언트 ID:', clientId);
     
     const script = document.createElement('script');
-    // 새로운 API 형식: ncpKeyId 사용
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder`;
+    // 새로운 API 형식: ncpKeyId 사용 (한국어 설정 추가)
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder&language=ko`;
     script.async = true;
     
     script.onload = () => {
@@ -54,6 +61,13 @@ const NaverMapScript: React.FC = () => {
       const waitForNaverMaps = () => {
         if (window.naver && window.naver.maps && window.naver.maps.Map) {
           console.log('네이버 지도 API 완전 로드 확인됨');
+          
+          // 한국어 설정 적용
+          if (window.naver.maps.Service && window.naver.maps.Service.setLanguage) {
+            window.naver.maps.Service.setLanguage('ko');
+            console.log('네이버 지도 API 한국어 설정 적용됨');
+          }
+          
           setIsLoaded(true);
         } else {
           console.log('네이버 지도 API 로드 대기 중...');

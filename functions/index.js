@@ -275,26 +275,93 @@ app.post('/api/auth/naver/callback', async (req, res) => {
     const userDoc = admin.firestore().doc(`users/${uid}`);
     const userSnapshot = await userDoc.get();
     
-    const userData = {
-      email: email,
-      displayName: naverUser.name,
-      mobile: naverUser.mobile || '',
-      profile_image: naverUser.profile_image || '',
-      provider: 'naver',
-      providerId: naverUser.id,
-      updatedAt: new Date().toISOString(),
-    };
+    // state 파라미터에서 역할 파싱
+    let userRole = 'jobseeker'; // 기본 역할
+    let isSignup = false;
+    if (state && state.includes('|')) {
+      const [role, action] = state.split('|');
+      if (role === 'employer') {
+        userRole = 'employer';
+      }
+      if (action === 'signup') {
+        isSignup = true;
+      }
+      console.log('State에서 파싱된 역할:', userRole, '액션:', action, '회원가입 여부:', isSignup);
+    }
 
     if (!userSnapshot.exists) {
       // 새 사용자인 경우
-      userData.role = 'jobseeker'; // 기본 역할
-      userData.createdAt = new Date().toISOString();
-      await userDoc.set(userData);
-      console.log('새 사용자 Firestore 문서 생성:', uid);
+      if (isSignup) {
+        // 회원가입 요청인 경우 - 새 사용자 생성
+        const userData = {
+          email: email,
+          displayName: naverUser.name,
+          mobile: naverUser.mobile || '',
+          profile_image: naverUser.profile_image || '',
+          provider: 'naver',
+          providerId: naverUser.id,
+          role: userRole, // state에서 파싱된 역할 사용
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        await userDoc.set(userData);
+        console.log('새 사용자 Firestore 문서 생성:', uid, '역할:', userRole);
+      } else {
+        // 로그인 요청인데 새 사용자인 경우 - 에러
+        console.log('로그인 요청인데 새 사용자:', uid);
+        return res.status(400).json({
+          success: false,
+          error: '등록되지 않은 사용자입니다. 회원가입을 먼저 진행해주세요.',
+          errorCode: 'USER_NOT_FOUND'
+        });
+      }
     } else {
       // 기존 사용자인 경우
-      await userDoc.update(userData);
-      console.log('기존 사용자 Firestore 문서 업데이트:', uid);
+      if (isSignup) {
+        // 회원가입 요청인데 기존 사용자인 경우 - 역할 변경만 허용
+        const existingData = userSnapshot.data();
+        const currentRole = existingData.role || 'jobseeker';
+        
+        const userData = {
+          email: email,
+          displayName: naverUser.name,
+          mobile: naverUser.mobile || '',
+          profile_image: naverUser.profile_image || '',
+          provider: 'naver',
+          providerId: naverUser.id,
+          role: currentRole, // 기본적으로 기존 역할 유지
+          updatedAt: new Date().toISOString(),
+        };
+        
+        // 회원가입 시 역할 전환 허용 (양방향)
+        if (currentRole !== userRole) {
+          userData.role = userRole;
+          console.log('기존 사용자 역할 변경:', uid, '기존:', currentRole, '새로운:', userRole);
+        } else {
+          console.log('기존 사용자 역할 유지 (동일한 역할):', uid, '역할:', currentRole);
+        }
+        
+        await userDoc.update(userData);
+        console.log('기존 사용자 Firestore 문서 업데이트:', uid, '역할:', userData.role);
+      } else {
+        // 로그인 요청인 경우 - 기존 역할 유지 (로그인 시에는 기존 역할 우선)
+        const existingData = userSnapshot.data();
+        const currentRole = existingData.role || 'jobseeker';
+        
+        const userData = {
+          email: email,
+          displayName: naverUser.name,
+          mobile: naverUser.mobile || '',
+          profile_image: naverUser.profile_image || '',
+          provider: 'naver',
+          providerId: naverUser.id,
+          role: currentRole, // 기존 역할 유지
+          updatedAt: new Date().toISOString(),
+        };
+        
+        await userDoc.update(userData);
+        console.log('기존 사용자 로그인:', uid, '요청 역할:', userRole, '기존 역할:', currentRole, '최종 역할:', currentRole);
+      }
     }
 
     // 5. 커스텀 토큰 생성 (서비스 계정 키가 있는 경우에만)
@@ -306,7 +373,19 @@ app.post('/api/auth/naver/callback', async (req, res) => {
       console.log('커스텀 토큰 생성 실패 (서비스 계정 키 없음):', error.message);
     }
 
-    // 6. 응답
+    // 6. 응답 (최종 역할 결정)
+    let finalRole = userRole;
+    if (userSnapshot.exists) {
+      // 기존 사용자의 경우 업데이트된 역할 사용
+      const existingData = userSnapshot.data();
+      // 로그인인 경우 기존 역할 우선, 회원가입인 경우 state 파라미터 우선
+      if (!isSignup) {
+        finalRole = existingData.role || 'jobseeker';
+      } else {
+        finalRole = userRole || existingData.role || 'jobseeker';
+      }
+    }
+
     return res.json({
       success: true,
       customToken: customToken,
@@ -317,7 +396,7 @@ app.post('/api/auth/naver/callback', async (req, res) => {
         name: naverUser.name,
         mobile: naverUser.mobile || '',
         profile_image: naverUser.profile_image || '',
-        role: userSnapshot.exists ? (await userSnapshot.data()).role : 'jobseeker'
+        role: finalRole // 최종 결정된 역할 사용
       }
     });
 

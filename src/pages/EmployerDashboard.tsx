@@ -62,6 +62,92 @@ const EmployerDashboard: React.FC = () => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewImageName, setPreviewImageName] = useState<string>('');
 
+  // 동적 예시 텍스트 생성 함수
+  const getExampleText = (field: string) => {
+    const companyName = companyInfo?.name || (user as any)?.companyName || '리조트 스키장';
+    const companyAddress = companyInfo?.address || companyInfo?.companyAddress || (user as any)?.companyAddress || '강원도 평창군 대관령면 올림픽로 715';
+    const industry = companyInfo?.industry || (user as any)?.industry || '관광업';
+    
+    switch (field) {
+      case 'description':
+        return `🏔️ ${companyName}는 ${companyAddress}에 위치한 프리미엄 ${industry} 리조트입니다.
+
+🌟 주요 특징:
+• 최신 시설과 편리한 이용 환경
+• 숙련된 강사진과 안전한 교육 프로그램
+• 다양한 연령대를 위한 맞춤형 프로그램
+• 연중무휴 운영으로 고객 만족도 극대화
+
+💼 우리는 다음과 같은 가치를 추구합니다:
+- 고객 만족을 최우선으로 하는 서비스
+- 안전하고 체계적인 교육 시스템
+- 지속적인 혁신과 개선
+- 팀워크와 협력을 중시하는 조직 문화
+
+🏆 ${companyName}의 경험과 노하우를 바탕으로, 국내 최고 수준의 서비스를 제공하고 있습니다.`;
+      
+      case 'culture':
+        return `🌟 열정과 도전을 중시하는 ${companyName}의 문화
+우리는 매일 새로운 도전에 맞서며, 팀원들의 열정과 창의성을 존중합니다.
+
+🤝 협력과 소통
+수평적 소통을 통해 모든 팀원의 의견을 듣고, 함께 성장하는 문화를 만들어갑니다.
+
+📈 지속적인 학습과 성장
+새로운 기술과 트렌드를 배우며, 개인과 조직의 지속적인 발전을 추구합니다.
+
+🎯 고객 중심의 서비스
+고객의 만족을 최우선으로 하며, 최고의 서비스를 제공하기 위해 노력합니다.
+
+💡 혁신과 창의성
+전통적인 방식에 안주하지 않고, 더 나은 방법을 찾아 혁신을 추구합니다.`;
+      
+      default:
+        return '';
+    }
+  };
+
+  // 동적 복리후생 예시 생성 함수
+  const getExampleBenefits = () => {
+    const industry = companyInfo?.industry || (user as any)?.industry || '관광업';
+    
+    // 업종별 맞춤 복리후생
+    if (industry.includes('스키') || industry.includes('리조트') || industry.includes('관광')) {
+      return [
+        '🏂 스키/보드 무료 이용권',
+        '🍽️ 직원 식사 지원',
+        '🚌 통근 버스 운영',
+        '🏠 직원 기숙사 제공',
+        '💰 성과급 및 인센티브',
+        '📚 교육비 지원',
+        '🏥 건강검진 지원',
+        '🎁 휴가 및 여행 지원'
+      ];
+    } else if (industry.includes('호텔') || industry.includes('숙박')) {
+      return [
+        '🏨 숙박 할인 혜택',
+        '🍽️ 직원 식사 지원',
+        '🚌 통근 버스 운영',
+        '🏠 직원 기숙사 제공',
+        '💰 성과급 및 인센티브',
+        '📚 교육비 지원',
+        '🏥 건강검진 지원',
+        '🎁 휴가 및 여행 지원'
+      ];
+    } else {
+      return [
+        '🏢 업무 환경 최적화',
+        '🍽️ 직원 식사 지원',
+        '🚌 통근 버스 운영',
+        '🏠 직원 기숙사 제공',
+        '💰 성과급 및 인센티브',
+        '📚 교육비 지원',
+        '🏥 건강검진 지원',
+        '🎁 휴가 및 여행 지원'
+      ];
+    }
+  };
+
   // 기숙사 편집 상태 (더 이상 사용하지 않지만 참조를 위해 유지)
   const [isAccommodationEditing] = useState(false);
   const [accommodationEditData] = useState<any>({});
@@ -156,22 +242,52 @@ const EmployerDashboard: React.FC = () => {
     try {
       setLoading(true);
       
-        // 1. 회사 정보 로딩
+        // 1. 회사 정보 로딩 (새로운 companies 컬렉션 우선)
         let companyData = null;
         
-        // companyInfo 컬렉션에서 검색 (employerId로)
+        // 먼저 users 컬렉션에서 companyId 확인
+        let companyId = null;
         try {
-          const companyInfoQuery = query(
-            collection(db, 'companyInfo'),
-            where('employerId', '==', user.uid),
-          );
-          const companySnapshot = await getDocs(companyInfoQuery);
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
           
-          if (!companySnapshot.empty) {
-            companyData = companySnapshot.docs[0].data();
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            companyId = userData.companyId;
           }
         } catch (error) {
-          console.error('companyInfo 컬렉션 검색 오류:', error);
+          console.error('사용자 정보 조회 오류:', error);
+        }
+        
+        // companyId가 있으면 companies 컬렉션에서 조회
+        if (companyId) {
+          try {
+            const companyDocRef = doc(db, 'companies', companyId);
+            const companyDoc = await getDoc(companyDocRef);
+            
+            if (companyDoc.exists()) {
+              companyData = { ...companyDoc.data(), id: companyId };
+            }
+          } catch (error) {
+            console.error('companies 컬렉션 조회 오류:', error);
+          }
+        }
+        
+        // companies 컬렉션에서 찾지 못한 경우, 기존 companyInfo 컬렉션에서 검색
+        if (!companyData) {
+          try {
+            const companyInfoQuery = query(
+              collection(db, 'companyInfo'),
+              where('employerId', '==', user.uid),
+            );
+            const companySnapshot = await getDocs(companyInfoQuery);
+            
+            if (!companySnapshot.empty) {
+              companyData = companySnapshot.docs[0].data();
+            }
+          } catch (error) {
+            console.error('companyInfo 컬렉션 검색 오류:', error);
+          }
         }
 
         // employerId로 찾지 못한 경우, document ID로 직접 검색
@@ -212,15 +328,23 @@ const EmployerDashboard: React.FC = () => {
                   companySize: userData.companySize,
                   contactPerson: userData.contactPerson,
                   contactPhone: userData.contactPhone,
+                  description: userData.description,
+                  culture: userData.culture,
+                  benefits: userData.benefits,
+                  images: userData.images,
                 };
                 
-                // companyInfo 컬렉션에 저장
+                // companyInfo 컬렉션에 저장 (undefined 값 필터링)
                 try {
-                  await setDoc(doc(db, 'companyInfo', user.uid), {
-                    ...companyData,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                  });
+                  const migrationData = Object.fromEntries(
+                    Object.entries({
+                      ...companyData,
+                      createdAt: serverTimestamp(),
+                      updatedAt: serverTimestamp(),
+                    }).filter(([_, value]) => value !== undefined)
+                  );
+                  
+                  await setDoc(doc(db, 'companyInfo', user.uid), migrationData);
                   console.log('기존 구인자 데이터를 companyInfo로 마이그레이션 완료');
                 } catch (migrationError) {
                   console.error('마이그레이션 오류:', migrationError);
@@ -231,6 +355,28 @@ const EmployerDashboard: React.FC = () => {
             }
           } catch (error) {
             console.error('users 컬렉션 검색 오류:', error);
+          }
+        }
+
+        // users 컬렉션에서 추가 이미지 데이터 확인 (기존 호환성)
+        if (companyData && (!companyData.images || companyData.images.length === 0)) {
+          try {
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+            
+            if (userDoc.exists()) {
+              const userData = userDoc.data() as any;
+              
+              // users 컬렉션에 이미지가 있으면 추가
+              if (userData.images && userData.images.length > 0) {
+                companyData.images = userData.images;
+                companyData.description = userData.description || companyData.description;
+                companyData.culture = userData.culture || companyData.culture;
+                companyData.benefits = userData.benefits || companyData.benefits;
+              }
+            }
+          } catch (error) {
+            console.error('users 컬렉션 이미지 데이터 조회 오류:', error);
           }
         }
 
@@ -479,10 +625,60 @@ const EmployerDashboard: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 헤더 */}
-        <div className="mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">회사 대시보드</h1>
-          <p className="mt-1 text-gray-600">회사 정보와 구인 현황을 관리하세요</p>
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+              <Building className="w-6 h-6 text-blue-600" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">🏢 리조트 대시보드</h1>
+          </div>
+          <p className="text-gray-600 text-lg">회사 정보와 구인 현황을 한눈에 관리하세요</p>
         </div>
+
+        {/* 회사 정보 미완성 안내 */}
+        {(!(user as any)?.companyName || !(user as any)?.companyAddress || !(user as any)?.companyPhone) && (
+          <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                  <Building className="w-4 h-4 text-white" />
+                </div>
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-lg font-semibold text-blue-900">
+                  🏢 회사 정보를 완성해주세요
+                </h3>
+                <div className="mt-2 text-sm text-blue-800">
+                  <p className="mb-3 font-medium">
+                    📋 구인 공고 등록과 크루 모집을 위해 다음 정보가 필요합니다:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-blue-700">
+                    <li>회사명 (필수)</li>
+                    <li>회사 주소 (필수)</li>
+                    <li>회사 연락처 (필수)</li>
+                    <li>회사 소개, 복리후생, 문화 등 (선택)</li>
+                  </ul>
+                  <div className="flex flex-wrap gap-3 mt-4">
+                    <Link
+                      to="/company/info"
+                      className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm"
+                    >
+                      <Building className="w-4 h-4 mr-2" />
+                      ✏️ 회사 정보 입력하기
+                    </Link>
+                    <button
+                      onClick={() => setIsCompanySectionCollapsed(false)}
+                      className="inline-flex items-center px-6 py-3 border border-blue-300 text-sm font-medium rounded-lg text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      👁️ 예시 정보 미리보기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4">
           {/* 1. 회사 정보 섹션 */}
@@ -519,56 +715,85 @@ const EmployerDashboard: React.FC = () => {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <h2 className="text-xl font-bold text-gray-900 mb-2">
-                          {companyInfo?.name || '회사명 미등록'}
+                          {companyInfo?.name || (user as any)?.companyName || '🏢 리조트 스키장'}
                         </h2>
+                        
+                        {/* 회사 통계 카드 */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs text-blue-600 font-medium">활성 구인공고</p>
+                                <p className="text-lg font-bold text-blue-900">{jobPosts.filter(post => post.isActive).length}</p>
+                              </div>
+                              <FileText className="w-5 h-5 text-blue-600" />
+                            </div>
+                          </div>
+                          
+                          <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs text-green-600 font-medium">총 지원자</p>
+                                <p className="text-lg font-bold text-green-900">{applications.length}</p>
+                              </div>
+                              <Users className="w-5 h-5 text-green-600" />
+                            </div>
+                          </div>
+                          
+                          <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs text-purple-600 font-medium">회사 등록자</p>
+                                <p className="text-lg font-bold text-purple-900">{companyRegistrants.length}</p>
+                              </div>
+                              <Building className="w-5 h-5 text-purple-600" />
+                            </div>
+                          </div>
+                          
+                          <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs text-orange-600 font-medium">근무타입</p>
+                                <p className="text-lg font-bold text-orange-900">{workTypes.length}</p>
+                              </div>
+                              <Clock className="w-5 h-5 text-orange-600" />
+                            </div>
+                          </div>
+                        </div>
                         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                          {companyInfo?.industry && (
-                            <span className="flex items-center">
-                              <Building className="w-4 h-4 mr-1" />
-                              {companyInfo.industry}
-                            </span>
-                          )}
-                          {companyInfo?.size || companyInfo?.companySize ? (
-                            <span className="flex items-center">
-                              <Users className="w-4 h-4 mr-1" />
-                              {companyInfo.size || companyInfo.companySize}
-                            </span>
-                          ) : null}
-                          {companyInfo?.businessNumber && (
-                            <span className="flex items-center">
-                              <FileText className="w-4 h-4 mr-1" />
-                              {companyInfo.businessNumber}
-                            </span>
-                        )}
-                      </div>
+                          <span className="flex items-center">
+                            <Building className="w-4 h-4 mr-1" />
+                            {companyInfo?.industry || (user as any)?.industry || '관광업'}
+                          </span>
+                          <span className="flex items-center">
+                            <Users className="w-4 h-4 mr-1" />
+                            {companyInfo?.size || companyInfo?.companySize || (user as any)?.companySize || '100-300명'}
+                          </span>
+                          <span className="flex items-center">
+                            <FileText className="w-4 h-4 mr-1" />
+                            {companyInfo?.businessNumber || (user as any)?.businessNumber || '123-45-67890'}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {companyInfo?.website || companyInfo?.companyWebsite ? (
-                          <a 
-                            href={companyInfo.website || companyInfo.companyWebsite} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center px-3 py-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors text-sm font-medium"
-                          >
-                            <Globe className="w-4 h-4 mr-1" />
-                            웹사이트
-                          </a>
-                        ) : null}
+                        <a 
+                          href={companyInfo?.website || companyInfo?.companyWebsite || (user as any)?.companyWebsite || '#'} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-3 py-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors text-sm font-medium"
+                        >
+                          <Globe className="w-4 h-4 mr-1" />
+                          {companyInfo?.website || companyInfo?.companyWebsite || (user as any)?.companyWebsite ? '웹사이트' : 'www.resort-example.com'}
+                        </a>
             </div>
           </div>
 
-                    {companyInfo?.address || companyInfo?.companyAddress ? (
-                      <div className="flex items-start gap-2 text-gray-700">
-                        <MapPin className="w-4 h-4 mt-0.5 text-gray-500" />
-                        <span className="text-sm">
-                            {companyInfo.address || companyInfo.companyAddress}
-                        </span>
-              </div>
-                        ) : (
-                      <div className="flex items-center gap-2 text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
-                        <span className="text-sm font-medium">주소 정보가 등록되지 않았습니다</span>
-              </div>
-                        )}
+                    <div className="flex items-start gap-2 text-gray-700">
+                      <MapPin className="w-4 h-4 mt-0.5 text-gray-500" />
+                      <span className="text-sm">
+                        {companyInfo?.address || companyInfo?.companyAddress || (user as any)?.companyAddress || '강원도 평창군 대관령면 올림픽로 715 (예시 주소)'}
+                      </span>
+                    </div>
             </div>
                         )}
           </div>
@@ -587,17 +812,9 @@ const EmployerDashboard: React.FC = () => {
                           회사 소개
                         </h3>
                         
-                        {companyInfo?.description ? (
-                          <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                            {companyInfo.description}
-                          </p>
-                        ) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                            <p className="text-sm">회사 소개가 등록되지 않았습니다</p>
-                            <p className="text-xs mt-1">구직자들이 회사를 더 잘 이해할 수 있도록 소개를 작성해주세요</p>
-              </div>
-                        )}
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                          {companyInfo?.description || (user as any)?.description || getExampleText('description')}
+                        </p>
               </div>
 
                       {/* 복리후생 */}
@@ -607,21 +824,24 @@ const EmployerDashboard: React.FC = () => {
                           복리후생
                         </h3>
                         
-                        {(companyInfo?.benefits && companyInfo.benefits.length > 0) ? (
-                          <div className="flex flex-wrap gap-2">
-                            {companyInfo.benefits.map((benefit: string, index: number) => (
+                        <div className="flex flex-wrap gap-2">
+                          {(companyInfo?.benefits && companyInfo.benefits.length > 0) ? 
+                            companyInfo.benefits.map((benefit: string, index: number) => (
                               <span key={index} className="inline-flex items-center px-3 py-2 rounded-full text-sm bg-green-100 text-green-800 font-medium">
                                 {benefit}
                               </span>
-                            ))}
-            </div>
-                        ) : (
-                          <div className="text-center py-6 text-gray-500">
-                            <Star className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                            <p className="text-sm">등록된 복리후생 정보가 없습니다</p>
-                            <p className="text-xs mt-1">구직자들이 관심을 가질 수 있는 복리후생을 등록해보세요</p>
-                          </div>
-                        )}
+                            )) : ((user as any)?.benefits && (user as any).benefits.length > 0) ?
+                            (user as any).benefits.map((benefit: string, index: number) => (
+                              <span key={index} className="inline-flex items-center px-3 py-2 rounded-full text-sm bg-green-100 text-green-800 font-medium">
+                                {benefit}
+                              </span>
+                            )) : getExampleBenefits().map((benefit: string, index: number) => (
+                              <span key={index} className="inline-flex items-center px-3 py-2 rounded-full text-sm bg-green-100 text-green-800 font-medium">
+                                {benefit}
+                              </span>
+                            ))
+                          }
+                        </div>
           </div>
 
                       {/* 회사 문화 */}
@@ -631,24 +851,50 @@ const EmployerDashboard: React.FC = () => {
                           회사 문화
                         </h3>
                         
-                        {companyInfo?.culture ? (
-                          <p className="text-gray-700 leading-relaxed">{companyInfo.culture}</p>
-                        ) : (
-                          <div className="text-center py-6 text-gray-500">
-                            <Users className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                            <p className="text-sm">등록된 회사 문화 정보가 없습니다</p>
-              </div>
-                        )}
+                        <p className="text-gray-700 leading-relaxed">
+                          {companyInfo?.culture || (user as any)?.culture || getExampleText('culture')}
+                        </p>
               </div>
             </div>
 
                     {/* 사이드바 정보 */}
                     <div className="space-y-4">
+                      {/* 담당자 정보 */}
+                      <div className="bg-white rounded-xl border border-gray-200 p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+                          <Users className="w-5 h-5 mr-2 text-purple-600" />
+                          담당자 정보
+                        </h3>
+                        
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <Users className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-700 font-medium">
+                              {user?.displayName || user?.contactPerson || companyInfo?.contactPerson || '김리조트 (예시)'}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <Mail className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-700 font-medium">
+                              {user?.email || 'hr@resort-example.com'}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <Phone className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-700 font-medium">
+                              {user?.contactPhone || companyInfo?.contactPhone || (user as any)?.companyPhone || '010-1234-5678'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* 연락처 정보 */}
                       <div className="bg-white rounded-xl border border-gray-200 p-6">
                         <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
                           <Phone className="w-5 h-5 mr-2 text-blue-600" />
-                          연락처
+                          회사 연락처
                         </h3>
                         
                         <div className="space-y-3">

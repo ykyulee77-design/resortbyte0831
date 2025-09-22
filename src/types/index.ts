@@ -120,13 +120,35 @@ export interface User extends BaseEntity {
   role: 'employer' | 'jobseeker' | 'admin';
   profileImage?: string;
   phone?: string;
+  contactPhone?: string;
   location?: string;
   workplaceName?: string;
   workplaceLocation?: string;
   contactPerson?: string;
-  companyInfo?: CompanyInfo;
+  companyId?: string; // 회사 참조 (새로운 구조)
+  companyInfo?: CompanyInfo; // 기존 호환성 유지
   accommodationInfo?: AccommodationInfo;
   resume?: Resume;
+}
+
+// 새로운 Company 인터페이스 (별도 컬렉션용)
+export interface Company extends BaseEntity {
+  id: string;
+  name: string;
+  address: string;
+  detailAddress?: string;
+  phone: string;
+  website?: string;
+  businessNumber?: string;
+  industry?: string;
+  companySize?: string;
+  description?: string;
+  culture?: string;
+  benefits?: string[];
+  images?: string[];
+  employerIds: string[]; // 담당자들
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface CompanyInfo extends BaseEntity {

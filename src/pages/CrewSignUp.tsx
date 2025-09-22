@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { User, ArrowLeft, Eye, EyeOff, AlertCircle, ChevronDown, ChevronUp, Mail } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import NaverConsentModal from '../components/NaverConsentModal';
 import KakaoConsentModal from '../components/KakaoConsentModal';
@@ -24,6 +24,7 @@ const CrewSignUp: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState(false);
+  const [showDirectInput, setShowDirectInput] = useState(false);
 
   const handleNaverSignUpClick = () => {
     setShowNaverConsent(true);
@@ -180,9 +181,36 @@ const CrewSignUp: React.FC = () => {
               />
             </div>
 
+            {/* 구분선 */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">또는</span>
+              </div>
+            </div>
+
+            {/* 직접 입력 토글 버튼 */}
+            <div className="mt-6">
+              <button
+                onClick={() => setShowDirectInput(!showDirectInput)}
+                className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                <Mail className="w-5 h-5 mr-2 text-gray-500" />
+                직접 입력
+                {showDirectInput ? (
+                  <ChevronUp className="w-4 h-4 ml-2" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 ml-2" />
+                )}
+              </button>
+            </div>
+
             {/* 직접 입력 폼 */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <form onSubmit={handleDirectSubmit} className="space-y-4">
+            {showDirectInput && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <form onSubmit={handleDirectSubmit} className="space-y-4">
                 {error && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center">
                     <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
@@ -299,8 +327,9 @@ const CrewSignUp: React.FC = () => {
                     '크루로 가입하기'
                   )}
                 </button>
-              </form>
-            </div>
+                </form>
+              </div>
+            )}
 
             <div className="text-center">
               <p className="text-sm text-gray-600">

@@ -151,6 +151,16 @@ const AccommodationInfoPage: React.FC = () => {
               },
               contactPerson: companyData.contactPerson || ''
             }));
+          } else if (user) {
+            // 회사 정보가 없어도 현재 사용자 정보로 기본값 설정
+            setEditData(prev => ({
+              ...prev,
+              contactInfo: {
+                phone: user.contactPhone || '',
+                email: user.email || ''
+              },
+              contactPerson: user.displayName || ''
+            }));
           }
         }
 
@@ -354,9 +364,19 @@ const AccommodationInfoPage: React.FC = () => {
 
     setSaving(true);
     try {
+      // 연락처 정보가 비어있으면 회사 정보나 사용자 정보로 자동 채우기
+      const finalContactInfo = {
+        phone: editData.contactInfo.phone || companyInfo?.contactPhone || user.contactPhone || '',
+        email: editData.contactInfo.email || companyInfo?.contactEmail || user.email || ''
+      };
+      
+      const finalContactPerson = editData.contactPerson || companyInfo?.contactPerson || user.displayName || '';
+
       const accommodationData = {
         employerId,
         ...editData,
+        contactInfo: finalContactInfo,
+        contactPerson: finalContactPerson,
         images,
         // 좌표 정보 명시적으로 포함
         latitude: editData.latitude,
@@ -518,7 +538,7 @@ const AccommodationInfoPage: React.FC = () => {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    연락처
+                    담당자 연락처
                   </label>
                   <input
                     type="text"
@@ -528,17 +548,28 @@ const AccommodationInfoPage: React.FC = () => {
                       contactInfo: { ...prev.contactInfo, phone: e.target.value }
                     }))}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !editData.contactInfo.phone && companyInfo?.contactPhone 
-                        ? 'border-gray-300 bg-gray-50 text-gray-500' 
+                      !editData.contactInfo.phone && (companyInfo?.contactPhone || user?.contactPhone) 
+                        ? 'border-blue-300 bg-blue-50 text-blue-700' 
                         : 'border-gray-300'
                     }`}
-                    placeholder={companyInfo?.contactPhone ? `기본값: ${companyInfo.contactPhone}` : "연락처를 입력하세요"}
+                    placeholder={
+                      companyInfo?.contactPhone 
+                        ? `회사 담당자: ${companyInfo.contactPhone}` 
+                        : user?.contactPhone 
+                        ? `현재 사용자: ${user.contactPhone}` 
+                        : "담당자 연락처를 입력하세요"
+                    }
                   />
+                  {(companyInfo?.contactPhone || user?.contactPhone) && !editData.contactInfo.phone && (
+                    <div className="mt-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                      💡 회사 담당자 연락처가 자동으로 연계됩니다. 다른 연락처를 사용하려면 직접 입력하세요.
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    이메일
+                    담당자 이메일
                   </label>
                   <input
                     type="email"
@@ -548,29 +579,51 @@ const AccommodationInfoPage: React.FC = () => {
                       contactInfo: { ...prev.contactInfo, email: e.target.value }
                     }))}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !editData.contactInfo.email && companyInfo?.contactEmail 
-                        ? 'border-gray-300 bg-gray-50 text-gray-500' 
+                      !editData.contactInfo.email && (companyInfo?.contactEmail || user?.email) 
+                        ? 'border-blue-300 bg-blue-50 text-blue-700' 
                         : 'border-gray-300'
                     }`}
-                    placeholder={companyInfo?.contactEmail ? `기본값: ${companyInfo.contactEmail}` : "이메일을 입력하세요"}
+                    placeholder={
+                      companyInfo?.contactEmail 
+                        ? `회사 담당자: ${companyInfo.contactEmail}` 
+                        : user?.email 
+                        ? `현재 사용자: ${user.email}` 
+                        : "담당자 이메일을 입력하세요"
+                    }
                   />
+                  {(companyInfo?.contactEmail || user?.email) && !editData.contactInfo.email && (
+                    <div className="mt-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                      💡 회사 담당자 정보가 자동으로 연계됩니다. 다른 이메일을 사용하려면 직접 입력하세요.
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    담당자
+                    담당자 이름
                   </label>
                   <input
                     type="text"
                     value={editData.contactPerson}
                     onChange={(e) => setEditData(prev => ({ ...prev, contactPerson: e.target.value }))}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !editData.contactPerson && companyInfo?.contactPerson 
-                        ? 'border-gray-300 bg-gray-50 text-gray-500' 
+                      !editData.contactPerson && (companyInfo?.contactPerson || user?.displayName) 
+                        ? 'border-blue-300 bg-blue-50 text-blue-700' 
                         : 'border-gray-300'
                     }`}
-                    placeholder={companyInfo?.contactPerson ? `기본값: ${companyInfo.contactPerson}` : "담당자 이름을 입력하세요"}
+                    placeholder={
+                      companyInfo?.contactPerson 
+                        ? `회사 담당자: ${companyInfo.contactPerson}` 
+                        : user?.displayName 
+                        ? `현재 사용자: ${user.displayName}` 
+                        : "담당자 이름을 입력하세요"
+                    }
                   />
+                  {(companyInfo?.contactPerson || user?.displayName) && !editData.contactPerson && (
+                    <div className="mt-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                      💡 회사 담당자 이름이 자동으로 연계됩니다. 다른 담당자를 사용하려면 직접 입력하세요.
+                    </div>
+                  )}
                 </div>
 
                 <div>

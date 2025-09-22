@@ -7,7 +7,7 @@ import {
   User as FirebaseUser,
   updateProfile,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { Resume } from '../types';
 import { withErrorHandling, createUserFriendlyError } from '../utils/errorHandler';
@@ -21,16 +21,8 @@ interface User {
   workplaceLocation?: string;
   contactPerson?: string;
   resume?: Resume;
-  // 구인자 추가 정보
-  companyName?: string;
-  companyAddress?: string;
-  companyDetailAddress?: string; // 상세주소 필드 추가
-  companyPhone?: string;
-  companyWebsite?: string;
-  businessNumber?: string;
-  industry?: string;
-  companySize?: string;
-  contactPhone?: string;
+  companyId?: string; // 회사 참조 (companies 컬렉션으로 분리)
+  contactPhone?: string; // 개인 연락처만 유지
 }
 
 interface EmployerInfo {
@@ -47,6 +39,10 @@ interface EmployerInfo {
   industry?: string;
   companySize?: string;
   contactPhone?: string;
+  description?: string; // 회사 설명
+  culture?: string;     // 회사 문화
+  benefits?: string[];  // 복리후생
+  images?: string[];    // 회사 이미지
 }
 
 interface AuthContextType {
@@ -57,6 +53,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
   updateUserData: () => Promise<void>; // 사용자 데이터 새로고침 함수 추가
+  updateUserProfile: (profileData: Partial<User>) => Promise<void>; // 프로필 업데이트 함수 추가
   // 다중 역할 관련 메서드들
   selectRole: (role: string) => Promise<void>; // 역할 선택
   addRole: (role: string, roleData?: any) => Promise<void>; // 역할 추가
@@ -162,38 +159,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       };
       
 
-      // 구인자인 경우 직장 정보 추가
+      // 구인자인 경우 직장 정보 추가 (개인 정보만)
       if (role === 'employer' && employerInfo) {
         userData.workplaceName = employerInfo.workplaceName || '';
         userData.workplaceLocation = employerInfo.workplaceLocation || '';
         userData.contactPerson = employerInfo.contactPerson || '';
-        // 구인자 추가 정보
-        userData.companyName = employerInfo.companyName || '';
-        userData.companyAddress = employerInfo.companyAddress || '';
-        userData.companyDetailAddress = employerInfo.companyDetailAddress || '';
-        userData.companyPhone = employerInfo.companyPhone || '';
-        userData.companyWebsite = employerInfo.companyWebsite || '';
-        userData.businessNumber = employerInfo.businessNumber || '';
-        userData.industry = employerInfo.industry || '';
-        userData.companySize = employerInfo.companySize || '';
         userData.contactPhone = employerInfo.contactPhone || '';
         
-        // 회사 정보 companyInfo 컬렉션에도 저장
-        await setDoc(doc(db, 'companyInfo', firebaseUser.uid), {
-          employerId: firebaseUser.uid, // employerId 필드 추가
+        // companies 컬렉션에 회사 정보 저장
+        const companyData = {
           name: employerInfo.companyName || '',
           address: employerInfo.companyAddress || '',
-          detailAddress: employerInfo.companyDetailAddress || '', // 상세주소 추가 (기본값 설정)
+          detailAddress: employerInfo.companyDetailAddress || '',
           phone: employerInfo.companyPhone || '',
           website: employerInfo.companyWebsite || '',
           businessNumber: employerInfo.businessNumber || '',
           industry: employerInfo.industry || '',
           companySize: employerInfo.companySize || '',
-          contactPerson: employerInfo.contactPerson || '',
-          contactPhone: employerInfo.contactPhone || '',
+          description: employerInfo.description || '',
+          culture: employerInfo.culture || '',
+          benefits: employerInfo.benefits || [],
+          images: employerInfo.images || [],
+          employerIds: [firebaseUser.uid], // 담당자 목록
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-        });
+        };
+
+        // companies 컬렉션에 회사 정보 저장
+        const companyDocRef = await addDoc(collection(db, 'companies'), companyData);
+        const companyId = companyDocRef.id;
+        
+        // 사용자 정보에 companyId만 추가 (회사 정보는 별도 컬렉션)
+        userData.companyId = companyId;
       }
 
       // 구직자인 경우 이력서 정보 추가 (빈 이력서로 초기화)
@@ -220,14 +217,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         workplaceLocation: employerInfo?.workplaceLocation || '',
         contactPerson: employerInfo?.contactPerson || '',
         resume: resume,
-        // 구인자 추가 정보
-        companyName: employerInfo?.companyName || '',
-        companyAddress: employerInfo?.companyAddress || '',
-        companyPhone: employerInfo?.companyPhone || '',
-        companyWebsite: employerInfo?.companyWebsite || '',
-        businessNumber: employerInfo?.businessNumber || '',
-        industry: employerInfo?.industry || '',
-        companySize: employerInfo?.companySize || '',
+        companyId: role === 'employer' ? userData.companyId : '',
         contactPhone: employerInfo?.contactPhone || '',
       };
       
@@ -265,15 +255,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           workplaceLocation: userData.workplaceLocation || '',
           contactPerson: userData.contactPerson || '',
           resume: userData.resume || {},
-          // 구인자 추가 정보
-          companyName: userData.companyName || '',
-          companyAddress: userData.companyAddress || '',
-          companyDetailAddress: userData.companyDetailAddress || '',
-          companyPhone: userData.companyPhone || '',
-          companyWebsite: userData.companyWebsite || '',
-          businessNumber: userData.businessNumber || '',
-          industry: userData.industry || '',
-          companySize: userData.companySize || '',
+          companyId: userData.companyId || '',
           contactPhone: userData.contactPhone || '',
         };
         
@@ -317,19 +299,100 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           workplaceLocation: userData.workplaceLocation || '',
           contactPerson: userData.contactPerson || '',
           resume: userData.resume || user.resume,
-          // 구인자 추가 정보
-          companyName: userData.companyName || '',
-          companyAddress: userData.companyAddress || '',
-          companyPhone: userData.companyPhone || '',
-          companyWebsite: userData.companyWebsite || '',
-          businessNumber: userData.businessNumber || '',
-          industry: userData.industry || '',
-          companySize: userData.companySize || '',
+          companyId: userData.companyId || '',
           contactPhone: userData.contactPhone || '',
         });
       }
     } catch (error) {
       console.error('사용자 데이터 업데이트 실패:', error);
+    }
+  };
+
+  // 프로필 업데이트 함수
+  const updateUserProfile = async (profileData: Partial<User>) => {
+    if (!user?.uid) throw new Error('사용자가 로그인되어 있지 않습니다.');
+    
+    try {
+      const userDoc = doc(db, 'users', user.uid);
+      
+      // 회사 관련 정보인지 확인
+      const companyFields = ['companyName', 'companyAddress', 'companyDetailAddress', 'companyPhone', 'companyWebsite', 'businessNumber', 'industry', 'companySize', 'description', 'culture', 'benefits', 'images'];
+      const hasCompanyData = Object.keys(profileData).some(key => companyFields.includes(key));
+      
+      let companyId = user.companyId;
+      
+      // 회사 정보가 있고 companyId가 없는 경우 새 회사 생성
+      if (hasCompanyData && !companyId && user.role === 'employer') {
+        const profileDataAny = profileData as any;
+        const companyData = {
+          name: profileDataAny.companyName || '',
+          address: profileDataAny.companyAddress || '',
+          detailAddress: profileDataAny.companyDetailAddress || '',
+          phone: profileDataAny.companyPhone || '',
+          website: profileDataAny.companyWebsite || '',
+          businessNumber: profileDataAny.businessNumber || '',
+          industry: profileDataAny.industry || '',
+          companySize: profileDataAny.companySize || '',
+          description: profileDataAny.description || '',
+          culture: profileDataAny.culture || '',
+          benefits: profileDataAny.benefits || [],
+          images: profileDataAny.images || [],
+          employerIds: [user.uid],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+        
+        const companyDocRef = await addDoc(collection(db, 'companies'), companyData);
+        companyId = companyDocRef.id;
+        
+        // profileData에 companyId 추가 (회사 정보는 제거)
+        profileData.companyId = companyId;
+      }
+      
+      // companyId가 있고 회사 정보가 있는 경우 companies 컬렉션 업데이트
+      if (companyId && hasCompanyData) {
+        const companyDoc = doc(db, 'companies', companyId);
+        const companyUpdateData: any = {
+          updatedAt: serverTimestamp(),
+        };
+        
+        // 회사 관련 필드만 업데이트
+        const profileDataAny = profileData as any;
+        if (profileDataAny.companyName !== undefined) companyUpdateData.name = profileDataAny.companyName;
+        if (profileDataAny.companyAddress !== undefined) companyUpdateData.address = profileDataAny.companyAddress;
+        if (profileDataAny.companyDetailAddress !== undefined) companyUpdateData.detailAddress = profileDataAny.companyDetailAddress;
+        if (profileDataAny.companyPhone !== undefined) companyUpdateData.phone = profileDataAny.companyPhone;
+        if (profileDataAny.companyWebsite !== undefined) companyUpdateData.website = profileDataAny.companyWebsite;
+        if (profileDataAny.businessNumber !== undefined) companyUpdateData.businessNumber = profileDataAny.businessNumber;
+        if (profileDataAny.industry !== undefined) companyUpdateData.industry = profileDataAny.industry;
+        if (profileDataAny.companySize !== undefined) companyUpdateData.companySize = profileDataAny.companySize;
+        if (profileDataAny.description !== undefined) companyUpdateData.description = profileDataAny.description;
+        if (profileDataAny.culture !== undefined) companyUpdateData.culture = profileDataAny.culture;
+        if (profileDataAny.benefits !== undefined) companyUpdateData.benefits = profileDataAny.benefits;
+        if (profileDataAny.images !== undefined) companyUpdateData.images = profileDataAny.images;
+        
+        await setDoc(companyDoc, companyUpdateData, { merge: true });
+      }
+      
+      // 회사 정보는 users 컬렉션에서 제거
+      const userUpdateData: any = { ...profileData };
+      companyFields.forEach(field => {
+        delete userUpdateData[field];
+      });
+      
+      // users 컬렉션 업데이트 (회사 정보 제외)
+      await setDoc(userDoc, {
+        ...userUpdateData,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      // 로컬 상태 업데이트
+      setUser(prev => prev ? { ...prev, ...profileData } : null);
+      
+      console.log('프로필 업데이트 성공:', profileData);
+    } catch (error) {
+      console.error('프로필 업데이트 실패:', error);
+      throw error;
     }
   };
 
@@ -339,30 +402,85 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const phoneNumber = naverUser.mobile || naverUser.phone || '';
       console.log('🔐 네이버 로그인:', naverUser.name, '전화번호:', phoneNumber);
       
-      // 네이버 사용자 정보를 기반으로 사용자 정보 구성
-      const userInfo: User = {
-        uid: `naver_${naverUser.id}`,
-        email: naverUser.email || '',
-        displayName: naverUser.name || '',
-        role: role,
-        // 기본값들
-        workplaceName: '',
-        workplaceLocation: '',
-        contactPerson: '',
-        resume: role === 'jobseeker' ? {
-          phone: phoneNumber, // 이력서에도 전화번호 저장
-        } : undefined,
-        // 구인자 추가 정보 기본값
-        companyName: '',
-        companyAddress: '',
-        companyDetailAddress: '',
-        companyPhone: phoneNumber, // 회사 전화번호로도 사용
-        companyWebsite: '',
-        businessNumber: '',
-        industry: '',
-        companySize: '',
-        contactPhone: phoneNumber, // 개인 연락처로 사용
-      };
+      // Firestore에서 기존 사용자 정보 확인
+      const userDoc = doc(db, 'users', `naver_${naverUser.id}`);
+      const userSnapshot = await getDoc(userDoc);
+      
+      let userInfo: User;
+      
+      if (userSnapshot.exists()) {
+        // 기존 사용자인 경우 Firestore 데이터 사용
+        const existingData = userSnapshot.data();
+        
+        // 회사 정보 확인 (companies 컬렉션에서)
+        let companyData = null;
+        if (existingData.companyId) {
+          try {
+            const companyDoc = doc(db, 'companies', existingData.companyId);
+            const companySnapshot = await getDoc(companyDoc);
+            if (companySnapshot.exists()) {
+              companyData = companySnapshot.data();
+              console.log('🏢 회사 정보 조회 성공:', {
+                companyId: existingData.companyId,
+                companyName: companyData.name,
+                companyAddress: companyData.address,
+                companyPhone: companyData.phone
+              });
+            } else {
+              console.log('❌ 회사 정보 없음:', existingData.companyId);
+            }
+          } catch (error) {
+            console.error('회사 정보 조회 실패:', error);
+          }
+        } else {
+          console.log('❌ companyId 없음');
+        }
+        
+        userInfo = {
+          uid: `naver_${naverUser.id}`,
+          email: naverUser.email || existingData.email || '',
+          displayName: naverUser.name || existingData.displayName || '',
+          role: existingData.role || role, // Firestore의 역할 우선 사용
+          workplaceName: existingData.workplaceName || '',
+          workplaceLocation: existingData.workplaceLocation || '',
+          contactPerson: existingData.contactPerson || '',
+          resume: existingData.resume || (role === 'jobseeker' ? { phone: phoneNumber } : undefined),
+          companyId: existingData.companyId || '', // 회사 참조
+          contactPhone: existingData.contactPhone || phoneNumber,
+          // 회사 정보는 companies 컬렉션에서만 가져옴 (users 컬렉션에는 저장하지 않음)
+          ...(companyData && {
+            companyName: companyData.name,
+            companyAddress: companyData.address,
+            companyDetailAddress: companyData.detailAddress,
+            companyPhone: companyData.phone,
+            companyWebsite: companyData.website,
+            businessNumber: companyData.businessNumber,
+            industry: companyData.industry,
+            companySize: companyData.companySize,
+            description: companyData.description,
+            culture: companyData.culture,
+            benefits: companyData.benefits,
+            images: companyData.images,
+          }),
+        };
+        } else {
+        // 새 사용자인 경우 기본값으로 초기화
+        userInfo = {
+          uid: `naver_${naverUser.id}`,
+          email: naverUser.email || '',
+          displayName: naverUser.name || '',
+          role: role,
+          // 기본값들
+          workplaceName: '',
+          workplaceLocation: '',
+          contactPerson: '',
+          resume: role === 'jobseeker' ? {
+            phone: phoneNumber, // 이력서에도 전화번호 저장
+          } : undefined,
+          companyId: '', // 새 사용자는 회사 참조 없음
+          contactPhone: phoneNumber, // 개인 연락처로 사용
+        };
+      }
 
       // localStorage에 사용자 정보 저장
       localStorage.setItem('user', JSON.stringify(userInfo));
@@ -370,7 +488,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
       
       console.log('💾 localStorage에 사용자 정보 저장 완료:', userInfo.displayName);
-      console.log('✅ 네이버 로그인 완료:', userInfo.displayName);
+      console.log('✅ 네이버 로그인 완료:', userInfo.displayName, '역할:', userInfo.role);
       
     } catch (error) {
       console.error('❌ 네이버 로그인 실패:', error);
@@ -577,6 +695,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     setUser,
     updateUserData,
+    updateUserProfile,
     selectRole,
     addRole,
     signInWithNaver,

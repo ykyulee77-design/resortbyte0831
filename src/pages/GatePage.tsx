@@ -31,13 +31,13 @@ const GatePage: React.FC = () => {
             
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
               <Link
-                to="/register?type=employer"
+                to="/signup/resort"
                 className="inline-flex items-center px-10 py-4 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl text-lg"
               >
                 리조트 등록
               </Link>
               <Link
-                to="/signup"
+                to="/signup/crew"
                 className="inline-flex items-center px-10 py-4 bg-green-600 text-white font-semibold rounded-full hover:bg-green-700 transition-colors shadow-lg hover:shadow-xl text-lg"
               >
                 크루 등록
@@ -267,13 +267,13 @@ const GatePage: React.FC = () => {
           
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <Link
-              to="/register?type=employer"
+              to="/signup/resort"
               className="inline-flex items-center px-10 py-4 bg-white text-blue-600 font-semibold rounded-full hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl text-lg"
             >
                리조트 시작하기
             </Link>
             <Link
-              to="/signup"
+              to="/signup/crew"
               className="inline-flex items-center px-10 py-4 bg-white text-green-600 font-semibold rounded-full hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl text-lg"
             >
                크루 시작하기

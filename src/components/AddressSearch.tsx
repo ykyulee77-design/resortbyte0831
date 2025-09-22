@@ -67,6 +67,21 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
   const [detailAddress, setDetailAddress] = useState('');
   const [isComposing, setIsComposing] = useState(false);
 
+  // 초기값이 있으면 선택된 상태로 설정
+  useEffect(() => {
+    if (value && value.trim() && !selectedAddress) {
+      // 기존 주소가 있으면 선택된 상태로 표시
+      setSelectedAddress({
+        address: value,
+        roadAddress: value,
+        jibunAddress: '',
+        zipCode: '',
+        detailAddress: '',
+      });
+      console.log('AddressSearch - 기존 주소 로드:', value);
+    }
+  }, [value, selectedAddress]);
+
   // 짧은/조합 입력 시 호출 억제 규칙
   const shouldSearch = useCallback((term: string) => {
     const normalized = (term || '').trim();
@@ -83,6 +98,9 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
   useEffect(() => {
     if (value && !isEditing) {
       setSearchTerm(value);
+      // 이미 저장된 주소가 있으면 드롭다운 숨기기
+      setShowDropdown(false);
+      setAddresses([]);
     }
   }, [value, isEditing]);
 
@@ -107,6 +125,12 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
       if (window.naver && window.naver.maps && window.naver.maps.Service?.geocode) {
         try {
           setError(null);
+          
+          // 한국어 설정 적용
+          if (window.naver.maps.Service.setLanguage) {
+            window.naver.maps.Service.setLanguage('ko');
+          }
+          
           await new Promise<void>((resolve, reject) => {
             window.naver.maps.Service.geocode({ query: keyword }, (status: any, response: any) => {
               try {
@@ -319,6 +343,12 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
       if (canUseNaver) {
         try {
           setError('서버 연결 문제로 지도 검색으로 시도합니다...');
+          
+          // 한국어 설정 적용
+          if (window.naver.maps.Service.setLanguage) {
+            window.naver.maps.Service.setLanguage('ko');
+          }
+          
           await new Promise<void>((resolve, reject) => {
             window.naver.maps.Service.geocode({ query: keyword }, (status: any, response: any) => {
               try {
@@ -379,6 +409,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
       setShowDropdown(false);
     } finally {
       setIsLoading(false);
+      console.log('🔍 주소 검색 완료 - isLoading: false');
     }
   }, [minSearchLength, maxResults]);
 
@@ -386,6 +417,11 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
 
   // 디바운스 검색
   useEffect(() => {
+    // 편집 모드가 아니면 검색하지 않음
+    if (!isEditing) {
+      return;
+    }
+
     const timer = setTimeout(() => {
       if (shouldSearch(searchTerm)) {
         searchAddresses(searchTerm);
@@ -396,24 +432,32 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     }, 500); // 500ms 디바운스로 완화
 
     return () => clearTimeout(timer);
-  }, [searchTerm, shouldSearch, searchAddresses]);
+  }, [searchTerm, shouldSearch, searchAddresses, isEditing]);
 
   // 주소 선택 처리
   const handleAddressSelect = useCallback((address: Address) => {
     console.log('AddressSearch - 주소 선택됨:', address);
+    
+    // 이미 같은 주소가 선택된 경우 중복 처리 방지
+    if (selectedAddress && selectedAddress.address === address.address) {
+      console.log('AddressSearch - 같은 주소 중복 선택 방지');
+      return;
+    }
+    
     setSelectedAddress(address);
     setSearchTerm(address.address);
     setShowDropdown(false); // 드롭다운 즉시 숨김
     setIsEditing(false);
+    setIsLoading(false); // 로딩 상태 명확히 종료
     setAddresses([]); // 검색 결과도 초기화
     
-    // 상세주소가 표시되지 않는 경우 바로 콜백 호출
-    if (!showDetailAddress) {
-      console.log('AddressSearch - onAddressSelect 호출 (상세주소 없음)');
-      onAddressSelect(address);
-    } else {
+    // 주소 선택 시 즉시 콜백 호출 (상세주소 입력 여부와 관계없이)
+    console.log('AddressSearch - onAddressSelect 호출');
+    onAddressSelect(address);
+    
+    // 상세주소 입력 모드인 경우 자동으로 상세주소 필드에 포커스
+    if (showDetailAddress) {
       console.log('AddressSearch - 상세주소 입력 모드');
-      // 상세주소 입력 모드에서는 자동으로 상세주소 필드에 포커스
       setTimeout(() => {
         const detailInput = document.querySelector('input[placeholder*="상세주소"]') as HTMLInputElement;
         if (detailInput) {
@@ -421,38 +465,37 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         }
       }, 100);
     }
-  }, [onAddressSelect, showDetailAddress]);
+  }, [onAddressSelect, showDetailAddress, selectedAddress]);
 
   // 상세주소 입력 처리
   const handleDetailAddressChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setDetailAddress(value);
-  }, []);
-
-  // 상세주소 포함하여 최종 주소 선택
-  const handleFinalAddressSelect = useCallback(() => {
+    
+    // 상세주소 입력 시 실시간으로 폼 업데이트
     if (selectedAddress) {
-      const finalAddress: Address = {
+      const updatedAddress: Address = {
         ...selectedAddress,
-        detailAddress: detailAddress.trim(),
-        // 상세주소가 있는 경우 전체 주소에 포함
-        address: detailAddress.trim() 
-          ? `${selectedAddress.address} ${detailAddress.trim()}`
+        detailAddress: value.trim(),
+        address: value.trim() 
+          ? `${selectedAddress.address} ${value.trim()}`
           : selectedAddress.address
       };
       
-  
-      onAddressSelect(finalAddress);
+      console.log('AddressSearch - 상세주소 실시간 업데이트:', updatedAddress);
+      onAddressSelect(updatedAddress);
     }
-  }, [selectedAddress, detailAddress, onAddressSelect]);
+  }, [selectedAddress, onAddressSelect]);
+
 
   // 입력 필드 포커스 처리
   const handleFocus = useCallback(() => {
     setIsEditing(true);
-    if (addresses.length > 0) {
+    // 검색 결과가 있거나 사용자가 입력 중일 때만 드롭다운 표시
+    if (addresses.length > 0 || searchTerm.length >= minSearchLength) {
       setShowDropdown(true);
     }
-  }, [addresses.length]);
+  }, [addresses.length, searchTerm.length, minSearchLength]);
 
   // 입력 필드 블러 처리
   const handleBlur = useCallback(() => {
@@ -487,6 +530,12 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
 
   return (
     <div className={`space-y-2 ${className}`}>
+      {/* 주소 입력 안내 */}
+      <div className="flex items-center text-sm text-gray-700 font-medium">
+        <span className="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs mr-2">📍</span>
+        주소 입력 및 검색
+      </div>
+      
       {/* 주소 검색 입력 필드 */}
       <div className="relative">
         <input
@@ -497,7 +546,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
           onBlur={handleBlur}
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
-          placeholder={placeholder}
+          placeholder={placeholder || "도로명주소나 건물명을 입력하세요 (예: 선릉로 513)"}
           disabled={disabled}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
         />
@@ -546,16 +595,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
 
       {/* 상세주소 입력 필드 - 단순화된 버전 */}
       {showDetailAddress && selectedAddress && (
-        <div className="space-y-3 mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          {/* 선택된 주소 표시 */}
-          <div className="text-sm">
-            <div className="text-gray-600 mb-1">📍 선택된 주소:</div>
-            <div className="font-medium text-gray-900">{selectedAddress.address}</div>
-            {selectedAddress.jibunAddress && selectedAddress.jibunAddress !== selectedAddress.address && (
-              <div className="text-xs text-gray-500 mt-1">지번: {selectedAddress.jibunAddress}</div>
-            )}
-          </div>
-          
+        <div className="space-y-3 mt-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           {/* 상세주소 입력 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -571,39 +611,23 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
               autoFocus
             />
             <div className="text-xs text-gray-500 mt-1">
-              💡 상세주소는 선택사항입니다. 건물명이나 동호수만 입력하세요.
+              건물명, 동호수, 사무실 번호 등
             </div>
           </div>
           
-          {/* 최종 주소 미리보기 */}
-          {detailAddress.trim() && (
-            <div className="p-2 bg-white border border-blue-200 rounded text-sm">
-              <div className="text-blue-700 font-medium mb-1">📋 최종 주소:</div>
-              <div className="text-gray-900">
-                {selectedAddress.address} <span className="text-blue-600 font-semibold">{detailAddress.trim()}</span>
-              </div>
-            </div>
-          )}
-          
-          {/* 액션 버튼들 */}
-          <div className="flex gap-2">
-            <button
-              onClick={handleFinalAddressSelect}
-              disabled={disabled}
-              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
-            >
-              ✅ 주소 확인
-            </button>
+          {/* 재선택 버튼 */}
+          <div className="flex justify-end">
             <button
               onClick={() => {
                 setSelectedAddress(null);
                 setDetailAddress('');
                 setSearchTerm('');
+                setIsLoading(false);
               }}
               disabled={disabled}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors text-sm"
+              className="text-xs text-gray-400 hover:text-gray-600 underline"
             >
-              다시 선택
+              주소 변경
             </button>
           </div>
         </div>

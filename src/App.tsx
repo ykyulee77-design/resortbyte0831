@@ -11,6 +11,7 @@ import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import CrewSignUp from './pages/CrewSignUp';
 import ResortSignUp from './pages/ResortSignUp';
+import CompanyInfoPage from './pages/CompanyInfoPage';
 import Register from './pages/Register';
 import JobseekerDashboard from './pages/JobseekerDashboard';
 import EmployerDashboard from './pages/EmployerDashboard';
@@ -20,13 +21,14 @@ import AdminJobPosts from './pages/AdminJobPosts';
 import AdminStats from './pages/AdminStats';
 import Profile from './pages/Profile';
 import EmployerProfile from './pages/EmployerProfile';
-import JobApplication from './pages/JobApplication';
+// import JobApplication from './pages/JobApplication';
 import ApplicationDetail from './pages/ApplicationDetail';
 import ApplicationEdit from './pages/ApplicationEdit';
 import ApplicationTemplates from './pages/ApplicationTemplates';
 import FinalHiringDecision from './pages/FinalHiringDecision';
 import FinalHiringPage from './pages/FinalHiringPage';
 import Notifications from './pages/Notifications';
+import MigrationPage from './pages/MigrationPage';
 import Applications from './pages/Applications';
 import MyApplications from './pages/MyApplications';
 import HiredCandidates from './pages/HiredCandidates';
@@ -36,7 +38,6 @@ import Reviews from './pages/Reviews';
 import ReviewForm from './pages/ReviewForm';
 import ResortReview from './pages/ResortReview';
 import ReviewsMediaForm from './pages/ReviewsMediaForm';
-import CompanyInfoPage from './pages/CompanyInfo';
 import AccommodationInfoPage from './pages/AccommodationInfo';
 import AccommodationList from './pages/AccommodationList';
 import WorkTypesPage from './pages/WorkTypesPage';
@@ -196,6 +197,7 @@ function App() {
             <Route path="/signup" element={<SignUp />} />
             <Route path="/signup/crew" element={<CrewSignUp />} />
             <Route path="/signup/resort" element={<ResortSignUp />} />
+            <Route path="/company/info" element={<CompanyInfoPage />} />
             <Route path="/register" element={<Register />} />
             <Route path="/auth/naver/callback" element={<SimpleNaverCallback />} />
             <Route path="/auth/kakao/callback" element={<KakaoCallback />} />
@@ -356,6 +358,13 @@ function App() {
               </ProtectedRoute>
             } />
 
+            {/* 데이터 마이그레이션 페이지 (관리자 전용) */}
+            <Route path="/migration" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <MigrationPage />
+              </ProtectedRoute>
+            } />
+
             {/* 프로필 페이지 - 역할 자동 리다이렉트 */}
             <Route path="/profile" element={
               <ProtectedRoute>
@@ -372,14 +381,14 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* 지원서 관련 라우트 */}
-            <Route path="/apply/:jobId" element={
+            {/* 지원서 관련 라우트 - 임시 비활성화 */}
+            {/* <Route path="/apply/:jobId" element={
               <ProtectedRoute allowedRoles={['jobseeker']}>
                 <Layout>
                   <JobApplication />
                 </Layout>
               </ProtectedRoute>
-            } />
+            } /> */}
 
             <Route path="/applications" element={
               <ProtectedRoute allowedRoles={['employer']}>
