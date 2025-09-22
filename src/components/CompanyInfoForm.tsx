@@ -273,6 +273,7 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onComplete, onCancel 
                   className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                   placeholder="리조트명 또는 회사명을 입력하세요"
                 />
+                <p className="mt-1 text-xs text-gray-400">예: 강원도 알펜시아 리조트, 제주 그랜드 하얏트 호텔</p>
               </div>
 
               {/* 회사 주소 */}
@@ -317,6 +318,7 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onComplete, onCancel 
                   className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                   placeholder="회사 대표 연락처를 입력하세요"
                 />
+                <p className="mt-1 text-xs text-gray-400">예: 02-1234-5678, 031-123-4567</p>
               </div>
 
               {/* 웹사이트 */}
@@ -333,6 +335,7 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onComplete, onCancel 
                   className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                   placeholder="https://example.com"
                 />
+                <p className="mt-1 text-xs text-gray-400">예: https://www.alpensia.co.kr, https://www.grandhyatt.com</p>
               </div>
 
               {/* 사업자등록번호 */}
@@ -349,6 +352,7 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onComplete, onCancel 
                   className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                   placeholder="123-45-67890"
                 />
+                <p className="mt-1 text-xs text-gray-400">예: 123-45-67890 (하이픈 포함)</p>
               </div>
 
               {/* 업종 */}
@@ -365,6 +369,7 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onComplete, onCancel 
                   className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                   placeholder="예: 관광업, 숙박업, 레저업"
                 />
+                <p className="mt-1 text-xs text-gray-400">예: 관광업, 숙박업, 레저업, 휴양업, 골프장 운영</p>
               </div>
 
               {/* 회사 규모 */}
@@ -386,6 +391,7 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onComplete, onCancel 
                   <option value="201-500">201-500명</option>
                   <option value="500+">500명 이상</option>
                 </select>
+                <p className="mt-1 text-xs text-gray-400">예: 리조트는 보통 51-200명, 대형 호텔은 500명 이상</p>
               </div>
 
               {/* 회사 소개 */}
@@ -402,6 +408,7 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onComplete, onCancel 
                   className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                   placeholder="회사에 대한 소개를 작성해주세요"
                 />
+                <p className="mt-1 text-xs text-gray-400">예: 강원도 알펜시아 리조트는 4계절 종합 휴양지로 스키장, 골프장, 워터파크를 운영합니다.</p>
               </div>
 
               {/* 회사 문화 */}
@@ -418,6 +425,7 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onComplete, onCancel 
                   className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                   placeholder="회사의 문화와 가치관을 설명해주세요"
                 />
+                <p className="mt-1 text-xs text-gray-400">예: 고객 만족을 최우선으로 하며, 직원들의 성장과 발전을 지원하는 문화를 추구합니다.</p>
               </div>
 
               {/* 복리후생 */}
@@ -425,6 +433,7 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onComplete, onCancel 
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   복리후생
                 </label>
+                <p className="mb-3 text-xs text-gray-400">예: 4대보험, 휴가비 지원, 직원 할인, 교육비 지원, 건강검진</p>
                 <div className="space-y-3">
                   {/* 복리후생 추가 입력 */}
                   <div className="flex gap-2">

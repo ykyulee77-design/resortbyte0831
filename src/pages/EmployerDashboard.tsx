@@ -445,51 +445,84 @@ const EmployerDashboard: React.FC = () => {
               if (accommodationData.address && (!accommodationData.latitude || !accommodationData.longitude)) {
                 console.log('주소를 좌표로 변환 시도:', accommodationData.address);
                 
-                // 네이버 지도 API가 로드되었는지 확인
-                if (window.naver && window.naver.maps && window.naver.maps.Service) {
-                  try {
-                    // 네이버 지도 API의 내장 지오코딩 사용
-                                         window.naver.maps.Service.geocode({
-                       query: accommodationData.address
-                     }, function(status: any, response: any) {
-                      if (status === window.naver.maps.Service.Status.OK) {
-                        const result = response.v2;
-                        if (result.meta.totalCount > 0) {
-                          const item = result.addresses[0];
-                          const coordinates = {
-                            lat: parseFloat(item.y),
-                            lng: parseFloat(item.x)
-                          };
-                          
-                          console.log('네이버 지오코딩 성공:', coordinates);
-                          
-                          const updatedData = {
-                            ...accommodationData,
-                            latitude: coordinates.lat,
-                            longitude: coordinates.lng
-                          };
-                          
-                          // Firestore에 업데이트
-                          setDoc(accommodationDocRef, updatedData, { merge: true });
-                          setAccommodationInfo(updatedData);
+                // 네이버 지도 API가 완전히 로드될 때까지 대기
+                const performGeocoding = () => {
+                  if (window.naver && window.naver.maps && window.naver.maps.Service && window.naver.maps.Service.geocode) {
+                    try {
+                      console.log('네이버 지도 API 지오코딩 시작...');
+                      
+                      // 네이버 지도 API의 내장 지오코딩 사용
+                      window.naver.maps.Service.geocode({
+                        query: accommodationData.address
+                      }, function(status: any, response: any) {
+                        console.log('지오코딩 응답 상태:', status);
+                        console.log('지오코딩 응답 데이터:', response);
+                        
+                        if (status === window.naver.maps.Service.Status.OK) {
+                          try {
+                            const result = response.v2;
+                            console.log('지오코딩 결과:', result);
+                            
+                            // 응답 구조 안전성 검사
+                            if (result && result.meta && typeof result.meta.totalCount === 'number' && result.meta.totalCount > 0) {
+                              const item = result.addresses[0];
+                              
+                              if (item && item.x && item.y) {
+                                const coordinates = {
+                                  lat: parseFloat(item.y),
+                                  lng: parseFloat(item.x)
+                                };
+                                
+                                console.log('✅ 네이버 지오코딩 성공:', coordinates);
+                                
+                                const updatedData = {
+                                  ...accommodationData,
+                                  latitude: coordinates.lat,
+                                  longitude: coordinates.lng
+                                };
+                                
+                                // Firestore에 업데이트
+                                setDoc(accommodationDocRef, updatedData, { merge: true });
+                                setAccommodationInfo(updatedData);
+                              } else {
+                                console.log('❌ 지오코딩 결과 좌표 정보 없음, 기본 좌표 사용');
+                                setAccommodationInfo(accommodationData);
+                              }
+                            } else {
+                              console.log('❌ 지오코딩 결과 없음 또는 응답 구조 오류:', result);
+                              console.log('❌ meta:', result?.meta);
+                              console.log('❌ totalCount:', result?.meta?.totalCount);
+                              setAccommodationInfo(accommodationData);
+                            }
+                          } catch (error) {
+                            console.error('❌ 지오코딩 응답 처리 중 오류:', error);
+                            console.log('❌ 응답 구조:', response);
+                            setAccommodationInfo(accommodationData);
+                          }
                         } else {
-                          console.log('지오코딩 결과 없음, 기본 좌표 사용');
+                          console.log('❌ 지오코딩 실패:', status, '기본 좌표 사용');
+                          console.log('❌ 실패 응답:', response);
                           setAccommodationInfo(accommodationData);
                         }
-                      } else {
-                        console.log('지오코딩 실패, 기본 좌표 사용');
-                        setAccommodationInfo(accommodationData);
-                      }
-                    });
-                  } catch (error) {
-                    console.error('지오코딩 오류:', error);
-                    setAccommodationInfo(accommodationData);
+                      });
+                    } catch (error) {
+                      console.error('❌ 지오코딩 오류:', error);
+                      setAccommodationInfo(accommodationData);
+                    }
+                  } else {
+                    console.log('⏳ 네이버 지도 API 대기 중...');
+                    // 1초 후 다시 시도
+                    setTimeout(performGeocoding, 1000);
                   }
-                } else {
-                  console.log('네이버 지도 API가 로드되지 않음, 기본 좌표 사용');
-                  setAccommodationInfo(accommodationData);
-                }
+                };
+                
+                performGeocoding();
               } else {
+                console.log('주소 또는 좌표 정보:', {
+                  hasAddress: !!accommodationData.address,
+                  hasLatitude: !!accommodationData.latitude,
+                  hasLongitude: !!accommodationData.longitude
+                });
                 setAccommodationInfo(accommodationData);
               }
            } else {
@@ -1197,18 +1230,11 @@ const EmployerDashboard: React.FC = () => {
                                   lat: (accommodationInfo as any)?.latitude || 37.5665,
                                   lng: (accommodationInfo as any)?.longitude || 126.9780
                                 },
-                                title: '기숙사',
-                                content: accommodationInfo.address
+                                title: accommodationInfo?.name || '기숙사',
+                                content: accommodationInfo?.address || '주소 정보 없음'
                               }
                             ]}
                           />
-                        </div>
-                        {/* 디버깅 정보 */}
-                        <div className="mt-2 text-xs text-gray-500">
-                          <p>위도: {(accommodationInfo as any)?.latitude || '설정되지 않음'}</p>
-                          <p>경도: {(accommodationInfo as any)?.longitude || '설정되지 않음'}</p>
-                          <p>주소: {accommodationInfo.address}</p>
-                          <p>기본 좌표 사용: {(!(accommodationInfo as any)?.latitude || !(accommodationInfo as any)?.longitude) ? '예 (서울시청)' : '아니오'}</p>
                         </div>
                       </div>
                     )}
@@ -1257,55 +1283,38 @@ const EmployerDashboard: React.FC = () => {
                       </div>
                     )}
 
-
-
                     {/* 객실 유형 */}
                     {accommodationInfo?.roomTypeOptions && (
                       <div className="bg-white rounded-lg border p-3">
                         <h3 className="font-semibold text-gray-900 mb-2 text-sm">객실 유형</h3>
                         <div className="flex flex-wrap gap-2">
                           {accommodationInfo.roomTypeOptions.singleRoom && (
-                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
                               1인실
-                              {accommodationInfo.roomPrices?.singleRoom && Number(accommodationInfo.roomPrices.singleRoom) > 0 && (
-                                <span className="ml-1 font-medium">{Number(accommodationInfo.roomPrices.singleRoom).toLocaleString()}원</span>
-                              )}
-                      </span>
+                            </span>
                           )}
                           {accommodationInfo.roomTypeOptions.doubleRoom && (
-                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
                               2인실
-                              {accommodationInfo.roomPrices?.doubleRoom && Number(accommodationInfo.roomPrices.doubleRoom) > 0 && (
-                                <span className="ml-1 font-medium">{Number(accommodationInfo.roomPrices.doubleRoom).toLocaleString()}원</span>
-                              )}
                             </span>
                           )}
                           {accommodationInfo.roomTypeOptions.tripleRoom && (
-                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
                               3인실
-                              {accommodationInfo.roomPrices?.tripleRoom && Number(accommodationInfo.roomPrices.tripleRoom) > 0 && (
-                                <span className="ml-1 font-medium">{Number(accommodationInfo.roomPrices.tripleRoom).toLocaleString()}원</span>
-                              )}
                             </span>
                           )}
                           {accommodationInfo.roomTypeOptions.quadRoom && (
-                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
                               4인실
-                              {accommodationInfo.roomPrices?.quadRoom && Number(accommodationInfo.roomPrices.quadRoom) > 0 && (
-                                <span className="ml-1 font-medium">{Number(accommodationInfo.roomPrices.quadRoom).toLocaleString()}원</span>
-                              )}
                             </span>
                           )}
                           {accommodationInfo.roomTypeOptions.otherRoom && (
-                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-800">
-                              기타{accommodationInfo.otherRoomType && ` (${accommodationInfo.otherRoomType})`}
-                              {accommodationInfo.roomPrices?.otherRoom && Number(accommodationInfo.roomPrices.otherRoom) > 0 && (
-                                <span className="ml-1 font-medium">{Number(accommodationInfo.roomPrices.otherRoom).toLocaleString()}원</span>
-                              )}
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                              기타
                             </span>
                           )}
-                    </div>
-                  </div>
+                        </div>
+                      </div>
                     )}
 
                     {/* 객실 시설 */}
@@ -1618,14 +1627,6 @@ const EmployerDashboard: React.FC = () => {
                           <div className="bg-white rounded-lg border p-4">
                             <h3 className="font-semibold text-gray-900 mb-3 text-sm">위치</h3>
                             
-                            {/* 지도 로딩 상태 표시 */}
-                            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                              <p><strong>지도 로딩 상태:</strong></p>
-                              <p>• 주소: {accommodationInfo.address}</p>
-                              <p>• 위도: {(accommodationInfo as any)?.latitude || '설정되지 않음'}</p>
-                              <p>• 경도: {(accommodationInfo as any)?.longitude || '설정되지 않음'}</p>
-                              <p>• 기본 좌표 사용: {(!(accommodationInfo as any)?.latitude || !(accommodationInfo as any)?.longitude) ? '예 (서울시청)' : '아니오'}</p>
-                            </div>
 
                             {/* 지도 컨테이너 */}
                             <div style={{ height: '300px', position: 'relative' }}>
@@ -1649,8 +1650,8 @@ const EmployerDashboard: React.FC = () => {
                                         lat: (accommodationInfo as any)?.latitude || 37.5665,
                                         lng: (accommodationInfo as any)?.longitude || 126.9780
                                       },
-                                      title: '기숙사',
-                                      content: accommodationInfo.address
+                                      title: accommodationInfo?.name || '기숙사',
+                                      content: accommodationInfo?.address || '주소 정보 없음'
                                     }
                                   ]}
                                 />

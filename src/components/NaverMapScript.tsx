@@ -1,21 +1,35 @@
 import React, { useEffect, useState } from 'react';
+import { NAVER_MAPS_CONFIG, validateNaverApiConfig } from '../config/naverApi';
 
 const NaverMapScript: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isError, setIsError] = useState(false);
 
   useEffect(() => {
+    // 네이버 API 설정 검증
+    validateNaverApiConfig();
+    
     // 환경 변수 디버깅
-    console.log('🔍 네이버 지도 API 환경 변수 확인:', {
-      REACT_APP_NAVER_CLIENT_ID: process.env.REACT_APP_NAVER_CLIENT_ID,
+    console.log('🗺️ 네이버 지도 API 설정 확인:', {
+      CLIENT_ID: NAVER_MAPS_CONFIG.CLIENT_ID,
+      API_VERSION: NAVER_MAPS_CONFIG.API_VERSION,
+      SUBMODULES: NAVER_MAPS_CONFIG.SUBMODULES,
+      LANGUAGE: NAVER_MAPS_CONFIG.LANGUAGE,
       NODE_ENV: process.env.NODE_ENV,
-      hasClientId: !!process.env.REACT_APP_NAVER_CLIENT_ID,
     });
 
     // 인증 실패 처리 함수 설정
     window.navermap_authFailure = function () {
-      console.error('네이버 지도 API 인증 실패');
-      setIsError(true);
+      console.warn('🚨 네이버 지도 API 인증 실패 - fallback 모드로 전환');
+      console.warn('📋 가능한 원인:');
+      console.warn('  1. Client ID가 올바르지 않음');
+      console.warn('  2. 도메인(localhost:3001)이 등록되지 않음');
+      console.warn('  3. API 사용량 한도 초과');
+      console.warn('  4. 네이버 클라우드 플랫폼 설정 오류');
+      
+      // 인증 실패해도 앱이 계속 작동하도록 오류로 처리하지 않음
+      setIsError(false);
+      setIsLoaded(true); // fallback 모드로 전환
     };
 
     // 이미 로드되어 있는지 확인
@@ -34,22 +48,15 @@ const NaverMapScript: React.FC = () => {
       return;
     }
 
-    // 클라이언트 ID 설정 (개발환경에서 작동하는 키 사용)
-    let clientId = process.env.REACT_APP_NAVER_CLIENT_ID || 'c4d9638auv';
-    
-    // 개발환경에서 작동하는 API 키가 있다면 사용
-    if (clientId === 'your_naver_client_id_here') {
-      console.warn('⚠️ 네이버 지도 API 키가 설정되지 않았습니다.');
-      console.warn('📋 개발환경에서 작동하는 API 키를 사용합니다.');
-      clientId = 'c4d9638auv'; // 개발환경에서 작동하는 실제 API 키
-    }
+    // 네이버 지도 API 전용 클라이언트 ID 사용
+    const clientId = NAVER_MAPS_CONFIG.CLIENT_ID;
 
     console.log('네이버 지도 API 스크립트 로딩 시작...');
     console.log('클라이언트 ID:', clientId);
     
     const script = document.createElement('script');
-    // 새로운 API 형식: ncpKeyId 사용 (한국어 설정 추가)
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder&language=ko`;
+    // 네이버 지도 API 스크립트 로드 (설정된 파라미터 사용)
+    script.src = `https://oapi.map.naver.com/openapi/${NAVER_MAPS_CONFIG.API_VERSION}/maps.js?ncpKeyId=${clientId}&submodules=${NAVER_MAPS_CONFIG.SUBMODULES.join(',')}&language=${NAVER_MAPS_CONFIG.LANGUAGE}`;
     script.async = true;
     
     script.onload = () => {

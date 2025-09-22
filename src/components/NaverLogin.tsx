@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { NAVER_LOGIN_CONFIG } from '../config/naverApi';
 
 interface NaverLoginProps {
   selectedRole?: string;
@@ -22,14 +23,14 @@ const NaverLogin: React.FC<NaverLoginProps> = ({ selectedRole, onError }) => {
     try {
       setIsLoading(true);
       
-      // 네이버 OAuth 2.0 직접 구현
-      const clientId = process.env.REACT_APP_NAVER_CLIENT_ID || 'R0oImlUQC6DqKKV_V5BR';
+      // 네이버 로그인 API 전용 설정 사용
+      const clientId = NAVER_LOGIN_CONFIG.CLIENT_ID;
       
       if (!clientId) {
-        throw new Error('네이버 클라이언트 ID가 설정되지 않았습니다.');
+        throw new Error('네이버 로그인 API 클라이언트 ID가 설정되지 않았습니다.');
       }
       
-      const redirectUri = encodeURIComponent(`${window.location.origin}/auth/naver/callback`);
+      const redirectUri = encodeURIComponent(NAVER_LOGIN_CONFIG.REDIRECT_URI);
       
       // 현재 페이지 정보를 state에 포함
       const currentPath = window.location.pathname;
@@ -38,9 +39,9 @@ const NaverLogin: React.FC<NaverLoginProps> = ({ selectedRole, onError }) => {
       const state = encodeURIComponent(stateWithPath);
       
       // 네이버 로그인에서 요청할 정보 범위 설정
-      const scope = encodeURIComponent('name,email,mobile');
+      const scope = encodeURIComponent(NAVER_LOGIN_CONFIG.SCOPE);
       
-      // 네이버 로그인 URL 생성 (휴대전화번호 포함)
+      // 네이버 로그인 URL 생성
       const naverLoginUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`;
       
       console.log('🔍 현재 페이지 정보:', { currentPath, isFromSignup, stateWithPath });

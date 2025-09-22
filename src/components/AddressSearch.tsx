@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import '../types/naverMap';
 
 // 주소 검색을 위한 인터페이스
@@ -66,6 +66,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [detailAddress, setDetailAddress] = useState('');
   const [isComposing, setIsComposing] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 초기값이 있으면 선택된 상태로 설정
   useEffect(() => {
@@ -78,9 +79,17 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         zipCode: '',
         detailAddress: '',
       });
+      setSearchTerm(value); // searchTerm도 동기화
       console.log('AddressSearch - 기존 주소 로드:', value);
     }
   }, [value, selectedAddress]);
+
+  // value prop이 변경될 때 searchTerm도 업데이트 (편집 모드가 아닐 때만)
+  useEffect(() => {
+    if (value !== undefined && value !== searchTerm && !isEditing) {
+      setSearchTerm(value);
+    }
+  }, [value, isEditing]);
 
   // 짧은/조합 입력 시 호출 억제 규칙
   const shouldSearch = useCallback((term: string) => {
@@ -132,16 +141,47 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
           }
           
           await new Promise<void>((resolve, reject) => {
-            window.naver.maps.Service.geocode({ query: keyword }, (status: any, response: any) => {
+            // 검색어 정리: 공백 제거 및 최소 길이 확인
+            const cleanKeyword = keyword.trim();
+            if (cleanKeyword.length < 2) {
+              console.log('네이버 지오코더: 검색어가 너무 짧음:', cleanKeyword);
+              return reject(new Error('NO_RESULTS'));
+            }
+            
+            console.log('네이버 지오코더 요청:', cleanKeyword);
+            window.naver.maps.Service.geocode({ 
+              query: cleanKeyword,
+              coordinate: null,
+              language: 'ko'
+            }, (status: any, response: any) => {
               try {
+                console.log('네이버 지오코더 응답:', { status, response });
+                console.log('네이버 지오코더 응답 상세:', {
+                  v2: response?.v2,
+                  result: response?.result,
+                  addresses: response?.addresses,
+                  items: response?.items
+                });
                 if (status !== window.naver.maps.Service.Status.OK) {
+                  console.log('네이버 지오코더 상태 오류:', status);
                   return reject(new Error(`NAVER_GEOCODER_FAILED(${status})`));
                 }
-                // v3 응답 포맷 대응: v2.addresses 또는 result.items
+                // 다양한 응답 형식 대응
                 const v2Addresses = Array.isArray(response?.v2?.addresses) ? response.v2.addresses : [];
                 const v3Items = Array.isArray(response?.result?.items) ? response.result.items : [];
-                const items = v2Addresses.length > 0 ? v2Addresses : v3Items;
-                if (items.length === 0) return reject(new Error('NO_RESULTS'));
+                const directAddresses = Array.isArray(response?.addresses) ? response.addresses : [];
+                const directItems = Array.isArray(response?.items) ? response.items : [];
+                
+                // 모든 가능한 배열을 확인
+                const items = v2Addresses.length > 0 ? v2Addresses : 
+                             v3Items.length > 0 ? v3Items :
+                             directAddresses.length > 0 ? directAddresses :
+                             directItems.length > 0 ? directItems : [];
+                console.log('네이버 지오코더 결과 항목 수:', items.length);
+                if (items.length === 0) {
+                  console.log('네이버 지오코더: 결과 없음');
+                  return reject(new Error('NO_RESULTS'));
+                }
                 const mapped: Address[] = items.slice(0, maxResults).map((item: any) => {
                   // v2 주소
                   const isV2 = !!(item.roadAddress || item.jibunAddress || item.x || item.y);
@@ -200,22 +240,16 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
 
       console.log(`서버 API를 사용하여 주소 검색 (시도 ${retryCount + 1}/${maxRetries + 1}):`, keyword);
       
-      // API 베이스 URL 후보 구성: 환경변수 우선, 실패 시 상대경로
-      const apiBaseFromEnv = (process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
-      const envDirectPath = apiBaseFromEnv
-        ? (apiBaseFromEnv.endsWith('/api') ? `${apiBaseFromEnv}/geocode` : `${apiBaseFromEnv}/api/geocode`)
-        : '';
-      const projectId = (process.env.REACT_APP_FIREBASE_PROJECT_ID || 'resortbyte').trim();
-      const region = (process.env.REACT_APP_FUNCTIONS_REGION || 'asia-northeast3').trim();
-      // Cloud Functions 직접 호출 URL (함수 이름이 api이므로, 내부 라우트는 /api/.. → 최종 경로는 /api/geocode)
-      const functionDirect1stGen = `https://${region}-${projectId}.cloudfunctions.net/api/geocode`;
-      const functionDirectNewGen = `https://api-${region}-${projectId}.cloudfunctions.net/api/geocode`;
-      const apiCandidates = [
-        `/api/geocode`, // 동일 출처 우선 (리라이트/프록시)
-        envDirectPath,
-        functionDirect1stGen,
-        functionDirectNewGen,
-      ].filter(Boolean) as string[];
+      // 개발 환경에서는 로컬 Firebase Functions 사용
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      const localFunctionsUrl = 'http://127.0.0.1:5002/resortbyte-dev/asia-northeast3/api/api/geocode';
+      
+      const apiCandidates = isDevelopment 
+        ? [localFunctionsUrl] // 개발 환경: 로컬 Functions만 사용
+        : [
+            '/api/geocode', // 프로덕션: 동일 출처 우선
+            `https://api-asia-northeast3-resortbyte.cloudfunctions.net/api/geocode`, // 프로덕션: 직접 호출
+          ];
 
       let data: any = null;
       let lastError: any = null;
@@ -332,7 +366,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         console.log(`${retryDelay}ms 후 재시도... (${retryCount + 1}/${maxRetries})`);
         setError(`연결 중... (${retryCount + 1}/${maxRetries + 1})`);
         
-        setTimeout(() => {
+        searchTimeoutRef.current = setTimeout(() => {
           searchAddresses(keyword, retryCount + 1);
         }, retryDelay);
         return;
@@ -434,6 +468,16 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     return () => clearTimeout(timer);
   }, [searchTerm, shouldSearch, searchAddresses, isEditing]);
 
+  // 컴포넌트 언마운트 시 cleanup
+  useEffect(() => {
+    return () => {
+      // 타이머 정리
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // 주소 선택 처리
   const handleAddressSelect = useCallback((address: Address) => {
     console.log('AddressSearch - 주소 선택됨:', address);
@@ -458,7 +502,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     // 상세주소 입력 모드인 경우 자동으로 상세주소 필드에 포커스
     if (showDetailAddress) {
       console.log('AddressSearch - 상세주소 입력 모드');
-      setTimeout(() => {
+      searchTimeoutRef.current = setTimeout(() => {
         const detailInput = document.querySelector('input[placeholder*="상세주소"]') as HTMLInputElement;
         if (detailInput) {
           detailInput.focus();
@@ -500,7 +544,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
   // 입력 필드 블러 처리
   const handleBlur = useCallback(() => {
     // 드롭다운 클릭을 위한 지연
-    setTimeout(() => {
+    searchTimeoutRef.current = setTimeout(() => {
       setShowDropdown(false);
       setIsEditing(false);
     }, 200);
@@ -512,7 +556,7 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
     setSearchTerm(value);
     setIsEditing(true);
     setError(null);
-    setSelectedAddress(null); // 검색어 변경 시 선택된 주소 초기화
+    // setSelectedAddress(null) 제거 - 편집 중에는 선택된 주소를 유지
     onInputChange?.(value);
   }, []);
 
@@ -536,30 +580,90 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
         주소 입력 및 검색
       </div>
       
-      {/* 주소 검색 입력 필드 */}
-      <div className="relative">
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={handleInputChange}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          onCompositionStart={handleCompositionStart}
-          onCompositionEnd={handleCompositionEnd}
-          placeholder={placeholder || "도로명주소나 건물명을 입력하세요 (예: 선릉로 513)"}
-          disabled={disabled}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-        />
-        
-        {/* 로딩 인디케이터 */}
-        {isLoading && (
-          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+      {/* 선택된 주소 표시 또는 주소 검색 입력 필드 */}
+      {selectedAddress && !isEditing ? (
+        <div className="space-y-2">
+          <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-green-600">✓</span>
+                <span className="text-green-800 font-medium">선택된 주소</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isEditing) {
+                    // 편집 취소
+                    setIsEditing(false);
+                    setSearchTerm('');
+                    setShowDropdown(false);
+                  } else {
+                    // 주소 수정 시작
+                    setIsEditing(true);
+                    setShowDropdown(false);
+                    setSearchTerm(selectedAddress.address);
+                    // setSelectedAddress(null) 제거 - 편집 중에도 선택된 주소 유지
+                  }
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                {isEditing ? '편집 취소' : '주소 수정'}
+              </button>
+            </div>
+            <div className="mt-2 text-sm text-gray-700">
+              {selectedAddress.address}
+            </div>
           </div>
-        )}
-        
-        {/* 주소 검색 결과 드롭다운 */}
-        {showDropdown && addresses.length > 0 && (
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {/* 편집 모드일 때 기존 주소 정보 표시 */}
+          {isEditing && selectedAddress && (
+            <div className="p-2 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="text-xs text-blue-600 font-medium mb-1">기존 주소:</div>
+              <div className="text-sm text-blue-800">{selectedAddress.address}</div>
+            </div>
+          )}
+          
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={handleInputChange}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              onCompositionStart={handleCompositionStart}
+              onCompositionEnd={handleCompositionEnd}
+              placeholder={placeholder || "도로명주소나 건물명을 입력하세요 (예: 선릉로 513)"}
+              disabled={disabled}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+            />
+          
+          {/* 편집 모드가 아니고 기존 주소가 있을 때 주소 수정 버튼 */}
+          {!isEditing && value && (
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(true);
+                  setSearchTerm(value);
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium px-3 py-1 border border-blue-300 rounded-md hover:bg-blue-50"
+              >
+                주소 수정
+              </button>
+            </div>
+          )}
+          
+          {/* 로딩 인디케이터 */}
+          {isLoading && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+            </div>
+          )}
+          
+          {/* 주소 검색 결과 드롭다운 */}
+          {showDropdown && addresses.length > 0 && (
           <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-y-auto">
             {addresses.map((address, index) => (
               <div
@@ -581,17 +685,19 @@ const AddressSearch: React.FC<AddressSearchProps> = ({
               </div>
             ))}
           </div>
-        )}
-        
-        {/* 검색 결과 없음 */}
-        {showDropdown && !isLoading && addresses.length === 0 && searchTerm.length >= minSearchLength && (
-          <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl">
-            <div className="px-3 py-3 text-gray-500 text-center">
-              검색 결과가 없습니다. 도로명+번지로 입력해 보세요. 예: "선릉로 513"
+          )}
+          
+          {/* 검색 결과 없음 */}
+          {showDropdown && !isLoading && addresses.length === 0 && searchTerm.length >= minSearchLength && (
+            <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl">
+              <div className="px-3 py-3 text-gray-500 text-center">
+                검색 결과가 없습니다. 도로명+번지로 입력해 보세요. 예: "선릉로 513"
+              </div>
             </div>
+          )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 상세주소 입력 필드 - 단순화된 버전 */}
       {showDetailAddress && selectedAddress && (

@@ -1103,42 +1103,39 @@ const JobPostForm: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 방 타입 및 가격 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">방 타입 및 가격</label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {accommodationInfo.roomTypeOptions?.singleRoom && (
-                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                        <div className="text-sm font-medium text-gray-700">1인실</div>
-                        <div className="text-gray-900">{accommodationInfo.roomPrices?.singleRoom || '가격 미정'}</div>
-                      </div>
-                    )}
-                    {accommodationInfo.roomTypeOptions?.doubleRoom && (
-                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                        <div className="text-sm font-medium text-gray-700">2인실</div>
-                        <div className="text-gray-900">{accommodationInfo.roomPrices?.doubleRoom || '가격 미정'}</div>
-                      </div>
-                    )}
-                    {accommodationInfo.roomTypeOptions?.tripleRoom && (
-                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                        <div className="text-sm font-medium text-gray-700">3인실</div>
-                        <div className="text-gray-900">{accommodationInfo.roomPrices?.tripleRoom || '가격 미정'}</div>
-                      </div>
-                    )}
-                    {accommodationInfo.roomTypeOptions?.quadRoom && (
-                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                        <div className="text-sm font-medium text-gray-700">4인실</div>
-                        <div className="text-gray-900">{accommodationInfo.roomPrices?.quadRoom || '가격 미정'}</div>
-                      </div>
-                    )}
-                    {accommodationInfo.roomTypeOptions?.otherRoom && (
-                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                        <div className="text-sm font-medium text-gray-700">{accommodationInfo.otherRoomType || '기타'}</div>
-                        <div className="text-gray-900">{accommodationInfo.roomPrices?.otherRoom || '가격 미정'}</div>
-                      </div>
-                    )}
+                {/* 객실 유형 */}
+                {accommodationInfo.roomTypeOptions && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">객실 유형</label>
+                    <div className="flex flex-wrap gap-2">
+                      {accommodationInfo.roomTypeOptions.singleRoom && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                          1인실
+                        </span>
+                      )}
+                      {accommodationInfo.roomTypeOptions.doubleRoom && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                          2인실
+                        </span>
+                      )}
+                      {accommodationInfo.roomTypeOptions.tripleRoom && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                          3인실
+                        </span>
+                      )}
+                      {accommodationInfo.roomTypeOptions.quadRoom && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                          4인실
+                        </span>
+                      )}
+                      {accommodationInfo.roomTypeOptions.otherRoom && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                          기타
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* 편의시설 */}
                 <div>

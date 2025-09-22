@@ -246,6 +246,7 @@ export interface AccommodationInfo extends BaseEntity {
   petAllowed?: boolean;
   smokingAllowed?: boolean;
   otherFacilities?: string;
+  paymentType?: 'free' | 'paid';
   roomTypeOptions?: {
     singleRoom?: boolean;
     doubleRoom?: boolean;
@@ -253,15 +254,6 @@ export interface AccommodationInfo extends BaseEntity {
     quadRoom?: boolean;
     otherRoom?: boolean;
   };
-  paymentType?: 'free' | 'paid';
-  roomPrices?: {
-    singleRoom?: number;
-    doubleRoom?: number;
-    tripleRoom?: number;
-    quadRoom?: number;
-    otherRoom?: number;
-  };
-  otherRoomType?: string;
 }
 
 export interface WorkType extends BaseEntity {

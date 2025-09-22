@@ -19,7 +19,7 @@ export interface NaverMapProps {
     title?: string;
     content?: string;
   }>;
-  onMapClick?: (lat: number, lng: number) => void;
+  onMapClick?: (event: any, latLng: any) => void;
   onMarkerClick?: (marker: any) => void;
 }
 

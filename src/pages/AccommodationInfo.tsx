@@ -19,6 +19,19 @@ const AccommodationInfoPage: React.FC = () => {
   const location = useLocation();
   const mode = searchParams.get('mode');
 
+  // 수용인원 표시 텍스트 변환 함수
+  const getCapacityDisplayText = (capacity: number): string => {
+    if (capacity === 0) return '미설정';
+    if (capacity === 10) return '10명 이하';
+    if (capacity === 15) return '11-15명';
+    if (capacity === 20) return '16-20명';
+    if (capacity === 30) return '21-30명';
+    if (capacity === 50) return '31-50명';
+    if (capacity === 100) return '51-100명';
+    if (capacity === 200) return '100명 이상';
+    return `${capacity}명`;
+  };
+
   const [accommodationInfo, setAccommodationInfo] = useState<any>(null);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -50,6 +63,10 @@ const AccommodationInfoPage: React.FC = () => {
       email: ''
     },
     contactPerson: '',
+    capacity: 0,
+    currentOccupancy: 0,
+    otherAmenities: '',
+    nearbyFacilities: '',
     roomTypeOptions: {
       singleRoom: false,
       doubleRoom: false,
@@ -57,18 +74,6 @@ const AccommodationInfoPage: React.FC = () => {
       quadRoom: false,
       otherRoom: false
     },
-    roomPrices: {
-      singleRoom: '',
-      doubleRoom: '',
-      tripleRoom: '',
-      quadRoom: '',
-      otherRoom: ''
-    },
-    otherRoomType: '',
-    capacity: 0,
-    currentOccupancy: 0,
-    otherAmenities: '',
-    nearbyFacilities: '',
     // 좌표 정보 추가
     latitude: null as number | null,
     longitude: null as number | null
@@ -115,6 +120,10 @@ const AccommodationInfoPage: React.FC = () => {
               email: data.contactInfo?.email || (companyData ? companyData.contactEmail || '' : '')
             },
             contactPerson: data.contactPerson || (companyData ? companyData.contactPerson || '' : ''),
+            capacity: data.capacity || 0,
+            currentOccupancy: data.currentOccupancy || 0,
+            otherAmenities: data.otherAmenities || '',
+            nearbyFacilities: data.nearbyFacilities || '',
             roomTypeOptions: data.roomTypeOptions || {
               singleRoom: false,
               doubleRoom: false,
@@ -122,18 +131,6 @@ const AccommodationInfoPage: React.FC = () => {
               quadRoom: false,
               otherRoom: false
             },
-            roomPrices: data.roomPrices || {
-              singleRoom: '',
-              doubleRoom: '',
-              tripleRoom: '',
-              quadRoom: '',
-              otherRoom: ''
-            },
-            otherRoomType: data.otherRoomType || '',
-            capacity: data.capacity || 0,
-            currentOccupancy: data.currentOccupancy || 0,
-            otherAmenities: data.otherAmenities || '',
-            nearbyFacilities: data.nearbyFacilities || '',
             // 좌표 정보 포함
             latitude: data.latitude || null,
             longitude: data.longitude || null
@@ -630,13 +627,52 @@ const AccommodationInfoPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     수용 인원
                   </label>
-                  <input
-                    type="number"
+                  <select
                     value={editData.capacity}
                     onChange={(e) => setEditData(prev => ({ ...prev, capacity: parseInt(e.target.value) || 0 }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="수용 가능한 인원 수"
-                  />
+                  >
+                    <option value={0}>선택해주세요</option>
+                    <option value={10}>10명 이하</option>
+                    <option value={15}>11-15명</option>
+                    <option value={20}>16-20명</option>
+                    <option value={30}>21-30명</option>
+                    <option value={50}>31-50명</option>
+                    <option value={100}>51-100명</option>
+                    <option value={200}>100명 이상</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 객실 유형 */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  객실 유형
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {[
+                    { key: 'singleRoom', label: '1인실' },
+                    { key: 'doubleRoom', label: '2인실' },
+                    { key: 'tripleRoom', label: '3인실' },
+                    { key: 'quadRoom', label: '4인실' },
+                    { key: 'otherRoom', label: '기타' }
+                  ].map(room => (
+                    <label key={room.key} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editData.roomTypeOptions?.[room.key as keyof typeof editData.roomTypeOptions] || false}
+                        onChange={(e) => {
+                          const newRoomTypeOptions = {
+                            ...editData.roomTypeOptions,
+                            [room.key]: e.target.checked
+                          };
+                          setEditData(prev => ({ ...prev, roomTypeOptions: newRoomTypeOptions }));
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{room.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
@@ -653,75 +689,6 @@ const AccommodationInfoPage: React.FC = () => {
                 />
               </div>
             </div>
-
-            {/* 객실 유형 및 가격 */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Users className="w-5 h-5 mr-2 text-purple-600" />
-                객실 유형 및 가격
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  { key: 'singleRoom', label: '1인실', priceKey: 'singleRoom' },
-                  { key: 'doubleRoom', label: '2인실', priceKey: 'doubleRoom' },
-                  { key: 'tripleRoom', label: '3인실', priceKey: 'tripleRoom' },
-                  { key: 'quadRoom', label: '4인실', priceKey: 'quadRoom' },
-                  { key: 'otherRoom', label: '기타', priceKey: 'otherRoom' }
-                ].map(({ key, label, priceKey }) => (
-                  <div key={key} className="border border-gray-200 rounded-lg p-4">
-                    <label className="flex items-center space-x-2 mb-3">
-                      <input
-                        type="checkbox"
-                        checked={editData.roomTypeOptions[key as keyof typeof editData.roomTypeOptions]}
-                        onChange={(e) => setEditData(prev => ({
-                          ...prev,
-                          roomTypeOptions: {
-                            ...prev.roomTypeOptions,
-                            [key]: e.target.checked
-                          }
-                        }))}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="font-medium text-gray-900">{label}</span>
-                    </label>
-                    
-                    {editData.roomTypeOptions[key as keyof typeof editData.roomTypeOptions] && (
-                      <input
-                        type="text"
-                        value={editData.roomPrices[priceKey as keyof typeof editData.roomPrices]}
-                        onChange={(e) => setEditData(prev => ({
-                          ...prev,
-                          roomPrices: {
-                            ...prev.roomPrices,
-                            [priceKey]: e.target.value
-                          }
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="월세 (예: 30만원)"
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {editData.roomTypeOptions.otherRoom && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    기타 객실 유형
-                  </label>
-                  <input
-                    type="text"
-                    value={editData.otherRoomType}
-                    onChange={(e) => setEditData(prev => ({ ...prev, otherRoomType: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="기타 객실 유형을 입력하세요"
-                  />
-                </div>
-              )}
-            </div>
-
-
 
             {/* 시설 정보 */}
             <div className="bg-white rounded-lg shadow p-6">
@@ -914,8 +881,40 @@ const AccommodationInfoPage: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">수용 인원</label>
-                        <p className="text-gray-900 text-sm">{accommodationInfo.capacity || 0}명</p>
+                        <p className="text-gray-900 text-sm">{getCapacityDisplayText(accommodationInfo.capacity || 0)}</p>
                       </div>
+                      {accommodationInfo.roomTypeOptions && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">객실 유형</label>
+                          <div className="flex flex-wrap gap-2">
+                            {accommodationInfo.roomTypeOptions.singleRoom && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                1인실
+                              </span>
+                            )}
+                            {accommodationInfo.roomTypeOptions.doubleRoom && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                2인실
+                              </span>
+                            )}
+                            {accommodationInfo.roomTypeOptions.tripleRoom && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                3인실
+                              </span>
+                            )}
+                            {accommodationInfo.roomTypeOptions.quadRoom && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                4인실
+                              </span>
+                            )}
+                            {accommodationInfo.roomTypeOptions.otherRoom && (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                                기타
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {accommodationInfo.description && (
@@ -944,94 +943,39 @@ const AccommodationInfoPage: React.FC = () => {
                       onClick={() => setIsMapFullscreen(true)}
                       title="지도를 클릭하면 전체화면으로 확대됩니다"
                     >
-                      <NaverMap
-                        center={{
-                          lat: accommodationInfo?.latitude || 37.5665,
-                          lng: accommodationInfo?.longitude || 126.9780
-                        }}
-                        zoom={15}
-                        markers={accommodationInfo?.address ? [
-                          {
-                            position: {
-                              lat: accommodationInfo.latitude || 37.5665,
-                              lng: accommodationInfo.longitude || 126.9780
-                            },
-                            title: accommodationInfo.name || '기숙사',
-                            content: accommodationInfo.address
-                          }
-                        ] : []}
-                      />
+                      {accommodationInfo?.address ? (
+                        <NaverMap
+                          key={`main-${accommodationInfo.latitude}-${accommodationInfo.longitude}-${Date.now()}`}
+                          center={{
+                            lat: accommodationInfo.latitude || 37.5665,
+                            lng: accommodationInfo.longitude || 126.9780
+                          }}
+                          zoom={15}
+                          markers={[
+                            {
+                              position: {
+                                lat: accommodationInfo.latitude || 37.5665,
+                                lng: accommodationInfo.longitude || 126.9780
+                              },
+                              title: accommodationInfo.name || '기숙사',
+                              content: accommodationInfo.address
+                            }
+                          ]}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-gray-500 bg-gray-100 rounded-lg">
+                          <div className="text-center">
+                            <div className="text-4xl mb-2">🗺️</div>
+                            <div>주소를 입력하면 지도가 표시됩니다</div>
+                          </div>
+                        </div>
+                      )}
                       <div className="absolute bottom-2 right-2 text-xs bg-black/50 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                         전체화면 보기
                       </div>
                     </div>
-                    {/* 위치 정보 */}
-                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="space-y-2 text-sm">
-                        <div>
-                          <span className="text-gray-600 font-medium">주소:</span>
-                          <span className="ml-2 text-gray-900">{accommodationInfo?.address || '미입력'}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <span className="text-gray-600 font-medium">위도:</span>
-                            <span className="ml-1 text-gray-900">
-                              {accommodationInfo?.latitude ? accommodationInfo.latitude.toFixed(6) : '미설정'}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600 font-medium">경도:</span>
-                            <span className="ml-1 text-gray-900">
-                              {accommodationInfo?.longitude ? accommodationInfo.longitude.toFixed(6) : '미설정'}
-                            </span>
-                          </div>
-                        </div>
-                        <div>
-                          <span className="text-gray-600 font-medium">상태:</span>
-                          <span className={`ml-2 ${(accommodationInfo?.latitude && accommodationInfo?.longitude) ? 'text-green-600' : 'text-orange-600'}`}>
-                            {(accommodationInfo?.latitude && accommodationInfo?.longitude) ? '정확한 위치' : '기본 위치'}
-                          </span>
-                        </div>
-                      </div>
-                      {(!accommodationInfo?.latitude || !accommodationInfo?.longitude) && (
-                        <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
-                          💡 정확한 위치를 표시하려면 편집 모드에서 주소를 다시 검색해주세요.
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </div>
-
-                {/* 객실 유형 */}
-                {accommodationInfo.roomTypeOptions && (
-                  <div className="bg-white rounded-lg shadow p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <Users className="w-5 h-5 mr-2 text-purple-600" />
-                      객실 유형
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {Object.entries(accommodationInfo.roomTypeOptions).map(([key, available]) => {
-                        if (!available) return null;
-                        const labels = {
-                          singleRoom: '1인실',
-                          doubleRoom: '2인실',
-                          tripleRoom: '3인실',
-                          quadRoom: '4인실',
-                          otherRoom: '기타'
-                        };
-                        const price = accommodationInfo.roomPrices?.[key as keyof typeof accommodationInfo.roomPrices];
-                        return (
-                          <div key={key} className="border border-gray-200 rounded-lg p-4">
-                            <div className="font-medium text-gray-900">{labels[key as keyof typeof labels]}</div>
-                            {price && <div className="text-sm text-gray-600 mt-1">{price}</div>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-
 
                 {/* 시설 정보 */}
                 {accommodationInfo.facilities && accommodationInfo.facilities.length > 0 && (
@@ -1358,7 +1302,7 @@ const AccommodationInfoPage: React.FC = () => {
       )}
 
       {/* 전체화면 지도 모달 */}
-      {isMapFullscreen && accommodationInfo?.address && (
+      {isMapFullscreen && (
         <div className="fixed inset-0 z-[1000] bg-black/70 flex items-center justify-center">
           <div className="w-[95vw] h-[85vh] bg-white rounded-lg overflow-hidden shadow-2xl flex flex-col">
             {/* 헤더 영역 */}
@@ -1376,21 +1320,31 @@ const AccommodationInfoPage: React.FC = () => {
             </div>
             {/* 지도 영역 */}
             <div className="flex-1 relative">
-              <NaverMap
-                center={{
-                  lat: accommodationInfo.latitude || 37.5665,
-                  lng: accommodationInfo.longitude || 126.9780
-                }}
-                zoom={16}
-                markers={[{
-                  position: {
+              {accommodationInfo?.address ? (
+                <NaverMap
+                  key={`fullscreen-${accommodationInfo.latitude}-${accommodationInfo.longitude}-${Date.now()}`}
+                  center={{
                     lat: accommodationInfo.latitude || 37.5665,
                     lng: accommodationInfo.longitude || 126.9780
-                  },
-                  title: accommodationInfo.name || '기숙사',
-                  content: accommodationInfo.address
-                }]}
-              />
+                  }}
+                  zoom={16}
+                  markers={[{
+                    position: {
+                      lat: accommodationInfo.latitude || 37.5665,
+                      lng: accommodationInfo.longitude || 126.9780
+                    },
+                    title: accommodationInfo.name || '기숙사',
+                    content: accommodationInfo.address
+                  }]}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">🗺️</div>
+                    <div>위치 정보가 없습니다</div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
