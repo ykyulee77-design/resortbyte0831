@@ -4,8 +4,9 @@ export const searchAddress = async (address: string): Promise<AddressSearchResul
   try {
     console.log('🔍 searchAddress 호출:', address);
     
-    // 서버의 지오코딩 API 프록시 사용
-    const url = `http://localhost:4000/api/geocode/coordinates?address=${encodeURIComponent(address)}`;
+    // 서버의 지오코딩 API 프록시 사용 (환경 변수 우선)
+    // 프론트에서 '/api'로 호출하면 setupProxy가 REACT_APP_BACKEND_URL로 전달
+    const url = `/api/geocode/coordinates?address=${encodeURIComponent(address)}`;
     console.log('🌐 API 요청 URL:', url);
     
     const response = await fetch(url);

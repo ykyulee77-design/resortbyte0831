@@ -1,11 +1,10 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Globe, Building, Users, Calendar, Plus, Trash2, Upload, Image, Eye } from 'lucide-react';
 import { CompanyInfo } from '../types';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { uploadImage, deleteImage, validateImageFile, compressImage } from '../utils/imageUpload';
 import ImagePreviewModal from './ImagePreviewModal';
-import AddressSearch, { Address } from './AddressSearch';
 
 interface CompanyInfoModalProps {
   isOpen: boolean;
@@ -49,17 +48,30 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewImageName, setPreviewImageName] = useState<string>('');
 
-  // 주소 선택 핸들러
-  const handleAddressSelect = (address: Address) => {
-    console.log('CompanyInfoModal - 주소 선택됨:', address);
-    setCompanyInfo(prev => ({
-      ...prev,
-      address: address.address,
-      region: address.region || address.sido || '',
-    }));
+  // 기존 회사 정보 불러오기
+  useEffect(() => {
+    if (isOpen && employerId) {
+      loadCompanyInfo();
+    }
+  }, [isOpen, employerId]);
+
+  const loadCompanyInfo = async () => {
+    try {
+      setLoading(true);
+      const docRef = doc(db, 'companyInfo', employerId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data() as CompanyInfo;
+        setCompanyInfo(data);
+      }
+    } catch (error) {
+      console.error('회사 정보 불러오기 실패:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 입력값 변경 핸들러
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setCompanyInfo(prev => ({
@@ -68,23 +80,6 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
     }));
   };
 
-  // 복리후생 추가
-  const addBenefit = () => {
-    setCompanyInfo(prev => ({
-      ...prev,
-      benefits: [...(prev.benefits || []), ''],
-    }));
-  };
-
-  // 복리후생 제거
-  const removeBenefit = (index: number) => {
-    setCompanyInfo(prev => ({
-      ...prev,
-      benefits: prev.benefits?.filter((_, i) => i !== index) || [],
-    }));
-  };
-
-  // 복리후생 변경
   const handleBenefitChange = (index: number, value: string) => {
     setCompanyInfo(prev => ({
       ...prev,
@@ -92,35 +87,48 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
     }));
   };
 
-  // 기숙사 시설 체크박스 옵션
+  const addBenefit = () => {
+    setCompanyInfo(prev => ({
+      ...prev,
+      benefits: [...(prev.benefits || []), ''],
+    }));
+  };
+
+  const removeBenefit = (index: number) => {
+    setCompanyInfo(prev => ({
+      ...prev,
+      benefits: prev.benefits?.filter((_, i) => i !== index) || [],
+    }));
+  };
+
+  // 숙소 시설 체크박스 옵션
   const dormitoryFacilityOptions = [
-    '침대, 의자, 책상, 개인실, 공용주방', 'TV', '냉장고, 책상', '옷장', '침실',
+    '와이파이', '에어컨', '세탁기', '개인욕실', '공용주방', 'TV', '냉장고', '책상', '옷장', '난방',
   ];
 
   // handleDormitoryFacilitiesChange 함수 추가
   const handleDormitoryFacilitiesChange = (facility: string) => {
-    setCompanyInfo(prev => {
-      const currentFacilities = prev.dormitoryFacilities || [];
-      const isSelected = currentFacilities.includes(facility);
-      
-      return {
-        ...prev,
-        dormitoryFacilities: isSelected
-          ? currentFacilities.filter(f => f !== facility)
-          : [...currentFacilities, facility],
-      };
-    });
+    setCompanyInfo(prev => ({
+      ...prev,
+      dormitoryFacilities: prev.dormitoryFacilities?.includes(facility)
+        ? prev.dormitoryFacilities.filter(f => f !== facility)
+        : [...(prev.dormitoryFacilities || []), facility],
+    }));
   };
 
-  // 이미지 업로드 핸들러
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  // 이미지 업로드 함수
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+      console.log('선택된 파일이 없습니다.');
+      return;
+    }
 
-    const fileArray = Array.from(files);
-    setUploadingImages(true);
-
+    console.log(`이미지 업로드 시작: ${files.length}개 파일 선택됨`);
+    
     try {
+      setUploadingImages(true);
+      const fileArray = Array.from(files);
       const uploadedUrls: string[] = [];
 
       for (const file of fileArray) {
@@ -133,7 +141,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
           alert(`파일 "${file.name}": ${validation.error}`);
           continue;
         }
-        console.log(`파일 검증 성공: ${file.name}`);
+        console.log(`파일 검증 통과: ${file.name}`);
 
         // 이미지 압축 (필요시)
         let processedFile = file;
@@ -153,8 +161,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
         const result = await uploadImage(processedFile, {
           folder: 'company-images',
           metadata: {
-            employerId,
-            uploadedAt: new Date().toISOString(),
+            uploadedBy: employerId,
+            uploadType: 'company-info',
+            originalName: file.name,
           },
         });
 
@@ -174,7 +183,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
           ...prev,
           images: [...(prev.images || []), ...uploadedUrls],
         }));
-        alert(`${uploadedUrls.length}개의 이미지가 성공적으로 업로드되었습니다.`);
+        alert(`${uploadedUrls.length}개 이미지가 성공적으로 업로드되었습니다.`);
       } else {
         console.log('업로드된 파일이 없습니다.');
       }
@@ -252,7 +261,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-gray-900">회사 정보 관리</h3>
+            <h3 className="text-xl font-bold text-gray-900">🏢 회사 소개 관리</h3>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -272,11 +281,11 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* 기본 정보 */}
               <div className="space-y-4">
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">회사 기본 정보</h4>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">📋 기본 정보</h4>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    회사명<span className="text-red-500">*</span>
+                    회사명 <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -298,13 +307,13 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
                     onChange={handleInputChange}
                     rows={4}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors resize-none"
-                    placeholder="회사의 비전, 미션, 주요 업무 분야 등을 소개해주세요..."
+                    placeholder="회사의 비전, 미션, 주요 사업 분야 등을 소개해주세요..."
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    웹사이트
+                    홈페이지
                   </label>
                   <div className="relative">
                     <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -349,7 +358,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">설립연도</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">설립년도</label>
                   <input
                     type="number"
                     name="foundedYear"
@@ -362,16 +371,15 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
                   />
                 </div>
 
-                {/* 주소 검색 컴포넌트 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">주소</label>
-                  <AddressSearch
-                    onAddressSelect={handleAddressSelect}
+                  <input
+                    type="text"
+                    name="address"
                     value={companyInfo.address || ''}
-                    placeholder="회사 주소를 검색하세요"
-                    showDetailAddress={true}
-                    detailAddressPlaceholder="상세주소 (층수, 사무실 번호 등)"
-                    className="w-full"
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
+                    placeholder="회사 주소를 입력하세요"
                   />
                 </div>
 
@@ -470,15 +478,16 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
                           {uploadingImages ? (
                             <>
                               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mb-2"></div>
-                              <p className="text-sm text-orange-600">업로드 중...</p>
+                              <p className="mb-2 text-sm text-orange-600 font-semibold">업로드 중...</p>
+                              <p className="text-xs text-orange-500">잠시만 기다려주세요</p>
                             </>
                           ) : (
                             <>
-                              <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                              <p className="text-sm text-gray-500">
-                                <span className="font-semibold">클릭하여 이미지 업로드</span>
+                              <Upload className="w-8 h-8 mb-2 text-gray-500" />
+                              <p className="mb-2 text-sm text-gray-500">
+                                <span className="font-semibold">클릭하여 업로드</span> 또는 드래그 앤 드롭
                               </p>
-                              <p className="text-xs text-gray-400">PNG, JPG, GIF (최대 10MB)</p>
+                              <p className="text-xs text-gray-500">PNG, JPG, JPEG, HEIC (최대 10MB)</p>
                             </>
                           )}
                         </div>
@@ -487,18 +496,26 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
                           multiple
                           accept="image/*"
                           onChange={handleImageUpload}
-                          disabled={uploadingImages}
                           className="hidden"
+                          disabled={uploadingImages}
                         />
                       </label>
                     </div>
+
+                    {/* 업로드 중 표시 */}
+                    {uploadingImages && (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-resort-500 mx-auto mb-2"></div>
+                        <p className="text-sm text-gray-600">이미지 업로드 중...</p>
+                      </div>
+                    )}
 
                     {/* 업로드된 이미지 목록 */}
                     {companyInfo.images && companyInfo.images.length > 0 && (
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {companyInfo.images.map((imageUrl, index) => (
-                          <div key={index} className="relative group">
-                            <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                          <div key={index} className="relative group cursor-pointer">
+                            <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
                               <img
                                 src={imageUrl}
                                 alt={`회사 이미지 ${index + 1}`}
@@ -513,14 +530,14 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
                                   className="p-2 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100 transition-colors"
                                   title="미리보기"
                                 >
-                                  <Eye className="h-4 w-4" />
+                                  <Eye className="h-4 w-4 text-gray-700" />
                                 </button>
                                 <button
                                   onClick={() => handleImageDelete(imageUrl, index)}
-                                  className="p-2 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100 transition-colors"
+                                  className="p-2 bg-red-500 bg-opacity-80 rounded-full hover:bg-opacity-100 transition-colors"
                                   title="삭제"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-4 w-4 text-white" />
                                 </button>
                               </div>
                             </div>
@@ -532,118 +549,131 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({
                 </div>
               </div>
 
-              {/* 기숙사 정보 */}
+              {/* 회사 조건 */}
               <div className="space-y-4">
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">기숙사 정보</h4>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">🏢 회사 조건</h4>
                 
+                {/* 지역 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">지역</label>
+                  <input
+                    type="text"
+                    name="region"
+                    value={companyInfo.region || ''}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
+                    placeholder="예: 강원도 평창"
+                  />
+                </div>
+
+                {/* 기숙사 제공 여부 */}
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
-                    id="dormitory"
-                    checked={companyInfo.dormitory || false}
-                    onChange={(e) => setCompanyInfo(prev => ({ ...prev, dormitory: e.target.checked }))}
-                    className="h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300 rounded"
+                    name="dormitory"
+                    checked={!!companyInfo.dormitory}
+                    onChange={e => setCompanyInfo(prev => ({ ...prev, dormitory: e.target.checked }))}
+                    className="h-4 w-4 text-resort-600 border-gray-300 rounded"
+                    id="dormitory-checkbox"
                   />
-                  <label htmlFor="dormitory" className="text-sm font-medium text-gray-700">
-                    기숙사 제공
-                  </label>
+                  <label htmlFor="dormitory-checkbox" className="text-sm font-medium text-gray-700">기숙사 제공</label>
                 </div>
 
+                {/* 숙소 시설 */}
                 {companyInfo.dormitory && (
-                  <div className="space-y-4 pl-6 border-l-2 border-resort-200">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">기숙사 시설</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {dormitoryFacilityOptions.map((facility) => (
-                          <label key={facility} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={companyInfo.dormitoryFacilities?.includes(facility) || false}
-                              onChange={() => handleDormitoryFacilitiesChange(facility)}
-                              className="h-4 w-4 text-resort-600 focus:ring-resort-500 border-gray-300 rounded"
-                            />
-                            <span className="text-sm text-gray-700">{facility}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">급여 범위</label>
-                      <input
-                        type="text"
-                        name="salaryRange"
-                        value={companyInfo.salaryRange || ''}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
-                        placeholder="예: 월 200만원 ~ 300만원"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">근무 환경</label>
-                      <select
-                        name="environment"
-                        value={companyInfo.environment || ''}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
-                      >
-                        <option value="도심">도심</option>
-                        <option value="준생활권">준생활권</option>
-                        <option value="외진곳">외진곳</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">근무 시간</label>
-                      <select
-                        name="workTimeType"
-                        value={companyInfo.workTimeType || ''}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
-                      >
-                        <option value="주간 근무타입">주간 근무타입</option>
-                        <option value="야간 근무타입">야간 근무타입</option>
-                        <option value="주말근무타입">주말근무타입</option>
-                        <option value="주중근무타입">주중근무타입</option>
-                        <option value="무관">무관</option>
-                      </select>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">숙소 시설</label>
+                    <div className="flex flex-wrap gap-2">
+                      {dormitoryFacilityOptions.map(option => (
+                        <label key={option} className="flex items-center space-x-1">
+                          <input
+                            type="checkbox"
+                            checked={companyInfo.dormitoryFacilities?.includes(option) || false}
+                            onChange={() => handleDormitoryFacilitiesChange(option)}
+                            className="h-4 w-4 text-resort-600 border-gray-300 rounded"
+                          />
+                          <span className="text-xs text-gray-700">{option}</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
 
-            {/* 저장 버튼 */}
-            <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-gray-200">
-              <button
-                onClick={onClose}
-                className="px-6 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-6 py-3 bg-resort-600 text-white rounded-lg hover:bg-resort-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {saving ? '저장 중...' : '저장'}
-              </button>
+                {/* 급여 범위 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">급여 범위</label>
+                  <input
+                    type="text"
+                    name="salaryRange"
+                    value={companyInfo.salaryRange || ''}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
+                    placeholder="예: 200~250만원"
+                  />
+                </div>
+
+                {/* 주변 환경 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">주변 환경</label>
+                  <select
+                    name="environment"
+                    value={companyInfo.environment || '도심'}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
+                  >
+                    <option value="도심">도심</option>
+                    <option value="준생활권">준생활권</option>
+                    <option value="외진곳">외진곳</option>
+                  </select>
+                </div>
+
+                {/* 근무타입 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">근무타입</label>
+                  <select
+                    name="workTimeType"
+                    value={companyInfo.workTimeType || '무관'}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-resort-500 focus:border-resort-500 transition-colors"
+                  >
+                    <option value="무관">무관</option>
+                    <option value="주간 근무타입">주간 근무타입</option>
+                    <option value="야간 근무타입">야간 근무타입</option>
+                    <option value="주말근무타입">주말근무타입</option>
+                    <option value="주중근무타입">주중근무타입</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         )}
-
-        {/* 이미지 미리보기 모달 */}
-        {previewImage && (
-          <ImagePreviewModal
-            isOpen={!!previewImage} imageUrl={previewImage}
-            imageName={previewImageName}
-            onClose={() => setPreviewImage(null)}
-          />
-        )}
+        
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            취소
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !companyInfo.name || !companyInfo.description}
+            className="px-6 py-2 bg-resort-600 text-white rounded-lg hover:bg-resort-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {saving ? '저장 중...' : '저장'}
+          </button>
+        </div>
       </div>
+
+      {/* 이미지 미리보기 모달 */}
+      <ImagePreviewModal
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        imageUrl={previewImage || ''}
+        imageName={previewImageName}
+      />
     </div>
   );
 };
 
-export default CompanyInfoModal;
+export default CompanyInfoModal; 

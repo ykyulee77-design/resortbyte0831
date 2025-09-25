@@ -16,7 +16,9 @@ const NaverMap: React.FC<NaverMapProps> = ({
   zoom, 
   markers = [], 
   onMapClick,
-  onMarkerClick 
+  onMarkerClick,
+  showCurrentLocation = false,
+  onCurrentLocationFound
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
@@ -24,7 +26,88 @@ const NaverMap: React.FC<NaverMapProps> = ({
   const [isMapReady, setIsMapReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isApiAvailable, setIsApiAvailable] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [currentLocationAddress, setCurrentLocationAddress] = useState<string>('');
   const isMountedRef = useRef(true);
+
+  // 현재 위치 가져오기 함수
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      console.warn('현재 위치를 지원하지 않는 브라우저입니다.');
+      alert('현재 위치를 지원하지 않는 브라우저입니다. 최신 브라우저를 사용해주세요.');
+      return;
+    }
+
+    // 위치 권한 요청 전 사용자에게 알림
+    const userConfirmed = window.confirm(
+      '현재 위치를 가져오려면 위치 권한이 필요합니다. 허용하시겠습니까?'
+    );
+    
+    if (!userConfirmed) {
+      console.log('사용자가 위치 권한을 거부했습니다.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        
+        if (isMountedRef.current) {
+          setCurrentLocation({ lat, lng });
+          
+          // 주소 역지오코딩
+          if (window.naver && window.naver.maps && window.naver.maps.Service) {
+            window.naver.maps.Service.reverseGeocode({
+              coords: new window.naver.maps.LatLng(lat, lng)
+            }, (status: any, response: any) => {
+              if (status === window.naver.maps.Service.Status.OK) {
+                const address = response.result[0].address?.jibunAddress || 
+                              response.result[0].address?.roadAddress || 
+                              '주소를 찾을 수 없습니다';
+                setCurrentLocationAddress(address);
+                
+                if (onCurrentLocationFound) {
+                  onCurrentLocationFound({ lat, lng }, address);
+                }
+              } else {
+                console.warn('주소 역지오코딩 실패:', status);
+                setCurrentLocationAddress('주소를 찾을 수 없습니다');
+              }
+            });
+          } else {
+            setCurrentLocationAddress('주소 정보를 가져올 수 없습니다');
+          }
+        }
+      },
+      (error) => {
+        let errorMessage = '현재 위치를 가져올 수 없습니다.';
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = '위치 권한이 거부되었습니다. 브라우저 설정에서 위치 권한을 허용해주세요.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = '위치 정보를 사용할 수 없습니다. GPS가 켜져 있는지 확인해주세요.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = '위치 정보 요청 시간이 초과되었습니다. 다시 시도해주세요.';
+            break;
+          default:
+            errorMessage = `위치 오류: ${error.message}`;
+            break;
+        }
+        
+        console.warn('현재 위치를 가져올 수 없습니다:', errorMessage);
+        alert(errorMessage);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 300000
+      }
+    );
+  };
 
   // API 가용성 확인
   useEffect(() => {
@@ -122,6 +205,11 @@ const NaverMap: React.FC<NaverMapProps> = ({
       return;
     }
 
+    // 네이버 지도 객체가 부분 로드되거나 인증 실패 상태일 수 있으므로 추가 가드
+    if (!window.naver || !window.naver.maps || !window.naver.maps.LatLng || !window.naver.maps.Marker) {
+      return;
+    }
+
     try {
       // 기존 마커들 제거
       markersRef.current.forEach(marker => {
@@ -134,6 +222,11 @@ const NaverMap: React.FC<NaverMapProps> = ({
       // 새 마커들 추가
       markers.forEach((markerData) => {
         if (!markerData.position) return;
+
+        // 방어적 체크: API 객체가 사용 가능한지 다시 확인
+        if (!window.naver || !window.naver.maps || !window.naver.maps.LatLng) {
+          return;
+        }
 
         const position = new window.naver.maps.LatLng(
           markerData.position.lat,
@@ -179,10 +272,76 @@ const NaverMap: React.FC<NaverMapProps> = ({
         }
       });
 
+      // 현재 위치 마커 추가
+      if (showCurrentLocation && currentLocation) {
+        const currentPosition = new window.naver.maps.LatLng(
+          currentLocation.lat,
+          currentLocation.lng
+        );
+
+        const currentLocationMarker = new window.naver.maps.Marker({
+          position: currentPosition,
+          map: mapInstance.current,
+          title: '현재 위치',
+          icon: {
+            content: `
+              <div style="
+                width: 20px; 
+                height: 20px; 
+                background-color: #4285f4; 
+                border: 3px solid white; 
+                border-radius: 50%; 
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 12px;
+                font-weight: bold;
+              ">
+                📍
+              </div>
+            `,
+            size: new window.naver.maps.Size(20, 20),
+            anchor: new window.naver.maps.Point(10, 10)
+          }
+        });
+
+        markersRef.current.push(currentLocationMarker);
+
+        // 현재 위치 정보창
+        if (currentLocationAddress) {
+          const currentLocationInfoWindow = new window.naver.maps.InfoWindow({
+            content: `
+              <div style="padding: 10px; min-width: 200px;">
+                <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold; color: #4285f4;">📍 현재 위치</h3>
+                <p style="margin: 0; font-size: 14px; color: #666;">${currentLocationAddress}</p>
+              </div>
+            `,
+            borderWidth: 0,
+            backgroundColor: '#fff',
+            borderRadius: '8px'
+          });
+
+          window.naver.maps.Event.addListener(currentLocationMarker, 'click', () => {
+            if (isMountedRef.current) {
+              currentLocationInfoWindow.open(mapInstance.current, currentLocationMarker);
+            }
+          });
+        }
+      }
+
     } catch (error) {
       console.error('마커 생성 실패:', error);
     }
-  }, [markers, onMarkerClick, isMapReady, isApiAvailable]);
+  }, [markers, onMarkerClick, isMapReady, isApiAvailable, showCurrentLocation, currentLocation, currentLocationAddress]);
+
+  // 현재 위치 자동 가져오기
+  useEffect(() => {
+    if (showCurrentLocation && isMapReady && isApiAvailable) {
+      getCurrentLocation();
+    }
+  }, [showCurrentLocation, isMapReady, isApiAvailable]);
 
   // 컴포넌트 언마운트 시 cleanup
   useEffect(() => {
@@ -213,7 +372,7 @@ const NaverMap: React.FC<NaverMapProps> = ({
   }, []);
 
   // API가 사용 불가능하거나 오류가 있는 경우 fallback UI
-  if (!isApiAvailable || error) {
+  if ((window as any).__NAVER_MAPS_AUTH_FAILED__ || !isApiAvailable || error) {
     return (
       <div 
         style={{ 
@@ -233,20 +392,20 @@ const NaverMap: React.FC<NaverMapProps> = ({
       >
         <div style={{ fontSize: '48px', marginBottom: '16px' }}>🗺️</div>
         <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '8px' }}>
-          {error ? '네이버 지도 API 인증 실패' : '지도 로딩 중...'}
+          {(window as any).__NAVER_MAPS_AUTH_FAILED__ || error ? '네이버 지도 API 인증 실패' : '지도 로딩 중...'}
         </div>
         <div style={{ fontSize: '14px', textAlign: 'center', maxWidth: '300px' }}>
-          {error 
+          {(window as any).__NAVER_MAPS_AUTH_FAILED__ || error 
             ? '네이버 지도 API 인증에 실패했습니다. Client ID와 도메인 설정을 확인해주세요.'
             : '네이버 지도 API를 로드하고 있습니다.'
           }
         </div>
-        {error && (
+        {(window as any).__NAVER_MAPS_AUTH_FAILED__ && (
           <div style={{ fontSize: '12px', color: '#dc3545', marginTop: '8px', textAlign: 'center' }}>
             🔧 해결 방법: 네이버 클라우드 플랫폼에서 localhost:3001 도메인 등록
           </div>
         )}
-        {error && (
+        {(window as any).__NAVER_MAPS_AUTH_FAILED__ && (
           <button
             onClick={() => window.location.reload()}
             style={{
@@ -275,7 +434,8 @@ const NaverMap: React.FC<NaverMapProps> = ({
         borderRadius: '8px',
         overflow: 'hidden',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        backgroundColor: '#f0f0f0'
+        backgroundColor: '#f0f0f0',
+        position: 'relative'
       }}
     >
       {!isMapReady && (
@@ -292,6 +452,43 @@ const NaverMap: React.FC<NaverMapProps> = ({
           <div style={{ fontSize: '24px', marginBottom: '8px' }}>🗺️</div>
           <div style={{ fontSize: '14px' }}>지도 로딩 중...</div>
         </div>
+      )}
+      
+      {/* 현재 위치 버튼 */}
+      {showCurrentLocation && isMapReady && (
+        <button
+          onClick={getCurrentLocation}
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 1000,
+            backgroundColor: '#4285f4',
+            color: 'white',
+            border: 'none',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+            fontSize: '16px',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#3367d6';
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#4285f4';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+          title="현재 위치로 이동"
+        >
+          📍
+        </button>
       )}
     </div>
   );

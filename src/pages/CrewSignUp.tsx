@@ -3,13 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { User, ArrowLeft, Eye, EyeOff, AlertCircle, ChevronDown, ChevronUp, Mail } from 'lucide-react';
 import Navbar from '../components/Navbar';
-import NaverConsentModal from '../components/NaverConsentModal';
+import NaverLogin from '../components/NaverLogin';
 import KakaoConsentModal from '../components/KakaoConsentModal';
 import GoogleLogin from '../components/GoogleLogin';
 import AppleLogin from '../components/AppleLogin';
 
 const CrewSignUp: React.FC = () => {
-  const [showNaverConsent, setShowNaverConsent] = useState(false);
   const [showKakaoConsent, setShowKakaoConsent] = useState(false);
   const navigate = useNavigate();
   const { signUp } = useAuth();
@@ -26,21 +25,6 @@ const CrewSignUp: React.FC = () => {
   const [socialLoading, setSocialLoading] = useState(false);
   const [showDirectInput, setShowDirectInput] = useState(false);
 
-  const handleNaverSignUpClick = () => {
-    setShowNaverConsent(true);
-  };
-
-  const handleNaverConsentAgree = () => {
-    setShowNaverConsent(false);
-    const clientId = process.env.REACT_APP_NAVER_CLIENT_ID || 'R0oImlUQC6DqKKV_V5BR';
-    const redirectUri = encodeURIComponent(`${window.location.origin}/auth/naver/callback`);
-    const state = encodeURIComponent('jobseeker|signup');
-    const scope = encodeURIComponent('name,email,mobile');
-    
-    const naverLoginUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`;
-    
-    window.location.href = naverLoginUrl;
-  };
 
   const handleKakaoSignUpClick = () => setShowKakaoConsent(true);
 
@@ -127,16 +111,17 @@ const CrewSignUp: React.FC = () => {
           <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
             <div className="grid grid-cols-1 gap-3">
               {/* 네이버 */}
-              <button
-                onClick={handleNaverSignUpClick}
-                className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none">
-                  <rect width="24" height="24" rx="4" fill="#03C75A"/>
-                  <path d="M16.273 12.845L13.376 8.5H11.624L8.727 12.845L11.624 17.19H13.376L16.273 12.845Z" fill="white"/>
-                </svg>
-                네이버로 회원가입
-              </button>
+              <NaverLogin
+                selectedRole="jobseeker"
+                onSuccess={() => {
+                  console.log('네이버 로그인 성공');
+                  setSocialLoading(false);
+                }}
+                onError={(error) => {
+                  setError(error);
+                  setSocialLoading(false);
+                }}
+              />
 
               {/* 카카오 */}
               <button
@@ -344,13 +329,6 @@ const CrewSignUp: React.FC = () => {
       </div>
 
       {/* 소셜 로그인 정보제공 동의 모달들 */}
-      <NaverConsentModal
-        isOpen={showNaverConsent}
-        onClose={() => setShowNaverConsent(false)}
-        onAgree={handleNaverConsentAgree}
-        selectedRole="jobseeker"
-      />
-      
       <KakaoConsentModal
         isOpen={showKakaoConsent}
         onClose={() => setShowKakaoConsent(false)}

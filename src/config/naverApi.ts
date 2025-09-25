@@ -23,9 +23,9 @@ export const NAVER_LOGIN_CONFIG = {
   // 로그인 API 전용 Client ID (지도 API와 다름)
   CLIENT_ID: process.env.REACT_APP_NAVER_LOGIN_CLIENT_ID || 'R0oImlUQC6DqKKV_V5BR',
   // 로그인 API는 Secret이 필요함 (서버 사이드에서 사용)
-  CLIENT_SECRET: process.env.REACT_APP_NAVER_LOGIN_CLIENT_SECRET || 'bn75KcSeew8y60QMs1q9sRROugdhqtfnXv4kvir1',
+  CLIENT_SECRET: process.env.REACT_APP_NAVER_LOGIN_CLIENT_SECRET || 'dKhvaDBUvY',
   // 로그인 시 요청할 정보 범위
-  SCOPE: 'name,email,mobile',
+  SCOPE: 'name email mobile mobile_e164',
   // 콜백 URL
   REDIRECT_URI: `${window.location.origin}/auth/naver/callback`,
 } as const;

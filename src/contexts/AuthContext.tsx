@@ -399,21 +399,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // 네이버 로그인 함수
   const signInWithNaver = async (naverUser: any, role = 'jobseeker') => {
     try {
-      const phoneNumber = naverUser.mobile || naverUser.phone || '';
-      console.log('🔐 네이버 로그인:', naverUser.name, '전화번호:', phoneNumber);
+      const phoneNumber = naverUser.mobile || naverUser.mobile_e164 || naverUser.contactPhone || naverUser.phone || '';
+      console.log('🔐 네이버 로그인:', naverUser.name || naverUser.displayName, '전화번호:', phoneNumber);
+
+      // uid 산출: id/naverId/uid 모두 허용
+      const rawId: string | undefined =
+        (typeof naverUser.id === 'string' && naverUser.id) ||
+        (typeof naverUser.naverId === 'string' && naverUser.naverId) ||
+        (typeof naverUser.uid === 'string' && naverUser.uid.startsWith('naver_')
+          ? naverUser.uid.replace(/^naver_/, '')
+          : undefined);
+      const uidToUse = (typeof naverUser.uid === 'string' && naverUser.uid.startsWith('naver_'))
+        ? naverUser.uid
+        : (rawId ? `naver_${rawId}` : '');
+
+      if (!uidToUse) {
+        throw new Error('네이버 사용자 UID를 결정할 수 없습니다. (id/naverId/uid 없음)');
+      }
       
       // Firestore에서 기존 사용자 정보 확인
-      const userDoc = doc(db, 'users', `naver_${naverUser.id}`);
+      const userDoc = doc(db, 'users', uidToUse);
       const userSnapshot = await getDoc(userDoc);
-      
+
       let userInfo: User;
-      
+
       if (userSnapshot.exists()) {
         // 기존 사용자인 경우 Firestore 데이터 사용
-        const existingData = userSnapshot.data();
-        
+        const existingData = userSnapshot.data() as any;
+
         // 회사 정보 확인 (companies 컬렉션에서)
-        let companyData = null;
+        let companyData = null as any;
         if (existingData.companyId) {
           try {
             const companyDoc = doc(db, 'companies', existingData.companyId);
@@ -435,19 +450,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else {
           console.log('❌ companyId 없음');
         }
-        
+
         userInfo = {
-          uid: `naver_${naverUser.id}`,
+          uid: uidToUse,
           email: naverUser.email || existingData.email || '',
-          displayName: naverUser.name || existingData.displayName || '',
-          role: existingData.role || role, // Firestore의 역할 우선 사용
+          displayName: naverUser.name || naverUser.displayName || existingData.displayName || '',
+          role: existingData.role || role,
           workplaceName: existingData.workplaceName || '',
           workplaceLocation: existingData.workplaceLocation || '',
           contactPerson: existingData.contactPerson || '',
           resume: existingData.resume || (role === 'jobseeker' ? { phone: phoneNumber } : undefined),
-          companyId: existingData.companyId || '', // 회사 참조
+          companyId: existingData.companyId || '',
           contactPhone: existingData.contactPhone || phoneNumber,
-          // 회사 정보는 companies 컬렉션에서만 가져옴 (users 컬렉션에는 저장하지 않음)
           ...(companyData && {
             companyName: companyData.name,
             companyAddress: companyData.address,
@@ -463,33 +477,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             images: companyData.images,
           }),
         };
-        } else {
+      } else {
         // 새 사용자인 경우 기본값으로 초기화
         userInfo = {
-          uid: `naver_${naverUser.id}`,
+          uid: uidToUse,
           email: naverUser.email || '',
-          displayName: naverUser.name || '',
+          displayName: naverUser.name || naverUser.displayName || '',
           role: role,
-          // 기본값들
           workplaceName: '',
           workplaceLocation: '',
           contactPerson: '',
-          resume: role === 'jobseeker' ? {
-            phone: phoneNumber, // 이력서에도 전화번호 저장
-          } : undefined,
-          companyId: '', // 새 사용자는 회사 참조 없음
-          contactPhone: phoneNumber, // 개인 연락처로 사용
+          resume: role === 'jobseeker' ? { phone: phoneNumber } : undefined,
+          companyId: '',
+          contactPhone: phoneNumber,
         };
       }
 
-      // localStorage에 사용자 정보 저장
+      // localStorage에 사용자 정보 저장 및 상태 반영
       localStorage.setItem('user', JSON.stringify(userInfo));
       setUser(userInfo);
       setLoading(false);
-      
+
       console.log('💾 localStorage에 사용자 정보 저장 완료:', userInfo.displayName);
       console.log('✅ 네이버 로그인 완료:', userInfo.displayName, '역할:', userInfo.role);
-      
+
     } catch (error) {
       console.error('❌ 네이버 로그인 실패:', error);
       throw error;

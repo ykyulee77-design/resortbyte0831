@@ -114,21 +114,31 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
   const handleDownload = async () => {
     setDownloading(true);
+    let url: string | null = null;
+    const a = document.createElement('a');
     try {
       const response = await fetch(mediaUrl);
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      url = window.URL.createObjectURL(blob);
       a.href = url;
       a.download = `${resortName}_${mediaType}_${Date.now()}.${mediaType === 'image' ? 'jpg' : 'mp4'}`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
     } catch (error) {
       console.error('다운로드 실패:', error);
       alert('다운로드에 실패했습니다.');
     } finally {
+      // 다음 틱에서 정리하여 React 언마운트/리렌더와 충돌 방지
+      setTimeout(() => {
+        if (url) {
+          try { window.URL.revokeObjectURL(url); } catch {}
+        }
+        try {
+          if (a && a.parentNode) {
+            a.parentNode.removeChild(a);
+          }
+        } catch {}
+      }, 0);
       setDownloading(false);
     }
   };

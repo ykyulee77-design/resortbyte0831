@@ -3,7 +3,7 @@ const axios = require('axios');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT) || 4000;
 
 // 성능 모니터링 미들웨어
 const performanceMonitor = (req, res, next) => {
@@ -45,7 +45,7 @@ app.use('/api/', apiLimiter);
 
 // CORS 설정 (더 구체적으로)
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3005', 'http://127.0.0.1:3005', 'http://localhost:3001', 'http://127.0.0.1:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -141,7 +141,22 @@ app.get('/api/geocode', async (req, res) => {
       headers: { 'Content-Type': 'application/json' },
       timeout: 10000,
     });
-    return { type: 'public', data: response.data };
+
+    // 공공데이터 포털 응답을 네이버 형식과 동일하게 정규화
+    const jusoList = response.data?.results?.juso || [];
+    const addresses = jusoList.map((j) => ({
+      zipCode: j.zipNo || '',
+      address: j.roadAddr || j.jibunAddr || '',
+      roadAddress: j.roadAddr || '',
+      jibunAddress: j.jibunAddr || '',
+      buildingName: j.bdNm || '',
+      sido: j.siNm || '',
+      sigungu: j.sggNm || '',
+      roadName: j.rn || '',
+      buildingNumber: j.buldMnnm ? `${j.buldMnnm}${j.buldSlno ? '-' + j.buldSlno : ''}` : '',
+    }));
+
+    return { type: 'public', data: { addresses } };
   };
 
   try {
@@ -186,7 +201,7 @@ app.get('/api/geocode/coordinates', async (req, res) => {
     
     // 네이버 API 키 확인 (기존 키 사용)
     const clientId = 'c4d9638auv'; // 기존에 사용 중인 키
-    const clientSecret = 'your_naver_client_secret_here'; // 임시로 설정
+    const clientSecret = 'bn75KcSeew8y60QMs1q9sRROugdhqtfnXv4kvir1'; // 실제 시크릿 키
     
     // 실제 네이버 지오코딩 API 호출 시도
     console.log('🌐 네이버 지오코딩 API 호출 시도');
@@ -387,7 +402,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // 404 처리
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     error: '요청한 엔드포인트를 찾을 수 없습니다.',
     errorCode: 'NOT_FOUND'
@@ -403,35 +418,13 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 사용 가능한 포트 찾기 함수
-const findAvailablePort = async (startPort) => {
-  const net = require('net');
-  
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    
-    server.listen(startPort, () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-    
-    server.on('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        resolve(findAvailablePort(startPort + 1));
-      } else {
-        reject(err);
-      }
-    });
-  });
-};
+// (고정 포트 사용) 사용 가능한 포트 탐색 제거
 
-// 서버 시작 (포트 충돌 처리 포함)
+// 서버 시작 (포트 고정)
 const startServer = async () => {
   try {
-    const availablePort = await findAvailablePort(PORT);
-    
-    const server = app.listen(availablePort, () => {
-      console.log(`🚀 주소 검색 API 서버가 http://localhost:${availablePort}에서 실행 중입니다.`);
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 주소 검색 API 서버가 http://localhost:${PORT}에서 실행 중입니다.`);
       console.log(`📋 사용 가능한 엔드포인트:`);
       console.log(`   - GET /api/geocode?query=<검색어> - 주소 검색`);
       console.log(`   - GET /api/geocode/coordinates?address=<주소> - 지오코딩 (향후 구현)`);

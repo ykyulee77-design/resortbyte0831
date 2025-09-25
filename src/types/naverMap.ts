@@ -21,6 +21,8 @@ export interface NaverMapProps {
   }>;
   onMapClick?: (event: any, latLng: any) => void;
   onMarkerClick?: (marker: any) => void;
+  showCurrentLocation?: boolean;
+  onCurrentLocationFound?: (location: {lat: number, lng: number}, address: string) => void;
 }
 
 export interface AddressSearchResult {

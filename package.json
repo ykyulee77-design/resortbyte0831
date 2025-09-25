@@ -10,6 +10,11 @@
     "@types/node": "^16.11.56",
     "@types/react": "^18.0.17",
     "@types/react-dom": "^18.0.6",
+    "axios": "^1.12.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
     "firebase": "^9.9.0",
     "lucide-react": "^0.544.0",
     "react": "^18.2.0",
@@ -20,7 +25,11 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "set PORT=3005 && react-scripts start",
+    "start:web": "cross-env PORT=3005 REACT_APP_BACKEND_URL=http://localhost:4000 react-scripts start",
+    "start:addr": "cross-env PORT=4000 node server.js",
+    "start:backend": "cross-env PORT=3004 node backend/server.js",
+    "start:all": "concurrently -k -r -n WEB,ADDR,BACK -c green,cyan,magenta \"npm:start:web\" \"npm:start:addr\" \"npm:start:backend\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -49,5 +58,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0"
   }
 }

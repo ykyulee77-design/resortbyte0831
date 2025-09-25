@@ -38,6 +38,7 @@ const AccommodationInfoPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(mode === 'edit');
   const [error, setError] = useState<string | null>(null);
+  const [mapCenter, setMapCenter] = useState<{lat: number, lng: number} | null>(null);
 
   // 이미지 관련 상태
   const [images, setImages] = useState<string[]>([]);
@@ -214,6 +215,142 @@ const AccommodationInfoPage: React.FC = () => {
 
     fetchAccommodationInfo();
   }, [employerId]);
+
+  // 주소는 있는데 좌표가 없거나 0일 때 자동 지오코딩으로 보정
+  useEffect(() => {
+    // 서울 기본 좌표인지 확인 (37.5665, 126.9780)
+    const isSeoulDefault = accommodationInfo?.latitude === 37.5665 && accommodationInfo?.longitude === 126.9780;
+    
+    // 더 넓은 범위로 서울 좌표 감지 (37.5~37.6, 126.9~127.0)
+    const isSeoulRange = accommodationInfo?.latitude >= 37.5 && accommodationInfo?.latitude <= 37.6 && 
+                         accommodationInfo?.longitude >= 126.9 && accommodationInfo?.longitude <= 127.0;
+    
+    const needsGeocode = Boolean(
+      accommodationInfo?.address && (
+        !accommodationInfo.latitude || !accommodationInfo.longitude ||
+        Number.isNaN(accommodationInfo.latitude) || Number.isNaN(accommodationInfo.longitude) ||
+        isSeoulDefault || isSeoulRange // 서울 범위 좌표인 경우도 지오코딩 실행
+      )
+    );
+    
+    console.log('자동 지오코딩 체크:', {
+      hasAddress: !!accommodationInfo?.address,
+      hasLatitude: !!accommodationInfo?.latitude,
+      hasLongitude: !!accommodationInfo?.longitude,
+      needsGeocode,
+      address: accommodationInfo?.address,
+      currentLatitude: accommodationInfo?.latitude,
+      currentLongitude: accommodationInfo?.longitude,
+      isSeoulDefault,
+      isSeoulRange,
+      reason: isSeoulDefault ? '서울 기본 좌표 감지' : 
+              isSeoulRange ? '서울 범위 좌표 감지' : '기타 조건'
+    });
+    
+    if (!needsGeocode || !employerId) return;
+
+    const run = async () => {
+      try {
+        console.log('자동 지오코딩 시작:', accommodationInfo.address);
+        
+        // 네이버 클라이언트 사이드 지오코딩 사용
+        if (window.naver && window.naver.maps && window.naver.maps.Service) {
+          console.log('네이버 클라이언트 지오코딩 사용');
+          
+          await new Promise<void>((resolve, reject) => {
+            window.naver.maps.Service.geocode({
+              query: accommodationInfo.address
+            }, (status: any, response: any) => {
+              try {
+                console.log('네이버 지오코딩 응답:', { status, response });
+                
+                if (status !== window.naver.maps.Service.Status.OK) {
+                  console.warn('네이버 지오코딩 실패:', status);
+                  return reject(new Error(`지오코딩 실패: ${status}`));
+                }
+                
+                console.log('네이버 지오코딩 응답 구조:', {
+                  response: response,
+                  result: response?.result,
+                  items: response?.result?.items,
+                  length: response?.result?.items?.length
+                });
+                
+                const result = response.result;
+                if (result && result.items && result.items.length > 0) {
+                  const item = result.items[0];
+                  console.log('첫 번째 아이템:', item);
+                  const lat = parseFloat(item.point.y);
+                  const lng = parseFloat(item.point.x);
+                  
+                  console.log('네이버 지오코딩 성공:', { lat, lng, address: accommodationInfo.address });
+                  
+                  setAccommodationInfo((prev: any) => ({ ...(prev || {}), latitude: lat, longitude: lng }));
+                  setEditData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+                  
+                  // 지도 중심도 업데이트
+                  console.log('지도 중심 업데이트:', { lat, lng });
+                  setMapCenter({ lat, lng });
+                  
+                  // 강제로 지도 리렌더링을 위한 상태 업데이트
+                  setTimeout(() => {
+                    setMapCenter({ lat, lng });
+                    console.log('지도 중심 강제 업데이트:', { lat, lng });
+                  }, 100);
+
+                  try {
+                    const targetRef = doc(db, 'accommodationInfo', employerId);
+                    updateDoc(targetRef, { latitude: lat, longitude: lng, updatedAt: serverTimestamp() });
+                    console.log('데이터베이스 업데이트 완료');
+                  } catch (error) {
+                    console.error('데이터베이스 업데이트 실패:', error);
+                  }
+                  
+                  resolve();
+                } else {
+                  console.warn('지오코딩 결과가 없습니다');
+                  console.log('응답 구조 분석:', {
+                    hasResult: !!result,
+                    hasItems: !!result?.items,
+                    itemsLength: result?.items?.length,
+                    fullResponse: response
+                  });
+                  
+                  // 다른 가능한 응답 구조 확인
+                  if (response && response.v2 && response.v2.addresses) {
+                    console.log('v2.addresses 구조 발견:', response.v2.addresses);
+                    const addresses = response.v2.addresses;
+                    if (addresses.length > 0) {
+                      const addr = addresses[0];
+                      const lat = parseFloat(addr.y);
+                      const lng = parseFloat(addr.x);
+                      console.log('v2.addresses에서 좌표 추출:', { lat, lng });
+                      
+                      setAccommodationInfo((prev: any) => ({ ...(prev || {}), latitude: lat, longitude: lng }));
+                      setEditData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+                      setMapCenter({ lat, lng });
+                      resolve();
+                      return;
+                    }
+                  }
+                  
+                  reject(new Error('지오코딩 결과가 없습니다'));
+                }
+              } catch (error) {
+                console.error('지오코딩 처리 중 오류:', error);
+                reject(error);
+              }
+            });
+          });
+        } else {
+          console.warn('네이버 지도 API를 사용할 수 없습니다');
+        }
+      } catch (error) {
+        console.error('자동 지오코딩 실패:', error);
+      }
+    };
+    run();
+  }, [accommodationInfo?.address, accommodationInfo?.latitude, accommodationInfo?.longitude, employerId]);
 
 
 
@@ -525,6 +662,13 @@ const AccommodationInfoPage: React.FC = () => {
                         latitude: address.latitude || null,
                         longitude: address.longitude || null
                       }));
+                      // 지도 중심도 업데이트
+                      if (address.latitude && address.longitude) {
+                        setMapCenter({
+                          lat: address.latitude,
+                          lng: address.longitude
+                        });
+                      }
                     }}
                     placeholder="기숙사 주소를 검색하세요 (예: 서울특별시 강남구 테헤란로 427)"
                     value={editData.address}
@@ -945,11 +1089,19 @@ const AccommodationInfoPage: React.FC = () => {
                     >
                       {accommodationInfo?.address ? (
                         <NaverMap
-                          key={`main-${accommodationInfo.latitude}-${accommodationInfo.longitude}-${Date.now()}`}
-                          center={{
-                            lat: accommodationInfo.latitude || 37.5665,
-                            lng: accommodationInfo.longitude || 126.9780
-                          }}
+                          key={`main-${accommodationInfo.latitude}-${accommodationInfo.longitude}-${mapCenter?.lat}-${mapCenter?.lng}-${Date.now()}-${Math.random()}`}
+                          center={(() => {
+                            const center = mapCenter || {
+                              lat: accommodationInfo.latitude || 37.5665,
+                              lng: accommodationInfo.longitude || 126.9780
+                            };
+                            console.log('지도 중심 설정:', center, 'mapCenter:', mapCenter, 'accommodationInfo:', {
+                              lat: accommodationInfo.latitude,
+                              lng: accommodationInfo.longitude
+                            });
+                            console.log('지도 중심이 서울인가?', center.lat === 37.5665 && center.lng === 126.978);
+                            return center;
+                          })()}
                           zoom={15}
                           markers={[
                             {
@@ -1322,8 +1474,8 @@ const AccommodationInfoPage: React.FC = () => {
             <div className="flex-1 relative">
               {accommodationInfo?.address ? (
                 <NaverMap
-                  key={`fullscreen-${accommodationInfo.latitude}-${accommodationInfo.longitude}-${Date.now()}`}
-                  center={{
+                  key={`fullscreen-${accommodationInfo.latitude}-${accommodationInfo.longitude}-${mapCenter?.lat}-${mapCenter?.lng}-${Date.now()}`}
+                  center={mapCenter || {
                     lat: accommodationInfo.latitude || 37.5665,
                     lng: accommodationInfo.longitude || 126.9780
                   }}

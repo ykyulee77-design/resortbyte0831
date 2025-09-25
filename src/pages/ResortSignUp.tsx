@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, AlertCircle, Building, ArrowLeft, ChevronDown, ChevronUp, Mail, MapPin, Users } from 'lucide-react';
 import Navbar from '../components/Navbar';
-// import NaverLogin from '../components/NaverLogin';
+import NaverLogin from '../components/NaverLogin';
 import NaverConsentModal from '../components/NaverConsentModal';
 import KakaoLogin from '../components/KakaoLogin';
 import GoogleLogin from '../components/GoogleLogin';
 import AppleLogin from '../components/AppleLogin';
 import AddressSearch, { Address } from '../components/AddressSearch';
+import AddressMarkerMap from '../components/AddressMarkerMap';
 
 const ResortSignUp: React.FC = () => {
   // 회사 정보 (1단계)
@@ -44,8 +45,22 @@ const ResortSignUp: React.FC = () => {
   const [showDirectInput, setShowDirectInput] = useState(false);
   const [currentStep, setCurrentStep] = useState(1); // 1: 회사정보, 2: 담당자정보
   const [newBenefit, setNewBenefit] = useState('');
-  const { signUp } = useAuth();
+  const { signUp, user } = useAuth();
   const navigate = useNavigate();
+
+  // 콜백 후 자동 채우기: 담당자 이름/이메일/전화번호
+  useEffect(() => {
+    const stored = (() => {
+      try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
+    })();
+    const src = (user as any) || stored || {};
+    const next = { ...contactData };
+    let changed = false;
+    if (!next.displayName && src.displayName) { next.displayName = src.displayName; changed = true; }
+    if (!next.email && src.email) { next.email = src.email; changed = true; }
+    if (!next.contactPhone && (src.contactPhone || src.phoneNumber)) { next.contactPhone = src.contactPhone || src.phoneNumber; changed = true; }
+    if (changed) setContactData(next);
+  }, [user]);
 
   const handleNaverSignUpClick = () => {
     setShowNaverConsent(true);
@@ -269,24 +284,17 @@ const ResortSignUp: React.FC = () => {
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-3">
-              <button
-                onClick={handleNaverSignUpClick}
-                className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-              >
-                <svg
-                  className="w-5 h-5 mr-2"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <rect width="24" height="24" rx="4" fill="#03C75A"/>
-                  <path
-                    d="M16.273 12.845L13.376 8.5H11.624L8.727 12.845L11.624 17.19H13.376L16.273 12.845Z"
-                    fill="white"
-                  />
-                </svg>
-                네이버로 회원가입
-              </button>
+              <NaverLogin
+                selectedRole="employer"
+                onSuccess={() => {
+                  // 콜백 이후 이 페이지로 돌아오면 회사정보 입력을 이어갑니다
+                  setSocialLoading(false);
+                }}
+                onError={(error) => {
+                  setError(error);
+                  setSocialLoading(false);
+                }}
+              />
               <KakaoLogin
                 selectedRole="employer"
                 onSuccess={() => {
@@ -400,6 +408,11 @@ const ResortSignUp: React.FC = () => {
                         <MapPin className="w-4 h-4 text-gray-400 mr-2" />
                         <span className="text-sm text-gray-700">{companyData.companyAddress}</span>
                       </div>
+                    </div>
+                  )}
+                  {companyData.companyAddress && (
+                    <div className="mt-3">
+                      <AddressMarkerMap address={companyData.companyAddress} height={320} />
                     </div>
                   )}
                   <input
